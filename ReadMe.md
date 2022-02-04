@@ -132,4 +132,4 @@ This section will be added in the near future.  The library has been used mostly
 
 Examples for each use case are shown below:
 
-<TODO>
+*doc will be added during first part of February 2022*
