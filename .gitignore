@@ -1,0 +1,9 @@
+/local.properties
+/.gradle/
+/.idea/
+/commonMain/build/
+/commonMain/.gradle/
+/build/
+/KmpIO/build/
+*.iml
+local.properties
