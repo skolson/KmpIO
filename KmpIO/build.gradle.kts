@@ -26,7 +26,7 @@ group = "com.oldguy"
 version = "0.1.0"
 
 val androidMinSdk = 24
-val androidTargetSdkVersion = 32
+val androidTargetSdkVersion = 31
 val iosMinSdk = "14"
 val kmpPackageName = "com.oldguy.common.io"
 
@@ -129,6 +129,7 @@ kotlin {
             }
         }
     }
+    /*
     iosX64 {
         binaries {
             framework {
@@ -148,6 +149,7 @@ kotlin {
             }
         }
     }
+     */
 
     sourceSets {
         val commonMain by getting {
@@ -179,6 +181,7 @@ kotlin {
         }
         val appleNativeTest by creating {
             kotlin.srcDir("src/appleNativeTest/kotlin")
+            dependsOn(commonMain)
             dependencies {
                 implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0")
@@ -187,6 +190,7 @@ kotlin {
                 optIn("kotlin.ExperimentalCoroutinesApi")
             }
         }
+        /*
         val iosX64Main by getting {
             dependsOn(appleNativeMain)
         }
@@ -199,6 +203,7 @@ kotlin {
         val iosArm64Main by getting {
             dependsOn(appleNativeMain)
         }
+         */
         val macosX64Main by getting {
             dependsOn(appleNativeMain)
         }
@@ -249,8 +254,4 @@ kotlin {
 signing {
     isRequired = false
     sign(publishing.publications)
-}
-
-dependencies {
-    implementation("androidx.core:core-ktx:1.7.0")
 }
