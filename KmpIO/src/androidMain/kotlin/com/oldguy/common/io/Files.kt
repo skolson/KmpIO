@@ -11,7 +11,7 @@ import java.util.*
 import kotlin.io.use as kotlinIoUse
 
 @Suppress("UNUSED_PARAMETER")
-actual class Files actual constructor(charsetName: String) {
+actual class Charset actual constructor(charsetName: String) {
     val javaCharset: java.nio.charset.Charset = java.nio.charset.Charset.forName(charsetName)
     private val encoder = javaCharset.newEncoder()
     private val decoder = javaCharset.newDecoder()
@@ -301,7 +301,7 @@ actual class RawFile actual constructor(
  */
 actual class TextFile actual constructor(
     val file: File,
-    charset: Files,
+    charset: Charset,
     val mode: FileMode,
     source: FileSource
 ) : Closeable {
@@ -311,7 +311,7 @@ actual class TextFile actual constructor(
 
     constructor(
         file: File,
-        charset: Files,
+        charset: Charset,
         mode: FileMode,
         stream: InputStream
     ) : this(file, charset, mode, FileSource.Asset) {
@@ -320,7 +320,7 @@ actual class TextFile actual constructor(
 
     constructor(
         file: File,
-        charset: Files,
+        charset: Charset,
         mode: FileMode,
         stream: OutputStream
     ) : this(file, charset, mode, FileSource.Asset) {
@@ -352,7 +352,7 @@ actual class TextFile actual constructor(
 
     actual constructor(
         filePath: String,
-        charset: Files,
+        charset: Charset,
         mode: FileMode,
         source: FileSource
     ) : this(File(filePath), charset, mode, source)

@@ -1,37 +1,11 @@
 package com.oldguy.common.io
 
-data class ZipEntry(
-    val name: String,
-    val comment: String? = null,
-    val extra: ByteArray? = null
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || this::class != other::class) return false
-
-        other as ZipEntry
-
-        if (name != other.name) return false
-        if (comment != other.comment) return false
-        if (!extra.contentEquals(other.extra)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + comment.hashCode()
-        result = 31 * result + extra.contentHashCode()
-        return result
-    }
-}
-
-expect class ZipFile(
+actual class ZipFile actual constructor(
     file: File,
-    mode: Mode = Mode.Read,
-    charset: Charset = Charset(Charset.UTF_8)
+    mode: Mode,
+    charset: Charset
 ) {
-    enum class Mode {
+    actual enum class Mode {
         Read, Write
     }
 
@@ -39,37 +13,45 @@ expect class ZipFile(
      * Used only for text entries.  Defaults to the standard for the platform in use. Typically either
      * "\n" or "\r\n".
      */
-    var lineSeparator: String
+    actual var lineSeparator: String
+        get() = TODO("Not yet implemented")
+        set(value) {}
 
     /**
      * Implementations should return the current list of entries for the zip file. On Mode Read
      * files, if file is not a Zip os some other error occurs, an IOException is thrown.
      */
-    val entries: List<ZipEntry>
-    val isOpen: Boolean
+    actual val entries: List<ZipEntry>
+        get() = TODO("Not yet implemented")
+    actual val isOpen: Boolean
+        get() = TODO("Not yet implemented")
 
     /**
      * Opens the ZipFile specified.
      */
-    fun open()
+    actual fun open() {
+    }
 
     /**
      * Closes the ZipFile specified, and frees any associated buffers or resources
      */
-    fun close()
+    actual fun close() {
+    }
 
     /**
      * Convenience method, opens current zip file, invokes lambda, closes file.
      * @param block for a Mode Write file, perform all AddEntry or AddTextEntry calls desired.
      * For a Mode Read file, perform all ReadEntry or ReadTextEntry calls needed.
      */
-    fun use(block: () -> Unit)
+    actual fun use(block: () -> Unit) {
+    }
 
     /**
      * Add an empty entry, typically used for directories.  Note that emtpy directories should have
      * and entry name ending in '/'
      */
-    fun addEntry(entry: ZipEntry)
+    actual fun addEntry(entry: ZipEntry) {
+    }
 
     /**
      * Use this to add a new Entry, and use the lambda to provide content to the entry.
@@ -83,11 +65,12 @@ expect class ZipFile(
      * zero and [bufferSize]. Return zero to indicate entry is complete and should be closed,
      * resulting in [addEntry] being complete.
      */
-    suspend fun addEntry(
+    actual suspend fun addEntry(
         entry: ZipEntry,
-        bufferSize: Int = 4096,
+        bufferSize: Int,
         block: suspend (content: ByteArray) -> Int
-    )
+    ) {
+    }
 
     /**
      * Use this to add a new Entry, and use the lambda to provide content to the entry.
@@ -98,12 +81,13 @@ expect class ZipFile(
      * encoded with the specified Charset and written to the entry output. If
      * String returned is empty, write process stops, entry is closed and [addTextEntry] completes.
      */
-    suspend fun addTextEntry(
+    actual suspend fun addTextEntry(
         entry: ZipEntry,
         charset: Charset,
-        appendEol: Boolean = true,
+        appendEol: Boolean,
         block: suspend () -> String
-    )
+    ) {
+    }
 
     /**
      * For a mode read file, reads the specified entry if it exists, throws an exception if it does
@@ -115,12 +99,13 @@ expect class ZipFile(
      * to lambda contain the butes read, and a count of the number of bytes read.
      * @return the ZipEntry read, including its metadata
      */
-    suspend fun readEntry(
+    actual suspend fun readEntry(
         entryName: String,
-        bufferSize: Int = 4096,
+        bufferSize: Int,
         block: suspend (content: ByteArray, bytes: Int) -> Boolean
-    ): ZipEntry
-
+    ): ZipEntry {
+        TODO("Not yet implemented")
+    }
 
     /**
      * Read a text entry.
@@ -130,11 +115,13 @@ expect class ZipFile(
      * that it returns lines of unlimited size, which is bad in a large text file with no line breaks.
      * Only use readLine in cases where this is a manageable risk.
      */
-    suspend fun readTextEntry(
+    actual suspend fun readTextEntry(
         entryName: String,
-        bufferSize: Int = 0,
+        bufferSize: Int,
         block: suspend (text: String) -> Boolean
-    ): ZipEntry
+    ): ZipEntry {
+        TODO("Not yet implemented")
+    }
 
     /**
      * merges a set of input zip files into this zip file.  If duplicate entries are detected,
@@ -143,5 +130,8 @@ expect class ZipFile(
      *
      * @param zipFiles one ore more zip files to be merged
      */
-    fun merge(vararg zipFiles: ZipFile)
+    actual fun merge(vararg zipFiles: ZipFile) {
+    }
+
+
 }

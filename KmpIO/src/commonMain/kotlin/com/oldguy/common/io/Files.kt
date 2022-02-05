@@ -3,7 +3,7 @@ package com.oldguy.common.io
 class IOException(message: String, cause: Throwable? = null) :
     Exception(message, cause)
 
-expect class Files(charsetName: String) {
+expect class Charset(charsetName: String) {
     fun decode(bytes: ByteArray): String
     fun encode(inString: String): ByteArray
 
@@ -205,14 +205,14 @@ expect class RawFile(
  */
 expect class TextFile(
     file: File,
-    charset: Files = Files(Files.UTF_8),
+    charset: Charset = Charset(Charset.UTF_8),
     mode: FileMode = FileMode.Read,
     source: FileSource = FileSource.File
 ) : Closeable {
 
     constructor(
         filePath: String,
-        charset: Files = Files(Files.UTF_8),
+        charset: Charset = Charset(Charset.UTF_8),
         mode: FileMode = FileMode.Read,
         source: FileSource = FileSource.File
     )

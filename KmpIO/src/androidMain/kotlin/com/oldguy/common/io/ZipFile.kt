@@ -9,7 +9,7 @@ import java.util.zip.ZipOutputStream
 actual class ZipFile actual constructor(
     val file: File,
     private val mode: Mode,
-    val charset: Files
+    val charset: Charset
 ) {
 
     actual enum class Mode {
@@ -159,7 +159,7 @@ actual class ZipFile actual constructor(
     @Suppress("BlockingMethodInNonBlockingContext")
     actual suspend fun addTextEntry(
         entry: ZipEntry,
-        charset: Files,
+        charset: Charset,
         appendEol: Boolean,
         block: suspend () -> String
     ) {
