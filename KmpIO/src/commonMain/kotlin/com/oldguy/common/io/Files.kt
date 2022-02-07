@@ -1,22 +1,25 @@
 package com.oldguy.common.io
 
-class IOException(message: String, cause: Throwable? = null) :
-    Exception(message, cause)
+enum class Charsets(val charsetName: String) {
+    Utf8("UTF-8"),
+    Utf16le("UTF-16LE"),
+    Utf16be("UTF-16BE"),
+    Iso8859_1("ISO8859-1"),
+    UsAscii("US-ASCII");
 
-expect class Charset(charsetName: String) {
+    companion object {
+        fun fromName(name: String): Charsets {
+            return values().first { it.charsetName == name }
+        }
+    }
+}
+
+
+expect class Charset(set: Charsets) {
+
     fun decode(bytes: ByteArray): String
     fun encode(inString: String): ByteArray
 
-    companion object {
-        /**
-         * CharsetNames required to be supported
-         */
-        val UTF_8: String
-        val US_ASCII: String
-        val UTF_16LE: String
-        val ISO8859_1: String
-        val UTF_16: String
-    }
 }
 
 expect class TimeZones {
@@ -62,7 +65,6 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val isUri: Boolean
     val isUriString: Boolean
 
-    var parentFile: File?
     fun delete(): Boolean
     fun copy(destinationPath: String): File
     fun resolve(directoryName: String): File
@@ -99,24 +101,15 @@ expect class RawFile(
      * Current position of the file, in bytes. Can be changed, if attempt to set outside the limits
      * of the current file, an exception is thrown.
      */
-    var position: Long
+    var position: ULong
 
     /**
      * Current size of the file in bytes
      */
-    val size: Long
+    val size: ULong
 
 
-    var copyBlockSize: Int
-
-    /**
-     * Read bytes from a file, staring at the specified position.
-     * @param buf read buf.remaining bytes into byte buffer.
-     * @param position zero-relative position of file to start reading,
-     * or if default of -1, the current file position
-     * @return number of bytes actually read
-     */
-    fun read(buf: ByteBuffer, position: Long = -1): Int
+    var blockSize: UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
@@ -125,7 +118,16 @@ expect class RawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun read(buf: UByteBuffer, position: Long = -1): Int
+    fun read(buf: ByteBuffer, position: Long = -1): UInt
+
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param position zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @return number of bytes actually read
+     */
+    fun read(buf: UByteBuffer, position: Long = -1): UInt
 
     /**
      * Write bytes to a file, staring at the specified position.
@@ -164,7 +166,7 @@ expect class RawFile(
     fun copyTo(
         destination: RawFile, blockSize: Int = 0,
         transform: ((buffer: ByteBuffer, lastBlock: Boolean) -> ByteBuffer)? = null
-    ): Long
+    ): ULong
 
     /**
      * Copy a file. the optional lambda supports altering the output data on a block-by-block basis.
@@ -186,17 +188,17 @@ expect class RawFile(
         destination: RawFile,
         blockSize: Int = 0,
         transform: ((buffer: UByteBuffer, lastBlock: Boolean) -> UByteBuffer)? = null
-    ): Long
+    ): ULong
 
     /**
      * Copy a portion of the specified source file to the current file at the current position
      */
-    fun transferFrom(source: RawFile, startIndex: Long, length: Long): Long
+    fun transferFrom(source: RawFile, startIndex: ULong, length: ULong): ULong
 
     /**
      * Truncate the current file to the specified size.  Not usable on Mode.Read files.
      */
-    fun truncate(size: Long)
+    fun truncate(size: ULong)
 
 }
 
@@ -205,14 +207,14 @@ expect class RawFile(
  */
 expect class TextFile(
     file: File,
-    charset: Charset = Charset(Charset.UTF_8),
+    charset: Charset = Charset(Charsets.Utf8),
     mode: FileMode = FileMode.Read,
     source: FileSource = FileSource.File
 ) : Closeable {
 
     constructor(
         filePath: String,
-        charset: Charset = Charset(Charset.UTF_8),
+        charset: Charset = Charset(Charsets.Utf8),
         mode: FileMode = FileMode.Read,
         source: FileSource = FileSource.File
     )

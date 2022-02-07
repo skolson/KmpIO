@@ -2,9 +2,11 @@ package com.oldguy.common.io
 
 data class ZipEntry(
     val name: String,
-    val comment: String? = null,
-    val extra: ByteArray? = null
+    val comment: String,
+    val extra: ByteArray?
 ) {
+    constructor(name: String): this(name, "", null)
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -28,9 +30,11 @@ data class ZipEntry(
 
 expect class ZipFile(
     file: File,
-    mode: Mode = Mode.Read,
-    charset: Charset = Charset(Charset.UTF_8)
+    mode: Mode,
+    charset: Charset
 ) {
+    constructor(file: File)
+
     enum class Mode {
         Read, Write
     }

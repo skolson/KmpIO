@@ -11,6 +11,7 @@ actual class ZipFile actual constructor(
     private val mode: Mode,
     val charset: Charset
 ) {
+    actual constructor(file: File): this(file, Mode.Read, Charset(Charsets.Utf8))
 
     actual enum class Mode {
         Read, Write

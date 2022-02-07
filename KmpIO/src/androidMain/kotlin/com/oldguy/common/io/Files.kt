@@ -11,8 +11,9 @@ import java.util.*
 import kotlin.io.use as kotlinIoUse
 
 @Suppress("UNUSED_PARAMETER")
-actual class Charset actual constructor(charsetName: String) {
-    val javaCharset: java.nio.charset.Charset = java.nio.charset.Charset.forName(charsetName)
+actual class Charset actual constructor(val set: Charsets) {
+    val javaCharset: java.nio.charset.Charset = java.nio.charset.Charset.forName(set.charsetName)
+
     private val encoder = javaCharset.newEncoder()
     private val decoder = javaCharset.newDecoder()
 
@@ -21,7 +22,7 @@ actual class Charset actual constructor(charsetName: String) {
     }
 
     actual fun encode(inString: String): ByteArray {
-        return if (inString.uppercase().equals(UTF_8))
+        return if (set == Charsets.Utf8)
             inString.encodeToByteArray()
         else {
             val buf = encoder.encode(CharBuffer.wrap(inString))
@@ -29,15 +30,6 @@ actual class Charset actual constructor(charsetName: String) {
             buf.get(bytes)
             bytes
         }
-    }
-
-    actual companion object {
-        actual val UTF_8 = "UTF-8"
-        actual val US_ASCII = "US-ASCII"
-        actual val UTF_16LE = "UTF-16LE"
-        actual val ISO8859_1 = "ISO8859-1"
-        actual val UTF_16 = "UTF-16"
-        private val singleByteList = listOf(UTF_8, US_ASCII, ISO8859_1)
     }
 }
 
@@ -51,14 +43,10 @@ actual class TimeZones {
 
 actual class File actual constructor(val filePath: String, val platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
-            this(parentDirectory + name, null) {
-        parentFile = File(parentDirectory, null)
-    }
+            this(parentDirectory + name, null)
 
     actual constructor(parentDirectory: File, name: String) :
-            this("${parentDirectory.fullPath}$pathSeparator$name", null) {
-        parentFile = parentDirectory
-    }
+            this("${parentDirectory.fullPath}$pathSeparator$name", null)
 
     actual constructor(fd: FileDescriptor) : this("", fd)
 
@@ -69,7 +57,6 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
     actual val extension: String = javaFile.extension
     actual val path: String = javaFile.path.trimEnd(pathSeparator[0])
     actual val fullPath: String = javaFile.absolutePath.trimEnd(pathSeparator[0])
-    actual var parentFile: File? = null
     actual val isDirectory get() = javaFile.isDirectory
     actual val exists get() = javaFile.exists()
     actual val isUri = platformFd?.code == 1 && platformFd.descriptor is Uri
@@ -77,7 +64,7 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
     actual val listFiles: List<File>
         get() {
             return if (isDirectory)
-                javaFile.listFiles()?.map { File(it.absolutePath) } ?: emptyList()
+                javaFile.listFiles()?.map { File(it.absolutePath, null) } ?: emptyList()
             else
                 emptyList()
         }
@@ -110,7 +97,7 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
                 }
             }
         }
-        return File(dest.absolutePath)
+        return File(dest.absolutePath, null)
     }
 
     companion object {
@@ -144,15 +131,15 @@ actual class RawFile actual constructor(
         FileSource.File -> java.io.RandomAccessFile(file.fullPath, javaMode)
     }
 
-    actual var position: Long
-        get() = javaFile.channel.position()
+    actual var position: ULong
+        get() = javaFile.channel.position().toULong()
         set(value) {
-            javaFile.channel.position(value)
+            javaFile.channel.position(value.toLong())
         }
 
-    actual val size: Long get() = javaFile.length()
+    actual val size: ULong get() = javaFile.length().toULong()
 
-    actual var copyBlockSize = 4096
+    actual var blockSize = 4096u
 
     actual override fun close() {
         javaFile.channel.close()
@@ -165,14 +152,14 @@ actual class RawFile actual constructor(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    actual fun read(buf: com.oldguy.common.io.ByteBuffer, position: Long): Int {
+    actual fun read(buf: com.oldguy.common.io.ByteBuffer, position: Long): UInt {
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = if (position < 0)
             javaFile.channel.read(javaBuf)
         else
             javaFile.channel.read(javaBuf, position)
         buf.put(javaBuf.array())
-        return bytesRead
+        return bytesRead.toUInt()
     }
 
     /**
@@ -182,14 +169,14 @@ actual class RawFile actual constructor(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    actual fun read(buf: UByteBuffer, position: Long): Int {
+    actual fun read(buf: UByteBuffer, position: Long): UInt {
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = if (position < 0)
             javaFile.channel.read(javaBuf)
         else
             javaFile.channel.read(javaBuf, position)
         buf.put(javaBuf.array().toUByteArray())
-        return bytesRead
+        return bytesRead.toUInt()
     }
 
     actual fun write(buf: com.oldguy.common.io.ByteBuffer, position: Long) {
@@ -213,61 +200,75 @@ actual class RawFile actual constructor(
     actual fun copyTo(
         destination: RawFile, blockSize: Int,
         transform: ((buffer: com.oldguy.common.io.ByteBuffer, lastBlock: Boolean) -> com.oldguy.common.io.ByteBuffer)?
-    ): Long {
-        var bytesRead: Long = 0
+    ): ULong {
+        var bytesRead: ULong = 0u
         if (transform == null) {
             val channel = javaFile.channel
             val sourceSize = this.size
             while (bytesRead < sourceSize) {
                 bytesRead += channel.transferTo(
-                    bytesRead,
+                    bytesRead.toLong(),
                     channel.size(),
                     destination.javaFile.channel
-                )
+                ).toULong()
             }
             destination.close()
         } else {
-            val blkSize = if (blockSize <= 0) copyBlockSize else blockSize
-            val buffer = ByteBuffer(blkSize, isReadOnly = true)
-            var readCount = read(buffer)
-            while (readCount > 0) {
-                bytesRead += readCount.toLong()
+            val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
+            val buffer = ByteBuffer(blkSize.toInt(), isReadOnly = true)
+            var readCount = read(buffer, -1)
+            val fileSize = size
+            var bytesWritten = 0L
+            while (readCount > 0u) {
+                bytesRead += readCount
                 buffer.position = 0
-                buffer.limit = readCount
-                val outBuffer = transform(buffer, position >= size)
-                write(outBuffer)
-                readCount = read(buffer)
+                buffer.limit = readCount.toInt()
+                val lastBlock = position >= fileSize
+                val outBuffer = transform(buffer, lastBlock)
+                val count = outBuffer.remaining
+                destination.write(outBuffer, -1)
+                bytesWritten += count
+                readCount = if (lastBlock) 0u else read(buffer, -1L)
             }
         }
         close()
+        destination.close()
         return bytesRead
     }
 
     actual fun copyToU(
-        destination: RawFile, blockSize: Int,
+        destination: RawFile,
+        blockSize: Int,
         transform: ((buffer: UByteBuffer, lastBlock: Boolean) -> UByteBuffer)?
-    ): Long {
-        var bytesRead: Long = 0
+    ): ULong {
+        var bytesRead: ULong = 0u
         if (transform == null) {
             val channel = javaFile.channel
-            while (bytesRead < destination.size) {
+            val sourceSize = this.size
+            while (bytesRead < sourceSize) {
                 bytesRead += channel.transferTo(
-                    bytesRead,
+                    bytesRead.toLong(),
                     channel.size(),
                     destination.javaFile.channel
-                )
+                ).toULong()
             }
+            destination.close()
         } else {
-            val blkSize = if (blockSize <= 0) copyBlockSize else blockSize
-            val buffer = UByteBuffer(blkSize, isReadOnly = true)
-            var readCount = read(buffer)
-            while (readCount > 0) {
-                bytesRead += readCount.toLong()
+            val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
+            val buffer = UByteBuffer(blkSize.toInt())
+            var readCount = read(buffer, -1)
+            val fileSize = size
+            var bytesWritten = 0L
+            while (readCount > 0u) {
+                bytesRead += readCount
                 buffer.position = 0
-                buffer.limit = readCount
-                val outBuffer = transform(buffer, position >= size)
-                destination.write(outBuffer)
-                readCount = read(buffer)
+                buffer.limit = readCount.toInt()
+                val lastBlock = position >= fileSize
+                val outBuffer = transform(buffer, lastBlock)
+                val count = outBuffer.remaining
+                destination.write(outBuffer, -1)
+                bytesWritten += count
+                readCount = if (lastBlock) 0u else read(buffer, -1L)
             }
         }
         close()
@@ -277,14 +278,17 @@ actual class RawFile actual constructor(
 
     actual fun transferFrom(
         source: RawFile,
-        startIndex: Long,
-        length: Long
-    ): Long {
-        return javaFile.channel.transferFrom(source.javaFile.channel, startIndex, length)
+        startIndex: ULong,
+        length: ULong
+    ): ULong {
+        return javaFile.channel.transferFrom(
+            source.javaFile.channel,
+            startIndex.toLong(),
+            length.toLong()).toULong()
     }
 
-    actual fun truncate(size: Long) {
-        javaFile.channel.truncate(size)
+    actual fun truncate(size: ULong) {
+        javaFile.channel.truncate(size.toLong())
     }
 
     private fun makeJavaBuffer(buf: com.oldguy.common.io.ByteBuffer): ByteBuffer {
@@ -355,7 +359,7 @@ actual class TextFile actual constructor(
         charset: Charset,
         mode: FileMode,
         source: FileSource
-    ) : this(File(filePath), charset, mode, source)
+    ) : this(File(filePath, null), charset, mode, source)
 
     actual override fun close() {
         javaReader?.close()

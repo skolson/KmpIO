@@ -5,6 +5,8 @@ actual class ZipFile actual constructor(
     mode: Mode,
     charset: Charset
 ) {
+    actual constructor(file: File): this(file, Mode.Read, Charset(Charsets.Utf8))
+
     actual enum class Mode {
         Read, Write
     }
@@ -13,16 +15,14 @@ actual class ZipFile actual constructor(
      * Used only for text entries.  Defaults to the standard for the platform in use. Typically either
      * "\n" or "\r\n".
      */
-    actual var lineSeparator: String
-        get() = TODO("Not yet implemented")
-        set(value) {}
+    actual var lineSeparator: String = "/"
 
     /**
      * Implementations should return the current list of entries for the zip file. On Mode Read
      * files, if file is not a Zip os some other error occurs, an IOException is thrown.
      */
     actual val entries: List<ZipEntry>
-        get() = TODO("Not yet implemented")
+        get() = emptyList()
     actual val isOpen: Boolean
         get() = TODO("Not yet implemented")
 
@@ -30,6 +30,7 @@ actual class ZipFile actual constructor(
      * Opens the ZipFile specified.
      */
     actual fun open() {
+        TODO("Not yet implemented")
     }
 
     /**
@@ -44,6 +45,7 @@ actual class ZipFile actual constructor(
      * For a Mode Read file, perform all ReadEntry or ReadTextEntry calls needed.
      */
     actual fun use(block: () -> Unit) {
+        TODO("Not yet implemented")
     }
 
     /**
@@ -51,6 +53,7 @@ actual class ZipFile actual constructor(
      * and entry name ending in '/'
      */
     actual fun addEntry(entry: ZipEntry) {
+        TODO("Not yet implemented")
     }
 
     /**
@@ -70,6 +73,7 @@ actual class ZipFile actual constructor(
         bufferSize: Int,
         block: suspend (content: ByteArray) -> Int
     ) {
+        TODO("Not yet implemented")
     }
 
     /**
@@ -87,6 +91,7 @@ actual class ZipFile actual constructor(
         appendEol: Boolean,
         block: suspend () -> String
     ) {
+        TODO("Not yet implemented")
     }
 
     /**
@@ -131,7 +136,6 @@ actual class ZipFile actual constructor(
      * @param zipFiles one ore more zip files to be merged
      */
     actual fun merge(vararg zipFiles: ZipFile) {
+        TODO("Not yet implemented")
     }
-
-
 }

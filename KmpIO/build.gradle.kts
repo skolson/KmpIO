@@ -129,7 +129,6 @@ kotlin {
             }
         }
     }
-    /*
     iosX64 {
         binaries {
             framework {
@@ -149,12 +148,11 @@ kotlin {
             }
         }
     }
-     */
 
     sourceSets {
         val commonMain by getting {
         }
-        named("commonTest") {
+        val commonTest by getting {
             dependencies {
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
@@ -172,8 +170,7 @@ kotlin {
             }
         }
         val androidAndroidTest by getting {
-            dependsOn(commonMain)
-            dependsOn(androidMain)
+            dependsOn(commonTest)
         }
         val appleNativeMain by creating {
             dependsOn(commonMain)
@@ -181,41 +178,31 @@ kotlin {
         }
         val appleNativeTest by creating {
             kotlin.srcDir("src/appleNativeTest/kotlin")
-            dependsOn(commonMain)
+            dependsOn(commonTest)
             dependencies {
                 implementation(kotlin("test"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0")
             }
-            languageSettings {
-                optIn("kotlin.ExperimentalCoroutinesApi")
-            }
         }
-        /*
         val iosX64Main by getting {
             dependsOn(appleNativeMain)
         }
         val iosX64Test by getting {
             dependsOn(appleNativeTest)
-            languageSettings {
-                optIn("kotlin.ExperimentalCoroutinesApi")
-            }
         }
         val iosArm64Main by getting {
             dependsOn(appleNativeMain)
         }
-         */
         val macosX64Main by getting {
             dependsOn(appleNativeMain)
         }
         val macosX64Test by getting {
             dependsOn(appleNativeTest)
-            languageSettings {
-                optIn("kotlin.ExperimentalCoroutinesApi")
-            }
         }
         all {
             languageSettings {
                 optIn("kotlin.ExperimentalUnsignedTypes")
+                optIn("kotlin.ExperimentalCoroutinesApi")
             }
         }
     }

@@ -5,6 +5,8 @@ actual class ZipFile actual constructor(
     mode: Mode,
     charset: Charset
 ) {
+    actual constructor(file: File): this(file, Mode.Read, Charset(Charsets.Utf8))
+
     actual enum class Mode {
         Read, Write
     }
@@ -13,9 +15,7 @@ actual class ZipFile actual constructor(
      * Used only for text entries.  Defaults to the standard for the platform in use. Typically either
      * "\n" or "\r\n".
      */
-    actual var lineSeparator: String
-        get() = TODO("Not yet implemented")
-        set(value) {}
+    actual var lineSeparator: String = "/"
 
     /**
      * Implementations should return the current list of entries for the zip file. On Mode Read

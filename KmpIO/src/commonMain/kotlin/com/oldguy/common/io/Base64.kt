@@ -1,7 +1,7 @@
 package com.oldguy.common.io
 
 object Base64 {
-    private val charset = Charset(Charset.UTF_8)
+    private val charset = Charset(Charsets.Utf8)
     fun encode(base64: String): ByteArray = encodeBase64(base64.encodeToByteArray())
     fun decode(base64: ByteArray): String = charset.decode(decodeBase64(base64))
 
