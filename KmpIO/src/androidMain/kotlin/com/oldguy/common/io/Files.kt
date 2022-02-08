@@ -12,6 +12,7 @@ import kotlin.io.use as kotlinIoUse
 
 @Suppress("UNUSED_PARAMETER")
 actual class Charset actual constructor(val set: Charsets) {
+    actual val charset:Charsets = set
     val javaCharset: java.nio.charset.Charset = java.nio.charset.Charset.forName(set.charsetName)
 
     private val encoder = javaCharset.newEncoder()
@@ -61,6 +62,7 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
     actual val exists get() = javaFile.exists()
     actual val isUri = platformFd?.code == 1 && platformFd.descriptor is Uri
     actual val isUriString = platformFd?.code == 2 && platformFd.descriptor is String
+    actual val size: ULong get() = javaFile.length().toULong()
     actual val listFiles: List<File>
         get() {
             return if (isDirectory)
@@ -137,7 +139,7 @@ actual class RawFile actual constructor(
             javaFile.channel.position(value.toLong())
         }
 
-    actual val size: ULong get() = javaFile.length().toULong()
+    actual val size: ULong get() = file.size
 
     actual var blockSize = 4096u
 

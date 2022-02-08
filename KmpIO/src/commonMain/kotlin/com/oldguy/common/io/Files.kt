@@ -16,6 +16,7 @@ enum class Charsets(val charsetName: String) {
 
 
 expect class Charset(set: Charsets) {
+    val charset: Charsets
 
     fun decode(bytes: ByteArray): String
     fun encode(inString: String): ByteArray
@@ -64,6 +65,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val exists: Boolean
     val isUri: Boolean
     val isUriString: Boolean
+    val size: ULong
 
     fun delete(): Boolean
     fun copy(destinationPath: String): File

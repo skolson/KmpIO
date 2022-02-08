@@ -98,6 +98,16 @@ open class AppleFile(val filePath: String, val fd: FileDescriptor?) {
         }
     }
 
+    open val size: ULong get() {
+        var result: ULong = 0u
+        throwError {
+            val fm = NSFileManager.defaultManager
+            val map = fm.attributesOfItemAtPath(path, it) as NSDictionary
+            result = map.fileSize()
+        }
+        return result
+    }
+
     open val isDirectory: Boolean get() =
         memScoped {
             val isDirPointer = alloc<BooleanVar>()
@@ -191,26 +201,41 @@ open class AppleFile(val filePath: String, val fd: FileDescriptor?) {
     }
 }
 
+private class AppleFileHandle(val file: File, mode: FileMode)
+{
+    constructor(path: String, mode: FileMode): this(File(path), mode)
+
+    var updating = false
+        private set
+    val path = file.fullPath
+    val handle = when (mode) {
+        FileMode.Read ->
+            NSFileHandle.fileHandleForReadingAtPath(path)
+        FileMode.Write -> {
+            updating = file.exists
+            if (updating)
+                NSFileHandle.fileHandleForUpdatingAtPath(path)
+            else
+                NSFileHandle.fileHandleForWritingAtPath(path)
+        }
+    } ?: throw IllegalArgumentException("Path ${path} could not be opened")
+
+    fun close() {
+        handle.closeFile()
+    }
+}
+
 open class AppleRawFile(
     open val file: File,
     val mode: FileMode,
     source: FileSource
 ) : Closeable {
-    private var updating = false
-    private val handle = when (mode) {
-        FileMode.Read ->
-            NSFileHandle.fileHandleForReadingAtPath(file.fullPath)
-        FileMode.Write -> {
-            updating = file.exists
-            if (updating)
-                NSFileHandle.fileHandleForUpdatingAtPath(file.fullPath)
-            else
-                NSFileHandle.fileHandleForWritingAtPath(file.fullPath)
-        }
-    } ?: throw IllegalArgumentException("Path ${file.fullPath} could not be opened")
+    private val apple = AppleFileHandle(file, mode)
+    private val handle = apple.handle
+    private val path = apple.path
 
     override fun close() {
-        handle.closeFile()
+        apple.close()
     }
 
     /**
@@ -222,15 +247,7 @@ open class AppleRawFile(
     /**
      * Current size of the file in bytes
      */
-    open val size: ULong get() {
-        var result: ULong = 0u
-        AppleFile.throwError {
-            val fm = NSFileManager.defaultManager
-            val map = fm.attributesOfItemAtPath(file.fullPath, it) as NSDictionary
-            result = map.fileSize()
-        }
-        return result
-    }
+    open val size: ULong get() = apple.file.size
 
     open var blockSize: UInt = 4096u
 
@@ -361,7 +378,7 @@ open class AppleRawFile(
         if (transform == null) {
             AppleFile.throwError {
                 val fm = NSFileManager.defaultManager
-                fm.copyItemAtPath(file.fullPath, destination.file.fullPath, it)
+                fm.copyItemAtPath(path, destination.file.fullPath, it)
             }
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
@@ -411,7 +428,7 @@ open class AppleRawFile(
         if (transform == null) {
             AppleFile.throwError {
                 val fm = NSFileManager.defaultManager
-                fm.copyItemAtPath(file.fullPath, destination.file.fullPath, it)
+                fm.copyItemAtPath(path, destination.file.fullPath, it)
             }
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
@@ -470,5 +487,98 @@ open class AppleRawFile(
         AppleFile.throwError {
             handle.truncateAtOffset(size.convert(), it)
         }
+    }
+}
+
+open class AppleTextFile(
+    val file: File,
+    val charset: Charset,
+    val mode: FileMode,
+    source: FileSource
+) : Closeable {
+    private val apple = AppleFileHandle(file, mode)
+    private val blockSize = 2048
+    private var buf = ByteArray(blockSize)
+    private var index = -1
+    private var lineEndIndex = -1
+    private var endOfFile = false
+
+    override fun close() {
+        apple.close()
+    }
+
+    private fun nextBlock(): String {
+        AppleFile.throwError {
+            apple.handle.readDataUpToLength(blockSize.convert(), it)?.let { bytes ->
+                val len = min(blockSize.toUInt(), bytes.length.convert())
+                if (len < buf.size.toUInt()) {
+                    buf = ByteArray(len.toInt())
+                    endOfFile = true
+                }
+                buf.usePinned {
+                    memcpy(it.addressOf(0), bytes.bytes, len.convert())
+                }
+            }
+            index = 0
+        }
+        return charset.decode(buf)
+    }
+
+    open fun readLine(): String {
+        var str = ""
+        if (endOfFile) return ""
+        return buildString {
+            while(!endOfFile) {
+                if (lineEndIndex < 0) {
+                    str = nextBlock()
+                    lineEndIndex = str.indexOf(eol)
+                    if (lineEndIndex < 0)
+                        lineEndIndex = str.length
+                    else if (lineEndIndex < str.length - 1)
+                        lineEndIndex++
+                    index = 0
+                }
+                while (index < lineEndIndex) {
+                    append(str.substring(index, lineEndIndex))
+                    index = lineEndIndex
+                    lineEndIndex = str.indexOf(eol, index)
+                    if (lineEndIndex < 0) {
+                        append(str.substring(index))
+                        index = str.length
+                    } else if (lineEndIndex < str.length - 1)
+                        lineEndIndex++
+                }
+                if (!endOfFile) nextBlock()
+            }
+        }
+    }
+
+    open fun forEachLine(action: (line: String) -> Unit) {
+        var lin = readLine()
+        while (lin.isNotEmpty()) {
+            action(lin)
+            lin = readLine()
+        }
+        close()
+    }
+
+    open fun write(text: String) {
+        AppleFile.throwError { error ->
+            memScoped {
+                val buf = charset.encode(text)
+                buf.usePinned {
+                    val nsData = NSData.create(bytesNoCopy = it.addressOf(0), buf.size.convert())
+                    apple.handle.writeData(nsData, error)
+                }
+            }
+        }
+    }
+
+    open fun writeLine(text: String) {
+        write (text + eol)
+    }
+
+    companion object {
+        const val eol = "\n"
     }
 }

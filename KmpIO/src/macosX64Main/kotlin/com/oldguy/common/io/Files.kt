@@ -5,6 +5,7 @@ import platform.Foundation.*
 
 actual class Charset actual constructor(set: Charsets)
     : AppleCharset(set){
+    actual val charset:Charsets = set
 
     actual override fun decode(bytes: ByteArray): String {
         return super.decode(bytes)
@@ -39,6 +40,7 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual override val exists: Boolean get() = super.exists
     actual override val isUri: Boolean get() = super.isUri
     actual override val isUriString: Boolean get() = super.isUriString
+    actual override val size: ULong get() = super.size
 
     actual override fun delete(): Boolean {
         return super.delete()
@@ -120,34 +122,36 @@ actual class RawFile actual constructor(
 }
 
 actual class TextFile actual constructor(
-    val file: File,
+    file: File,
     charset: Charset,
-    val mode: FileMode,
+    mode: FileMode,
     source: FileSource
-) : Closeable {
-    actual override fun close() {
-    }
-
-    actual fun readLine(): String {
-        TODO("Not yet implemented")
-    }
-
-    actual fun forEachLine(action: (line: String) -> Unit) {
-    }
-
-    actual fun write(text: String) {
-    }
-
-    actual fun writeLine(text: String) {
-    }
-
+) : Closeable, AppleTextFile(file, charset, mode, source) {
     actual constructor(
         filePath: String,
         charset: Charset,
         mode: FileMode,
         source: FileSource
-    ) : this(File(filePath, null), charset, mode, source) {
-        TODO("Not yet implemented")
+    ) : this(File(filePath, null), charset, mode, source)
+
+    actual override fun close() {
+        super.close()
+    }
+
+    actual override fun readLine(): String {
+        return super.readLine()
+    }
+
+    actual override fun forEachLine(action: (line: String) -> Unit) {
+        super.forEachLine(action)
+    }
+
+    actual override fun write(text: String) {
+        super.write(text)
+    }
+
+    actual override fun writeLine(text: String) {
+        super.writeLine(text)
     }
 }
 
