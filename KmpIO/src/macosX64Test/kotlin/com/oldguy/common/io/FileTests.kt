@@ -11,7 +11,7 @@ class FileTestSuite {
         val path = NSTemporaryDirectory()
         val tests = FileTests(path)
         tests.filesBasics()
-        tests.textFileBasics(Charset(Charsets.Utf8))
+        tests.textFileWriteRead(Charset(Charsets.Utf8))
     }
 
     /*

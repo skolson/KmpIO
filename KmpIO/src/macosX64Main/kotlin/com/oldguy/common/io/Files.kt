@@ -143,8 +143,16 @@ actual class TextFile actual constructor(
         return super.readLine()
     }
 
-    actual override fun forEachLine(action: (line: String) -> Unit) {
+    actual override fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         super.forEachLine(action)
+    }
+
+    actual override fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
+        super.forEachBlock(maxSizeBytes, action)
+    }
+
+    actual override fun read(maxSizeBytes: Int): String {
+        return super.read(maxSizeBytes)
     }
 
     actual override fun write(text: String) {

@@ -70,6 +70,7 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
             else
                 emptyList()
         }
+    actual val listNames: List<String> get() = listFiles.map { it.name }
 
     val fd: Uri? =
         if (platformFd != null && platformFd.code == 1)
@@ -385,10 +386,39 @@ actual class TextFile actual constructor(
         javaWriter!!.newLine()
     }
 
-    actual fun forEachLine(action: (line: String) -> Unit) {
+    actual fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         if (mode == FileMode.Write)
             throw IllegalStateException("Mode is write, cannot read")
         val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
-        rdr.forEachLine { action(it) }
+        var count = 1
+        try {
+            rdr.forEachLine { if (!action(count++, it)) throw IllegalStateException("ignore") }
+        } catch (_: IllegalStateException) {
+        }
+    }
+
+    actual fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
+        if (mode == FileMode.Write)
+            throw IllegalStateException("Mode is write, cannot read")
+        val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
+        val chars = CharArray(maxSizeBytes)
+        var count = rdr.read(chars)
+        while (count > 0) {
+            if (!action(String(chars, 0, count)))
+                break
+            count = rdr.read(chars)
+        }
+    }
+
+    actual fun read(maxSizeBytes: Int): String {
+        if (mode == FileMode.Write)
+            throw IllegalStateException("Mode is write, cannot read")
+        val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
+        val chars = CharArray(maxSizeBytes)
+        val count = rdr.read(chars)
+        return if (count > 0)
+            String(chars, 0, count)
+        else
+            ""
     }
 }

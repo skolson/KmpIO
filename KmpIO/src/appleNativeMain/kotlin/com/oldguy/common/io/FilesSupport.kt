@@ -26,6 +26,7 @@ open class AppleCharset(val set: Charsets) {
 
     open fun encode(inString: String): ByteArray {
         val err = IllegalArgumentException("String could not be encoded with $set")
+        @Suppress("UNCHECKED_CAST")
         (inString as NSString).dataUsingEncoding(nsEnc)?.let {
             return it.bytes?.readBytes(it.length.toInt())
                 ?: throw err
@@ -130,6 +131,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         memScoped {
             val result = alloc<ObjCObjectVar<String?>>()
             val matches = alloc<ObjCObjectVar<List<*>?>>()
+            @Suppress("UNCHECKED_CAST")
             val count = (path as NSString).completePathIntoString(
                 result.ptr,
                 true,
@@ -141,6 +143,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
                 0 -> emptyList()
                 1 -> listOf(result.value ?: "")
                 else -> matches.value?.let {
+                    @Suppress("UNCHECKED_CAST")
                     val list = it as List<String>
                     if (list.size != count.toInt())
                         throw IllegalArgumentException("completePathIntoString count: ${count.toInt()}, matches size: ${list.size}")
@@ -530,18 +533,20 @@ open class AppleTextFile(
     source: FileSource
 ) : Closeable {
     private val apple = AppleFileHandle(file, mode)
-    private val blockSize = 2048
+    private var blockSize = 2048
     private var buf = ByteArray(blockSize)
     private var index = -1
     private var lineEndIndex = -1
     private var endOfFile = false
     private var str: String = ""
+    private var readLock = false
 
     override fun close() {
         apple.close()
     }
 
     private fun nextBlock(): String {
+        if (endOfFile) return ""
         AppleFile.throwError {
             apple.handle.readDataUpToLength(blockSize.convert(), it)?.let { bytes ->
                 val len = min(blockSize.toUInt(), bytes.length.convert())
@@ -578,7 +583,7 @@ open class AppleTextFile(
      * returned subsequent calls will always be an empty string.
      */
     open fun readLine(): String {
-        var lin = ""
+        var lin: String
         while (!endOfFile && lineEndIndex == -1)
             nextBlockLineState()
         if (endOfFile && lineEndIndex == -1) {
@@ -598,16 +603,46 @@ open class AppleTextFile(
         return lin
     }
 
-    open fun forEachLine(action: (line: String) -> Unit) {
+    open fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         try {
+            readLock = true
+            var count = 1
             var lin = readLine()
             while (lin.isNotEmpty()) {
-                action(lin)
-                lin = readLine()
+                if (action(count, lin)) {
+                    lin = readLine()
+                    count++
+                } else
+                    break
             }
         } finally {
             close()
+            readLock = false
         }
+    }
+
+    open fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
+        blockSize = maxSizeBytes
+        try {
+            readLock = true
+            val str = nextBlock()
+            while (str.isNotEmpty()) {
+                if (action(str))
+                    nextBlock()
+                else
+                    break
+            }
+        } finally {
+            close()
+            readLock = false
+        }
+    }
+
+    open fun read(maxSizeBytes: Int): String {
+        if (readLock)
+            throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
+        if (endOfFile) return ""
+        return nextBlock()
     }
 
     open fun write(text: String) {

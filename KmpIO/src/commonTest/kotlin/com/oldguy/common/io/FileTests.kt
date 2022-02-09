@@ -29,7 +29,7 @@ class FileTests(val testDirPath: String) {
         assertEquals(1, tmpList.count {it.name == subDirName})
     }
 
-    fun textFileBasics(charset: Charset) {
+    fun textFileWriteRead(charset: Charset) {
         val subDir = testDirectory.resolve(subDirName)
         val fil = File(subDir, "Text${charset.charset.charsetName}.txt")
         fil.delete()
@@ -51,21 +51,20 @@ class FileTests(val testDirPath: String) {
             FileMode.Read,
             FileSource.File
         )
-        var count = 0
-
-        textFileIn.forEachLine {
-            count++
+        var lines = 0
+        textFileIn.forEachLine { count, it ->
             when (count) {
                 1 -> assertEquals(line1 + eol, it)
                 2 -> assertEquals(line2 + eol, it)
                 3 -> assertEquals(line3 + eol, it)
                 4, 5 -> assertEquals(eol, it)
-                6 -> assertEquals("Line66", it)  // <== this causes unit test process to fail in
-                // org.jetbrains.kotlin.gradle.internal.testing.TCServiceMessagesClient.ensureNodesClosed(TCServiceMessagesClient.kt:537)
+                6 -> assertEquals("Line6", it)
                 else -> fail("Unexpected line $count, content:\"$it\", file ${fil.name}, charset: $charset  ")
             }
+            lines = count
+            true
         }
-        assertEquals(6, count)
+        assertEquals(6, lines)
     }
 
     companion object {
