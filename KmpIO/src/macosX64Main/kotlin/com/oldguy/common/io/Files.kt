@@ -123,8 +123,8 @@ actual class RawFile actual constructor(
 }
 
 actual class TextFile actual constructor(
-    file: File,
-    charset: Charset,
+    actual val file: File,
+    actual override val charset: Charset,
     mode: FileMode,
     source: FileSource
 ) : Closeable, AppleTextFile(file, charset, mode, source) {

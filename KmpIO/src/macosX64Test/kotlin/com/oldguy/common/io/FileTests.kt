@@ -4,22 +4,26 @@ import platform.Foundation.NSTemporaryDirectory
 import kotlin.test.Test
 
 class FileTestSuite {
+    val path = NSTemporaryDirectory()
+    val tests = FileTests(path)
+
+    init {
+        println(path)
+    }
 
     @Test
     fun textUtf8Basics() {
-        println("Start textUtf8Basics")
-        val path = NSTemporaryDirectory()
-        val tests = FileTests(path)
         tests.filesBasics()
-        tests.textFileWriteRead(Charset(Charsets.Utf8))
     }
 
-    /*
+    @Test
+    fun textMediumSizeUtf8Basics() {
+        tests.biggerTextFileWriteRead(Charset(Charsets.Utf8), 100)
+    }
+
     @Test
     fun textUtf16leBasics() {
-        val path = NSTemporaryDirectory()
-        val tests = FileTests(path)
-        tests.textFileBasics(Charset(Charsets.Utf16le))
+        tests.textFileWriteRead(Charset(Charsets.Utf16le))
     }
-    */
+
 }

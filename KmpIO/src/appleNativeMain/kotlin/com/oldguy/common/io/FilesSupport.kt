@@ -527,8 +527,8 @@ open class AppleRawFile(
 }
 
 open class AppleTextFile(
-    val file: File,
-    val charset: Charset,
+    file: File,
+    open val charset: Charset,
     val mode: FileMode,
     source: FileSource
 ) : Closeable {

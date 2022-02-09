@@ -1,9 +1,9 @@
 package com.oldguy.common.io
 
-enum class Charsets(val charsetName: String) {
+enum class Charsets(val charsetName: String, val bytesPerChar: Int = 1) {
     Utf8("UTF-8"),
-    Utf16le("UTF-16LE"),
-    Utf16be("UTF-16BE"),
+    Utf16le("UTF-16LE", 2),
+    Utf16be("UTF-16BE", 2),
     Iso8859_1("ISO8859-1"),
     UsAscii("US-ASCII");
 
@@ -214,6 +214,8 @@ expect class TextFile(
     mode: FileMode = FileMode.Read,
     source: FileSource = FileSource.File
 ) : Closeable {
+    val file: File
+    val charset: Charset
 
     constructor(
         filePath: String,
