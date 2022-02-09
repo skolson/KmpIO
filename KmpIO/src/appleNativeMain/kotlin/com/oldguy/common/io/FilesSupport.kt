@@ -48,55 +48,38 @@ class NSErrorException(val nsError: NSError): Exception(nsError.toString())
  * Apple-specific native file code that is usable on macOS, iOS, and ios simulator targets.
  * This class owns an Objective C FileManager instance for use by any of the subclasses.
  *
- * Note: many of the FileManager functions return errors as an NSError object. This class
- * also provides help for allocationg and translating an NSError required. If an error occurs,
+ * Note: many of the FileManager and FileHandle functions return errors as an NSError object. This class
+ * also provides help for allocating and translating an NSError required. If an error occurs,
  * a Kotlin NSErrorException is thrown.
  */
-open class AppleFile(val filePath: String, val fd: FileDescriptor?) {
+open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     val fm = NSFileManager.defaultManager
+    open val path = pathArg.trimEnd(pathSeparator[0])
+
     open val name: String
         get() {
-            val index = filePath.lastIndexOf(pathSeparator)
-            return if (index < 0 || index == filePath.length - 1)
+            val index = path.lastIndexOf(pathSeparator)
+            return if (index < 0 || index == path.length - 1)
                 ""
             else
-                filePath.substring(index + 1)
+                path.substring(index + 1)
         }
     open val nameWithoutExtension: String
         get() {
             val index = name.lastIndexOf(".")
             return if (index <= 0)
-                ""
+                name
             else
                 name.substring(0, index)
         }
     open val extension: String get() {
             val index = name.lastIndexOf(".")
-            return if (index < 0 || index == name.length - 1)
-                ""
-            else
-                name.substring(index + 1)
-        }
-    open val path: String get() {
-            val index = filePath.lastIndexOf(pathSeparator)
             return if (index < 0)
                 ""
             else
-                filePath.substring(0, index + 1)
+                name.substring(index)
         }
-    open val fullPath: String get() {
-        memScoped {
-            val result = alloc<ObjCObjectVar<String?>>()
-            val matches = alloc<ObjCObjectVar<List<*>?>>()
-            (filePath as NSString).completePathIntoString(
-                result.ptr,
-                true,
-                matches.ptr,
-                null
-            )
-            return result.value ?: ""
-        }
-    }
+    open val fullPath: String = path
 
     open val size: ULong get() {
         var result: ULong = 0u
@@ -111,23 +94,19 @@ open class AppleFile(val filePath: String, val fd: FileDescriptor?) {
     open val isDirectory: Boolean get() =
         memScoped {
             val isDirPointer = alloc<BooleanVar>()
-            fm.fileExistsAtPath(filePath, isDirPointer.ptr)
+            fm.fileExistsAtPath(path, isDirPointer.ptr)
             return isDirPointer.value
         }
 
-    open val listFiles: List<File> get() {
-        val list = mutableListOf<File>()
+    open val listNames: List<String> get() {
+        val list = mutableListOf<String>()
         throwError {
-            fm.contentsOfDirectoryAtPath(filePath, it)?.let { names ->
-                names.forEach { ptr ->
-                    memScoped {
-                        if (ptr is ObjCObjectVar<*>) {
-                            val c = ptr as ObjCObjectVar<NSString>
-                            val n = c as String
-                            if (n.isNotEmpty())
-                                list.add(File(n, null))
-                        } else
-                            throw IllegalStateException("Type returned in List from contentsOfDirectoryAtPath is ${ptr.toString()}")
+            fm.contentsOfDirectoryAtPath(path, it)?.let { names ->
+                names.forEach { name ->
+                    name?.let { ptr ->
+                        val n = ptr as String
+                        if (n.isNotEmpty())
+                            list.add(n)
                     }
                 }
             }
@@ -135,31 +114,65 @@ open class AppleFile(val filePath: String, val fd: FileDescriptor?) {
         return list
     }
 
-    open val exists: Boolean get() {
-        memScoped {
-            val isDirPointer = alloc<BooleanVar>()
-            return fm.fileExistsAtPath(filePath, isDirPointer.ptr)
-        }
+    open val listFiles: List<File> get() {
+        return listNames.map { File(path, it) }
     }
+
+    open val exists: Boolean get() = pathExists(path)
+
     open val isUri: Boolean
         get() = TODO("Not yet implemented")
     open val isUriString: Boolean
         get() = TODO("Not yet implemented")
 
 
+    private fun matches(path: String): List<String> {
+        memScoped {
+            val result = alloc<ObjCObjectVar<String?>>()
+            val matches = alloc<ObjCObjectVar<List<*>?>>()
+            val count = (path as NSString).completePathIntoString(
+                result.ptr,
+                true,
+                matches.ptr,
+                null
+            )
+            println("path count: $count")
+            return when (count.toInt()) {
+                0 -> emptyList()
+                1 -> listOf(result.value ?: "")
+                else -> matches.value?.let {
+                    val list = it as List<String>
+                    if (list.size != count.toInt())
+                        throw IllegalArgumentException("completePathIntoString count: ${count.toInt()}, matches size: ${list.size}")
+                    list
+                } ?: emptyList()
+            }
+        }
+    }
+
+    private fun pathExists(path: String): Boolean {
+        if (path.isEmpty() || path.isBlank())
+            return false
+        memScoped {
+            val isDirPointer = alloc<BooleanVar>()
+            return fm.fileExistsAtPath(path, isDirPointer.ptr)
+        }
+    }
+
     open fun copy(destinationPath: String): File {
         throwError {
-            fm.copyItemAtPath(filePath, destinationPath, it)
+            fm.copyItemAtPath(path, destinationPath, it)
         }
         return File(destinationPath, null)
     }
 
     open fun delete(): Boolean {
-        var result = false
-        throwError {
-            result = fm.removeItemAtPath(filePath, it)
-        }
-        return result
+        return if (exists) {
+            throwError {
+                fm.removeItemAtPath(path, it)
+            }
+        } else
+            false
     }
 
     /**
@@ -168,19 +181,34 @@ open class AppleFile(val filePath: String, val fd: FileDescriptor?) {
      * @return File with path of new subdirectory
      */
     open fun resolve(directoryName: String): File {
-        val newPath = "$filePath/$directoryName"
-        throwError { errorPointer ->
-            fm.createDirectoryAtPath(
-                newPath,
-                false,
-                null,
-                errorPointer)
+        if (directoryName.isEmpty() || directoryName.startsWith(pathSeparator))
+            throw IllegalArgumentException("resolve requires $directoryName to be not empty and cannot start with $pathSeparator")
+        val newPath = "$path/$directoryName"
+        if (!pathExists(newPath)) {
+            throwError { errorPointer ->
+                val withIntermediates = directoryName.contains(pathSeparator)
+                fm.createDirectoryAtPath(
+                    newPath,
+                    withIntermediates,
+                    null,
+                    errorPointer
+                )
+            }
         }
         return File(newPath, null)
     }
 
     companion object {
         const val pathSeparator = "/"
+
+        fun makePath(base: String, vararg names: String): String {
+            return buildString {
+                append(base)
+                names.filter {it.isNotEmpty()}.forEach {
+                    append("$pathSeparator$it")
+                }
+            }
+        }
 
         /**
          * Creates an NSError pointer for use by File-based operations, and invokes [block] with it. If an error
@@ -207,18 +235,23 @@ private class AppleFileHandle(val file: File, mode: FileMode)
 
     var updating = false
         private set
-    val path = file.fullPath
+    val path = file.path
     val handle = when (mode) {
-        FileMode.Read ->
-            NSFileHandle.fileHandleForReadingAtPath(path)
-        FileMode.Write -> {
-            updating = file.exists
-            if (updating)
-                NSFileHandle.fileHandleForUpdatingAtPath(path)
-            else
-                NSFileHandle.fileHandleForWritingAtPath(path)
-        }
-    } ?: throw IllegalArgumentException("Path ${path} could not be opened")
+            FileMode.Read ->
+                NSFileHandle.fileHandleForReadingAtPath(path)
+            FileMode.Write -> {
+                updating = file.exists
+                if (updating) {
+                    NSFileHandle.fileHandleForUpdatingAtPath(path)
+                } else {
+                    val fm = NSFileManager.defaultManager
+                    if (fm.createFileAtPath(path, null, null))
+                        NSFileHandle.fileHandleForWritingAtPath(path)
+                    else
+                        throw IllegalArgumentException("Create file failed: $path ")
+                }
+            }
+        } ?: throw IllegalArgumentException("Path ${path} mode $mode could not be opened")
 
     fun close() {
         handle.closeFile()
@@ -502,6 +535,7 @@ open class AppleTextFile(
     private var index = -1
     private var lineEndIndex = -1
     private var endOfFile = false
+    private var str: String = ""
 
     override fun close() {
         apple.close()
@@ -524,42 +558,56 @@ open class AppleTextFile(
         return charset.decode(buf)
     }
 
+    private fun nextBlockLineState(): Boolean {
+        if (lineEndIndex < 0) {
+            if (endOfFile) return false
+            str += nextBlock()
+            index = 0
+            val x = str.indexOf(eol)
+            lineEndIndex = if (x >= 0) x + 1 else -1
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Reads one line of text, no matter how long, which has obvious implications for memory on large files with no
+     * line breaks. Otherwise, reads blocks and maintains state of where next line is. So only use this on files with
+     * line breaks.
+     * @return a non empty line containing any text found and ended by a line separator. After all lines have been
+     * returned subsequent calls will always be an empty string.
+     */
     open fun readLine(): String {
-        var str = ""
-        if (endOfFile) return ""
-        return buildString {
-            while(!endOfFile) {
-                if (lineEndIndex < 0) {
-                    str = nextBlock()
-                    lineEndIndex = str.indexOf(eol)
-                    if (lineEndIndex < 0)
-                        lineEndIndex = str.length
-                    else if (lineEndIndex < str.length - 1)
-                        lineEndIndex++
-                    index = 0
-                }
-                while (index < lineEndIndex) {
-                    append(str.substring(index, lineEndIndex))
-                    index = lineEndIndex
-                    lineEndIndex = str.indexOf(eol, index)
-                    if (lineEndIndex < 0) {
-                        append(str.substring(index))
-                        index = str.length
-                    } else if (lineEndIndex < str.length - 1)
-                        lineEndIndex++
-                }
-                if (!endOfFile) nextBlock()
+        var lin = ""
+        while (!endOfFile && lineEndIndex == -1)
+            nextBlockLineState()
+        if (endOfFile && lineEndIndex == -1) {
+            lin = str
+            str = ""
+        } else {
+            lin = str.substring(index, lineEndIndex)
+            index = lineEndIndex
+            val x = str.indexOf(eol, index)
+            lineEndIndex = if (x >= 0)
+                x + 1
+            else {
+                str = str.substring(index)
+                -1
             }
         }
+        return lin
     }
 
     open fun forEachLine(action: (line: String) -> Unit) {
-        var lin = readLine()
-        while (lin.isNotEmpty()) {
-            action(lin)
-            lin = readLine()
+        try {
+            var lin = readLine()
+            while (lin.isNotEmpty()) {
+                action(lin)
+                lin = readLine()
+            }
+        } finally {
+            close()
         }
-        close()
     }
 
     open fun write(text: String) {

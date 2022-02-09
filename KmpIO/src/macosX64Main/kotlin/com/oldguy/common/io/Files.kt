@@ -27,8 +27,8 @@ actual class TimeZones {
 actual class File actual constructor(filePath: String, platformFd: FileDescriptor?)
     : AppleFile(filePath, platformFd){
 
-    actual constructor(parentDirectory: String, name: String) : this(parentDirectory + name, null)
-    actual constructor(parentDirectory: File, name: String) : this(parentDirectory.resolve(name).fullPath, null)
+    actual constructor(parentDirectory: String, name: String) : this(makePath(parentDirectory, name), null)
+    actual constructor(parentDirectory: File, name: String) : this(makePath(parentDirectory.path, name), null)
     actual constructor(fd: FileDescriptor) : this("", fd)
     actual override val name: String get() = super.name
     actual override val nameWithoutExtension: String get() = super.nameWithoutExtension
@@ -36,6 +36,7 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual override val path: String get() = super.path
     actual override val fullPath: String get() = super.fullPath
     actual override val isDirectory: Boolean get() = super.isDirectory
+    actual override val listNames: List<String> get() = super.listNames
     actual override val listFiles: List<File> get() = super.listFiles
     actual override val exists: Boolean get() = super.exists
     actual override val isUri: Boolean get() = super.isUri

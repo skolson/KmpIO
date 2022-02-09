@@ -61,6 +61,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val path: String
     val fullPath: String
     val isDirectory: Boolean
+    val listNames: List<String>
     val listFiles: List<File>
     val exists: Boolean
     val isUri: Boolean

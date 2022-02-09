@@ -1,5 +1,6 @@
 import org.gradle.kotlin.dsl.signing
 import org.gradle.internal.os.OperatingSystem
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 
@@ -235,6 +236,15 @@ kotlin {
                 }
             }
         }
+    }
+}
+
+tasks.withType<Test> {
+    testLogging {
+        events("PASSED", "FAILED", "SKIPPED")
+        exceptionFormat = TestExceptionFormat.FULL
+        showStandardStreams = true
+        showStackTraces = true
     }
 }
 

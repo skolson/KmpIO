@@ -2,13 +2,15 @@
 
 This is an old Kotlin multiplatform (KMP) library for basic Text file, Binary file, and zip/archive file IO. It was built before OKIO existed which is a much more comprehensive solution to this problem space.
 
-2/4/2022 - This is a brand new publish even though the code has been used for a long time in an Android app. The Mac and IOS support is new.
+**2/8/2022** - The MacOS text file (UTF-8) unit tests are passing now, but today's commit has a purposefully failing assertEquals as a reproducer for Kotlin Gradle issue https://youtrack.jetbrains.com/issue/KT-51217. RawFle and ZipFile will be in next commit
+
+**2/4/2022** - This is a brand new publish even though the code has been used for a long time in an Android app. The Mac and IOS support is new.
 
 ## Reason for Existence
 
 Kotlin multiplatform code needing basic IO file support should not need platform-specific code to do so. This library provides:
 
-- Text file reading/writing
+- Text file reading/writing, by line breaks or by text blocks, with selectable charset encode/decode
 - Binary file reading and writing, with random access by file position
 - Zip/archive file writing or reading, with Kotlin friendly syntax for handling zip entries.
 - Bitset class similar to java's Bitset, but KMP only.
