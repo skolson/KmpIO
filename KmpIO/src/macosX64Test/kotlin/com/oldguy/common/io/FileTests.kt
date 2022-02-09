@@ -26,4 +26,8 @@ class FileTestSuite {
         tests.textFileWriteRead(Charset(Charsets.Utf16le))
     }
 
+    @Test
+    fun rawSmallTest() {
+        tests.testRawWriteRead("Small", 1)
+    }
 }

@@ -253,7 +253,7 @@ abstract class Buffer<Element, Array> internal constructor(
      * a ByteArray of length bytes, containing the bytes at the current position for the
      * specified length.  The position will be incremented by the length.
      *
-     * @param length must be > 0 and <= remaining()
+     * @param length must be > 0 and <= remaining(). Defaults to remaining
      *
      * @throws IllegalArgumentException if the length is invalid
      */

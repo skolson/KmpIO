@@ -262,13 +262,14 @@ private class AppleFileHandle(val file: File, mode: FileMode)
 }
 
 open class AppleRawFile(
-    open val file: File,
+    fileArg: File,
     val mode: FileMode,
     source: FileSource
 ) : Closeable {
-    private val apple = AppleFileHandle(file, mode)
+    private val apple = AppleFileHandle(fileArg, mode)
     private val handle = apple.handle
     private val path = apple.path
+    open val file = fileArg
 
     override fun close() {
         apple.close()
@@ -278,7 +279,25 @@ open class AppleRawFile(
      * Current position of the file, in bytes. Can be changed, if attempt to set outside the limits
      * of the current file, an exception is thrown.
      */
-    open var position: ULong = 0u
+    open var position: ULong
+        get() {
+            return AppleFile.throwError {
+                memScoped {
+                    val result = alloc<ULongVar>()
+                    handle.getOffset(result.ptr, it)
+                    result.value
+                }
+            }
+        }
+        set(value) {
+            AppleFile.throwError {
+                if (value != position) {
+                    val result = handle.seekToOffset(value, it)
+                    if (!result)
+                        throw IllegalArgumentException("Could not position file to $value")
+                }
+            }
+        }
 
     /**
      * Current size of the file in bytes
@@ -287,20 +306,8 @@ open class AppleRawFile(
 
     open var blockSize: UInt = 4096u
 
-    private fun seek(position: Long) {
-        AppleFile.throwError {
-            memScoped {
-                val result = alloc<ULongVar>()
-                handle.getOffset(result.ptr, it)
-                this@AppleRawFile.position = result.value
-            }
-            if (position >= 0 && this.position != position.toULong()) {
-                val result = handle.seekToOffset(position.toULong(), it)
-                if (!result)
-                    throw IllegalArgumentException("Could not position file to $position")
-                this@AppleRawFile.position = position.toULong()
-            }
-        }
+    private inline fun seek(newPos: Long) {
+        if (newPos > 0) position = newPos.toULong()
     }
 
     /**
@@ -310,10 +317,10 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun read(buf: ByteBuffer, position: Long): UInt {
+    open fun read(buf: ByteBuffer, newPos: Long = -1): UInt {
         var len = 0u
         AppleFile.throwError {
-            seek(position)
+            seek(newPos)
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
@@ -332,10 +339,10 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun read(buf: UByteBuffer, position: Long): UInt {
+    open fun read(buf: UByteBuffer, newPos: Long = -1): UInt {
         var len = 0u
         AppleFile.throwError {
-            seek(position)
+            seek(newPos)
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
@@ -354,9 +361,9 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun write(buf: ByteBuffer, position: Long) {
+    open fun write(buf: ByteBuffer, newPos: Long = -1) {
         AppleFile.throwError { error ->
-            seek(position)
+            seek(newPos)
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
@@ -364,7 +371,6 @@ open class AppleRawFile(
                 }
             }
         }
-        this@AppleRawFile.position += buf.remaining.toUInt()
         buf.position += buf.remaining
     }
 
@@ -385,7 +391,6 @@ open class AppleRawFile(
                 }
             }
         }
-        this@AppleRawFile.position += buf.remaining.toUInt()
         buf.position += buf.remaining
     }
 

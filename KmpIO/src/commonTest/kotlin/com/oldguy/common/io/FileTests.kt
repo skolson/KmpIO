@@ -1,16 +1,17 @@
 package com.oldguy.common.io
 
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
-class FileTests(val testDirPath: String) {
-    val testDirectory = File(testDirPath)
-    val subDirName = "kmpIOtestDir"
+class FileTests(testDirPath: String) {
+    private val testDirectory = File(testDirPath)
+    private val subDirName = "kmpIOtestDir"
+    private val subDir = testDirectory.resolve(subDirName)
 
     fun filesBasics() {
         assertTrue(testDirectory.isDirectory)
-        val subDir = testDirectory.resolve(subDirName)
         assertTrue(subDir.exists)
         assertTrue(subDir.isDirectory)
 
@@ -29,7 +30,7 @@ class FileTests(val testDirPath: String) {
         assertEquals(1, tmpList.count {it.name == subDirName})
     }
 
-    fun checkTextLines(textFile: TextFile): Int {
+    private fun checkTextLines(textFile: TextFile): Int {
         var lines = 0
         textFile.forEachLine { count, it ->
             when ((count - 1) % 6) {
@@ -47,7 +48,6 @@ class FileTests(val testDirPath: String) {
     }
 
     fun textFileWriteRead(charset: Charset) {
-        val subDir = testDirectory.resolve(subDirName)
         val fil = File(subDir, "Text${charset.charset.charsetName}.txt")
         fil.delete()
         assertEquals(false, fil.exists)
@@ -74,7 +74,6 @@ class FileTests(val testDirPath: String) {
     }
 
     fun biggerTextFileWriteRead(charset: Charset, copyCount: Int = 100) {
-        val subDir = testDirectory.resolve(subDirName)
         val fil = File(subDir, "TextMedium${charset.charset.charsetName}.txt")
         fil.delete()
         assertEquals(false, fil.exists)
@@ -101,6 +100,26 @@ class FileTests(val testDirPath: String) {
         fil.delete()
     }
 
+    fun testRawWriteRead(namePrefix: String, copyCount: Int = 10) {
+        val fil = File(subDir, "${namePrefix}Hex.utf16")
+        fil.delete()
+        val rawFile = RawFile(fil, FileMode.Write)
+        rawFile.write(ByteBuffer(hexContent))
+        rawFile.close()
+        assertTrue(fil.exists)
+        assertEquals((hexContent.size * copyCount).toULong(), fil.size)
+        val rawFileIn = RawFile(fil)
+        val buf = ByteBuffer(4096)
+        var count = rawFileIn.read(buf)
+        assertEquals(hexContent.size, buf.position)
+        assertEquals(hexContent.size.toUInt(), count)
+        buf.rewind()
+        assertContentEquals(hexContent, buf.getBytes(count.toInt()))
+        count = rawFileIn.read(buf)
+        assertEquals(0u, count)
+        rawFileIn.close()
+    }
+
     companion object {
         const val eol = "\n"
         const val line1 = "Line1 ancvb568099jkhrwsiuoidsygoedyt03ohgnejbj  eo;iuwoiopww79lhzH;EndLine1"
@@ -114,5 +133,6 @@ class FileTests(val testDirPath: String) {
             
             Line6
             """.trimIndent() + eol
+        val hexContent = Charset(Charsets.Utf16le).encode(textContent)
     }
 }
