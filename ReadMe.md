@@ -1,6 +1,8 @@
 ## KmpIO
 
-This is an old Kotlin multiplatform (KMP) library for basic Text file, Binary file, and zip/archive file IO. It was built before OKIO existed which is a much more comprehensive solution to this problem space.
+This is a Kotlin multiplatform (KMP) library for basic Text file, Binary file, and zip/archive file IO. It was initially implemented with the android target, now implementations for Apple targets are being built. 
+
+**2/9/2022** - Both UTF-8 and UTF-16 Charsets pass text file unit tests. Raw file IO basic unit tests are passing. Starting on Zip file support for Apple.
 
 **2/8/2022** - The MacOS text file (UTF-8) unit tests are passing now, but today's commit has a purposefully failing assertEquals as a reproducer for Kotlin Gradle issue https://youtrack.jetbrains.com/issue/KT-51217. RawFle and ZipFile will be in next commit
 

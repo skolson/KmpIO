@@ -151,16 +151,16 @@ actual class RawFile actual constructor(
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param position zero-relative position of file to start reading,
+     * @param newPos zero-relative position of file to start reading,
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    actual fun read(buf: com.oldguy.common.io.ByteBuffer, position: Long): UInt {
+    actual fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: Long): UInt {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesRead = if (position < 0)
+        val bytesRead = if (newPos < 0)
             javaFile.channel.read(javaBuf)
         else
-            javaFile.channel.read(javaBuf, position)
+            javaFile.channel.read(javaBuf, newPos)
         buf.put(javaBuf.array())
         return bytesRead.toUInt()
     }
@@ -168,26 +168,26 @@ actual class RawFile actual constructor(
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param position zero-relative position of file to start reading,
+     * @param newPos zero-relative position of file to start reading,
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    actual fun read(buf: UByteBuffer, position: Long): UInt {
+    actual fun read(buf: UByteBuffer, newPos: Long): UInt {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesRead = if (position < 0)
+        val bytesRead = if (newPos < 0)
             javaFile.channel.read(javaBuf)
         else
-            javaFile.channel.read(javaBuf, position)
+            javaFile.channel.read(javaBuf, newPos)
         buf.put(javaBuf.array().toUByteArray())
         return bytesRead.toUInt()
     }
 
-    actual fun write(buf: com.oldguy.common.io.ByteBuffer, position: Long) {
+    actual fun write(buf: com.oldguy.common.io.ByteBuffer, newPos: Long) {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesWritten = if (position < 0)
+        val bytesWritten = if (newPos < 0)
             javaFile.channel.write(javaBuf)
         else
-            javaFile.channel.write(javaBuf, position)
+            javaFile.channel.write(javaBuf, newPos)
         buf.position += bytesWritten
     }
 

@@ -76,21 +76,25 @@ actual class RawFile actual constructor(
     }
 
     actual override val file: File get() = super.file
-    actual override var position: ULong = super.position
+    actual override var position: ULong
+        get() = super.position
+        set(value) {
+            super.position = value
+        }
     actual override val size: ULong get() = super.size
     actual override var blockSize: UInt = super.blockSize
 
-    actual override fun read(buf: ByteBuffer, position: Long): UInt {
-        return super.read(buf, position)
+    actual override fun read(buf: ByteBuffer, newPos: Long): UInt {
+        return super.read(buf, newPos)
     }
-    actual override fun read(buf: UByteBuffer, position: Long): UInt {
-        return super.read(buf, position)
+    actual override fun read(buf: UByteBuffer, newPos: Long): UInt {
+        return super.read(buf, newPos)
     }
-    actual override fun write(buf: ByteBuffer, position: Long) {
-        super.write(buf, position)
+    actual override fun write(buf: ByteBuffer, newPos: Long) {
+        super.write(buf, newPos)
     }
-    actual override fun write(buf: UByteBuffer, position: Long) {
-        super.write(buf, position)
+    actual override fun write(buf: UByteBuffer, newPos: Long) {
+        super.write(buf, newPos)
     }
     actual override fun copyTo(
         destination: RawFile,

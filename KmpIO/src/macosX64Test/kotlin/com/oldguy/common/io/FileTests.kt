@@ -28,6 +28,10 @@ class FileTestSuite {
 
     @Test
     fun rawSmallTest() {
-        tests.testRawWriteRead("Small", 1)
+        try {
+            tests.testRawWriteRead("Small", 1)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
     }
 }

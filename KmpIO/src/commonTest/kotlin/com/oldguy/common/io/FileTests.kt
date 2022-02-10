@@ -117,6 +117,14 @@ class FileTests(testDirPath: String) {
         assertContentEquals(hexContent, buf.getBytes(count.toInt()))
         count = rawFileIn.read(buf)
         assertEquals(0u, count)
+        val x = rawFileIn.size - 12u
+        rawFileIn.position = x
+        buf.clear()
+        count = rawFileIn.read(buf)
+        assertEquals(12u, count)
+        buf.rewind()
+        val lastLine = Charset(Charsets.Utf16le).decode(buf.getBytes(count.toInt()))
+        assertEquals("Line6\n", lastLine)
         rawFileIn.close()
     }
 

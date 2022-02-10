@@ -291,10 +291,12 @@ open class AppleRawFile(
         }
         set(value) {
             AppleFile.throwError {
-                if (value != position) {
-                    val result = handle.seekToOffset(value, it)
-                    if (!result)
-                        throw IllegalArgumentException("Could not position file to $value")
+                val result = handle.seekToOffset(value, it)
+                if (!result) {
+                    it.pointed.value?.let {
+                        println("NSerror content: ${it.localizedDescription}")
+                    }
+                    throw IllegalArgumentException("Could not position file to $value")
                 }
             }
         }
@@ -381,9 +383,9 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun write(buf: UByteBuffer, position: Long) {
+    open fun write(buf: UByteBuffer, newPos: Long) {
         AppleFile.throwError { error ->
-            seek(position)
+            seek(newPos)
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
