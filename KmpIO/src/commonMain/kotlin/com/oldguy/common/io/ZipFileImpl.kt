@@ -31,6 +31,8 @@ interface ZipFileBase: Closeable {
     ): ZipEntry
     suspend fun use(block: suspend () -> Unit)
     suspend fun useEntries(block: suspend (entry: ZipEntry) -> Boolean)
+    suspend fun zipDirectory(directory: File, filter: suspend (pathName: String) -> Boolean)
+    suspend fun extractToDirectory(directory: File, filter: suspend (entry: ZipEntryImpl) -> Boolean)
 }
 
 class ZipException(message: String): Exception(message)
@@ -80,7 +82,7 @@ class ZipFileImpl(
     }
 
     override fun close() {
-        TODO("Not yet implemented")
+        file.close()
     }
 
     override fun merge(vararg zipFiles: ZipFile) {
@@ -120,6 +122,14 @@ class ZipFileImpl(
 
     override suspend fun useEntries(block: suspend (entry: ZipEntry) -> Boolean) {
         TODO("Not yet implemented")
+    }
+
+    override suspend fun zipDirectory(directory: File, filter: suspend (pathName: String) -> Boolean) {
+        TODO()
+    }
+
+    override suspend fun extractToDirectory(directory: File, filter: suspend (entry: ZipEntryImpl) -> Boolean) {
+        TODO()
     }
 
     private fun findEocdRecord(): ZipEOCD {
