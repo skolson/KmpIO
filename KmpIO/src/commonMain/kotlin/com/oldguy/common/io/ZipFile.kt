@@ -30,14 +30,9 @@ data class ZipEntry(
 
 expect class ZipFile(
     file: File,
-    mode: Mode,
-    charset: Charset
+    mode: FileMode
 ) {
     constructor(file: File)
-
-    enum class Mode {
-        Read, Write
-    }
 
     /**
      * Used only for text entries.  Defaults to the standard for the platform in use. Typically either
@@ -70,7 +65,7 @@ expect class ZipFile(
     fun use(block: () -> Unit)
 
     /**
-     * Add an empty entry, typically used for directories.  Note that emtpy directories should have
+     * Add an empty entry, typically used for directories.  Note that empty directories should have
      * and entry name ending in '/'
      */
     fun addEntry(entry: ZipEntry)
@@ -136,6 +131,7 @@ expect class ZipFile(
      */
     suspend fun readTextEntry(
         entryName: String,
+        charset: Charset,
         bufferSize: Int = 0,
         block: suspend (text: String) -> Boolean
     ): ZipEntry

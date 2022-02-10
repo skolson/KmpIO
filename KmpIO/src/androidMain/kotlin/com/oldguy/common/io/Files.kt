@@ -148,55 +148,55 @@ actual class RawFile actual constructor(
         javaFile.channel.close()
     }
 
-    /**
-     * Read bytes from a file, staring at the specified position.
-     * @param buf read buf.remaining bytes into byte buffer.
-     * @param newPos zero-relative position of file to start reading,
-     * or if default of -1, the current file position
-     * @return number of bytes actually read
-     */
-    actual fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: Long): UInt {
+    actual fun read(buf: com.oldguy.common.io.ByteBuffer): UInt {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesRead = if (newPos < 0)
-            javaFile.channel.read(javaBuf)
-        else
-            javaFile.channel.read(javaBuf, newPos)
+        val bytesRead = javaFile.channel.read(javaBuf)
         buf.put(javaBuf.array())
         return bytesRead.toUInt()
     }
 
-    /**
-     * Read bytes from a file, staring at the specified position.
-     * @param buf read buf.remaining bytes into byte buffer.
-     * @param newPos zero-relative position of file to start reading,
-     * or if default of -1, the current file position
-     * @return number of bytes actually read
-     */
-    actual fun read(buf: UByteBuffer, newPos: Long): UInt {
+    actual fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong): UInt {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesRead = if (newPos < 0)
-            javaFile.channel.read(javaBuf)
-        else
-            javaFile.channel.read(javaBuf, newPos)
+        val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
+        buf.put(javaBuf.array())
+        return bytesRead.toUInt()
+    }
+
+    actual fun read(buf: UByteBuffer): UInt {
+        val javaBuf = makeJavaBuffer(buf)
+        val bytesRead = javaFile.channel.read(javaBuf)
         buf.put(javaBuf.array().toUByteArray())
         return bytesRead.toUInt()
     }
 
-    actual fun write(buf: com.oldguy.common.io.ByteBuffer, newPos: Long) {
+    actual fun read(buf: UByteBuffer, newPos: ULong): UInt {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesWritten = if (newPos < 0)
-            javaFile.channel.write(javaBuf)
-        else
-            javaFile.channel.write(javaBuf, newPos)
+        val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
+        buf.put(javaBuf.array().toUByteArray())
+        return bytesRead.toUInt()
+    }
+
+    actual fun write(buf: com.oldguy.common.io.ByteBuffer) {
+        val javaBuf = makeJavaBuffer(buf)
+        val bytesWritten = javaFile.channel.write(javaBuf)
         buf.position += bytesWritten
     }
 
-    actual fun write(buf: UByteBuffer, position: Long) {
+    actual fun write(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong) {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesWritten = if (position < 0)
-            javaFile.channel.write(javaBuf)
-        else
-            javaFile.channel.write(javaBuf, position)
+        val bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
+        buf.position += bytesWritten
+    }
+
+    actual fun write(buf: UByteBuffer) {
+        val javaBuf = makeJavaBuffer(buf)
+        val bytesWritten = javaFile.channel.write(javaBuf)
+        buf.position += bytesWritten
+    }
+
+    actual fun write(buf: UByteBuffer, newPos: ULong) {
+        val javaBuf = makeJavaBuffer(buf)
+        val bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
         buf.position += bytesWritten
     }
 
@@ -219,7 +219,7 @@ actual class RawFile actual constructor(
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
             val buffer = ByteBuffer(blkSize.toInt(), isReadOnly = true)
-            var readCount = read(buffer, -1)
+            var readCount = read(buffer)
             val fileSize = size
             var bytesWritten = 0L
             while (readCount > 0u) {
@@ -229,9 +229,9 @@ actual class RawFile actual constructor(
                 val lastBlock = position >= fileSize
                 val outBuffer = transform(buffer, lastBlock)
                 val count = outBuffer.remaining
-                destination.write(outBuffer, -1)
+                destination.write(outBuffer)
                 bytesWritten += count
-                readCount = if (lastBlock) 0u else read(buffer, -1L)
+                readCount = if (lastBlock) 0u else read(buffer)
             }
         }
         close()
@@ -259,7 +259,7 @@ actual class RawFile actual constructor(
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
             val buffer = UByteBuffer(blkSize.toInt())
-            var readCount = read(buffer, -1)
+            var readCount = read(buffer)
             val fileSize = size
             var bytesWritten = 0L
             while (readCount > 0u) {
@@ -269,9 +269,9 @@ actual class RawFile actual constructor(
                 val lastBlock = position >= fileSize
                 val outBuffer = transform(buffer, lastBlock)
                 val count = outBuffer.remaining
-                destination.write(outBuffer, -1)
+                destination.write(outBuffer)
                 bytesWritten += count
-                readCount = if (lastBlock) 0u else read(buffer, -1L)
+                readCount = if (lastBlock) 0u else read(buffer)
             }
         }
         close()
@@ -307,8 +307,8 @@ actual class RawFile actual constructor(
  * Read a text file, and provide both character set translation as well as line-based processing
  */
 actual class TextFile actual constructor(
-    val file: File,
-    charset: Charset,
+    actual val file: File,
+    actual val charset: Charset,
     val mode: FileMode,
     source: FileSource
 ) : Closeable {

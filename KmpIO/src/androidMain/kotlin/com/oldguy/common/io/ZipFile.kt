@@ -8,14 +8,9 @@ import java.util.zip.ZipOutputStream
 
 actual class ZipFile actual constructor(
     val file: File,
-    private val mode: Mode,
-    val charset: Charset
+    private val mode: FileMode
 ) {
-    actual constructor(file: File): this(file, Mode.Read, Charset(Charsets.Utf8))
-
-    actual enum class Mode {
-        Read, Write
-    }
+    actual constructor(file: File): this(file, FileMode.Read)
 
     private lateinit var zipOutputStream: ZipOutputStream
     private lateinit var javaZipFile: java.util.zip.ZipFile
@@ -28,7 +23,7 @@ actual class ZipFile actual constructor(
     private val entriesAdded = mutableListOf<ZipEntry>()
     actual val entries: List<ZipEntry>
         get() = when (mode) {
-            Mode.Read -> {
+            FileMode.Read -> {
                 val list = mutableListOf<ZipEntry>()
                 javaZipFile.entries().asSequence().forEach {
                     list.add(
@@ -41,7 +36,7 @@ actual class ZipFile actual constructor(
                 }
                 list
             }
-            Mode.Write -> {
+            FileMode.Write -> {
                 entriesAdded
             }
         }
@@ -54,10 +49,10 @@ actual class ZipFile actual constructor(
      */
     actual fun open() {
         when (mode) {
-            Mode.Read -> {
+            FileMode.Read -> {
                 javaZipFile = java.util.zip.ZipFile(file.fullPath)
             }
-            Mode.Write -> {
+            FileMode.Write -> {
                 zipOutputStream =
                     ZipOutputStream(BufferedOutputStream(FileOutputStream(file.fullPath)))
             }
@@ -71,10 +66,10 @@ actual class ZipFile actual constructor(
     actual fun close() {
         if (isOpen) {
             when (mode) {
-                Mode.Read -> {
+                FileMode.Read -> {
                     javaZipFile.close()
                 }
-                Mode.Write -> {
+                FileMode.Write -> {
                     zipOutputStream.close()
                 }
             }
@@ -83,7 +78,7 @@ actual class ZipFile actual constructor(
         entriesAdded.clear()
     }
 
-    private fun checkOpen(mode: Mode) {
+    private fun checkOpen(mode: FileMode) {
         if (!isOpen)
             throw IllegalStateException("Zip file is not open")
         if (this.mode != mode)
@@ -134,7 +129,7 @@ actual class ZipFile actual constructor(
         bufferSize: Int,
         block: suspend (content: ByteArray) -> Int
     ) {
-        checkOpen(Mode.Write)
+        checkOpen(FileMode.Write)
         val buf = ByteArray(bufferSize)
         zipOutputStream.putNextEntry(javaEntry(entry))
         while (true) {
@@ -164,7 +159,7 @@ actual class ZipFile actual constructor(
         appendEol: Boolean,
         block: suspend () -> String
     ) {
-        checkOpen(Mode.Write)
+        checkOpen(FileMode.Write)
         zipOutputStream.putNextEntry(javaEntry(entry))
         while (true) {
             var s = block()
@@ -195,7 +190,7 @@ actual class ZipFile actual constructor(
         bufferSize: Int,
         block: suspend (content: ByteArray, bytes: Int) -> Boolean
     ): ZipEntry {
-        checkOpen(Mode.Read)
+        checkOpen(FileMode.Read)
         val javaEntry = javaZipFile.getEntry(entryName)
         val buf = ByteArray(bufferSize)
         javaZipFile.getInputStream(javaEntry).use {
@@ -211,10 +206,11 @@ actual class ZipFile actual constructor(
     @Suppress("BlockingMethodInNonBlockingContext")
     actual suspend fun readTextEntry(
         entryName: String,
+        charset: Charset,
         bufferSize: Int,
         block: suspend (text: String) -> Boolean
     ): ZipEntry {
-        checkOpen(Mode.Read)
+        checkOpen(FileMode.Read)
         val javaEntry = javaZipFile.getEntry(entryName)
         BufferedReader(
             InputStreamReader(
@@ -254,7 +250,7 @@ actual class ZipFile actual constructor(
      * @param zipFiles one or more Zip files to be merged.
      */
     actual fun merge(vararg zipFiles: ZipFile) {
-        checkOpen(Mode.Write)
+        checkOpen(FileMode.Write)
         zipFiles.forEach { inputZip ->
             if (inputZip.file.exists) {
                 inputZip.open()

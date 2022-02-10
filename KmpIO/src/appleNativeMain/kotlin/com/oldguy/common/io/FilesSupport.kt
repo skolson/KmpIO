@@ -308,10 +308,6 @@ open class AppleRawFile(
 
     open var blockSize: UInt = 4096u
 
-    private inline fun seek(newPos: Long) {
-        if (newPos > 0) position = newPos.toULong()
-    }
-
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
@@ -319,10 +315,49 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun read(buf: ByteBuffer, newPos: Long = -1): UInt {
+    open fun read(buf: ByteBuffer): UInt {
         var len = 0u
         AppleFile.throwError {
-            seek(newPos)
+            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
+                len = min(buf.limit.toUInt(), bytes.length.convert())
+                buf.buf.usePinned {
+                    memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
+                }
+                buf.position += len.toInt()
+            }
+        }
+        return len
+    }
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param position zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @return number of bytes actually read
+     */
+    open fun read(buf: ByteBuffer, newPos: ULong): UInt {
+        var len = 0u
+        AppleFile.throwError {
+            position = newPos
+            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
+                len = min(buf.limit.toUInt(), bytes.length.convert())
+                buf.buf.usePinned {
+                    memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
+                }
+                buf.position += len.toInt()
+            }
+        }
+        return len
+    }
+
+    /**
+     * Read bytes from a file, staring at the current file position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @return number of bytes actually read
+     */
+    open fun read(buf: UByteBuffer): UInt {
+        var len = 0u
+        AppleFile.throwError {
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
@@ -341,10 +376,10 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun read(buf: UByteBuffer, newPos: Long = -1): UInt {
+    open fun read(buf: UByteBuffer, newPos: ULong): UInt {
         var len = 0u
         AppleFile.throwError {
-            seek(newPos)
+            position = newPos
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
@@ -357,15 +392,12 @@ open class AppleRawFile(
     }
 
     /**
-     * Write bytes to a file, staring at the specified position.
+     * Write bytes to a file, staring at the current file position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
-     * @param position zero-relative position of file to start writing,
-     * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun write(buf: ByteBuffer, newPos: Long = -1) {
+    open fun write(buf: ByteBuffer) {
         AppleFile.throwError { error ->
-            seek(newPos)
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
@@ -383,9 +415,46 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun write(buf: UByteBuffer, newPos: Long) {
+    open fun write(buf: ByteBuffer, newPos: ULong) {
         AppleFile.throwError { error ->
-            seek(newPos)
+            position = newPos
+            memScoped {
+                buf.buf.usePinned {
+                    val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
+                    handle.writeData(nsData, error)
+                }
+            }
+        }
+        buf.position += buf.remaining
+    }
+
+    /**
+     * Write bytes to a file, staring at the current file position.
+     * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
+     * @return number of bytes actually read
+     */
+    open fun write(buf: UByteBuffer) {
+        AppleFile.throwError { error ->
+            memScoped {
+                buf.buf.usePinned {
+                    val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
+                    handle.writeData(nsData, error)
+                }
+            }
+        }
+        buf.position += buf.remaining
+    }
+
+    /**
+     * Write bytes to a file, staring at the specified position.
+     * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
+     * @param position zero-relative position of file to start writing,
+     * or if default of -1, the current file position
+     * @return number of bytes actually read
+     */
+    open fun write(buf: UByteBuffer, newPos: ULong) {
+        AppleFile.throwError { error ->
+            position = newPos
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())

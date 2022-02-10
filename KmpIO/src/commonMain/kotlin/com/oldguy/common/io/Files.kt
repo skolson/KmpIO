@@ -115,13 +115,11 @@ expect class RawFile(
     var blockSize: UInt
 
     /**
-     * Read bytes from a file, staring at the specified position.
+     * Read bytes from a file, from the current file position.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param newPos zero-relative position of file to start reading,
-     * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun read(buf: ByteBuffer, newPos: Long = -1): UInt
+    fun read(buf: ByteBuffer): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
@@ -130,7 +128,34 @@ expect class RawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun read(buf: UByteBuffer, newPos: Long = -1): UInt
+    fun read(buf: ByteBuffer, newPos: ULong): UInt
+
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param newPos zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @return number of bytes actually read
+     */
+    fun read(buf: UByteBuffer): UInt
+
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param newPos zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @return number of bytes actually read
+     */
+    fun read(buf: UByteBuffer, newPos: ULong): UInt
+
+    /**
+     * Write bytes to a file, staring at the current file position.
+     * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
+     * @param newPos zero-relative position of file to start writing,
+     * or if default of -1, the current file position
+     * @return number of bytes actually read
+     */
+    fun write(buf: ByteBuffer)
 
     /**
      * Write bytes to a file, staring at the specified position.
@@ -139,7 +164,16 @@ expect class RawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun write(buf: ByteBuffer, newPos: Long = -1)
+    fun write(buf: ByteBuffer, newPos: ULong)
+
+    /**
+     * Write bytes to a file, staring at the current file position.
+     * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
+     * @param newPos zero-relative position of file to start writing,
+     * or if default of -1, the current file position
+     * @return number of bytes actually read
+     */
+    fun write(buf: UByteBuffer)
 
     /**
      * Write bytes to a file, staring at the specified position.
@@ -148,7 +182,7 @@ expect class RawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun write(buf: UByteBuffer, newPos: Long = -1)
+    fun write(buf: UByteBuffer, newPos: ULong)
 
     /**
      * Copy a file. the optional lambda supports altering the output data on a block-by-block basis.
