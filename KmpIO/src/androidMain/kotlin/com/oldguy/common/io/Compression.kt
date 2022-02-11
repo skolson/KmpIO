@@ -49,19 +49,21 @@ actual class Compression actual constructor(private val algorithm: CompressionAl
                     val out = ByteBuffer(first.capacity * 4)
                     while (count != 0) {
                         count = inflate(out.contentBytes)
-                        out.positionLimit(0, count)
-                        total += count.toUInt()
-                        /*
-                        val f = finished()
-                        val d = needsDictionary()
-                        val i = needsInput()
-                         */
-                        next(out).apply {
-                            if (remaining > 0) {
-                                setInput(contentBytes)
+                        if (count > 0) {
+                            out.positionLimit(0, count)
+                            total += count.toUInt()
+                            /*
+                            val f = finished()
+                            val d = needsDictionary()
+                            val i = needsInput()
+                             */
+                            next(out).apply {
+                                if (remaining > 0) {
+                                    setInput(contentBytes)
+                                }
                             }
-                            out.clear()
                         }
+                        out.clear()
                     }
                     end()
                 }

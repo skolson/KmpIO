@@ -22,7 +22,7 @@ interface ZipFileBase: Closeable {
     suspend fun open()
     suspend fun readEntry(
         entryName: String,
-        block: suspend (content: ByteArray, bytes: UInt) -> Unit
+        block: suspend (entry:ZipEntry, content: ByteArray, bytes: UInt) -> Unit
     ): ZipEntry
     suspend fun readTextEntry(
         entryName: String,
@@ -103,13 +103,12 @@ class ZipFileImpl(
 
     override suspend fun readEntry(
         entryName: String,
-        block: suspend (content: ByteArray, bytes: UInt) -> Unit
+        block: suspend (entry:ZipEntry, content: ByteArray, bytes: UInt) -> Unit
     ): ZipEntry {
         val entry = map[entryName]
             ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
         val record = ZipLocalRecord.decode(file, entry.record.localHeaderOffset.toULong())
-        var fileSize = record.compressedSize
-        decompress(file, record, block)
+        decompress(file, record, entry.entry, block)
         return entry.entry
     }
 
@@ -194,7 +193,8 @@ class ZipFileImpl(
     private suspend fun decompress(
         file: RawFile,
         record: ZipLocalRecord,
-        block: suspend (content: ByteArray, bytes: UInt) -> Unit) {
+        entry: ZipEntry,
+        block: suspend (entry: ZipEntry, content: ByteArray, bytes: UInt) -> Unit) {
         var remaining = record.compressedSize
         var uncompressedCount = 0UL
         val buf = ByteBuffer(bufferSize)
@@ -203,13 +203,13 @@ class ZipFileImpl(
             var count = file.read(buf).toUInt()
             buf.positionLimit(0, count.toInt())
             when (record.algorithm) {
-                CompressionAlgorithms.None -> block(buf.getBytes(count.toInt()), count)
+                CompressionAlgorithms.None -> block(entry, buf.getBytes(count.toInt()), count)
                 else ->
                     Compression(record.algorithm).apply {
                         decompress(buf) {
                             val outCount = it.remaining.toUInt()
                             uncompressedCount += outCount
-                            block(it.getBytes(outCount.toInt()), outCount)
+                            block(entry, it.getBytes(outCount.toInt()), outCount)
                             if (remaining - count > 0u) {
                                 buf.clear()
                                 count = file.read(buf)
