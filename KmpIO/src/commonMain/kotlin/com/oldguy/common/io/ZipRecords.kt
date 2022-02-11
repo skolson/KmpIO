@@ -4,6 +4,7 @@ import com.oldguy.common.getIntAt
 import com.oldguy.common.io.ZipRecord.Companion.decodeComment
 import com.oldguy.common.io.ZipRecord.Companion.decodeSignature
 import com.oldguy.common.io.ZipRecord.Companion.zipCharset
+import kotlin.experimental.and
 import kotlin.math.min
 
 interface ZipRecord {
@@ -18,6 +19,14 @@ interface ZipRecord {
         val zipCharset = Charset(Charsets.Utf8)
         val littleEndianRequired = IllegalArgumentException("Zip file buffer must be little endian")
 
+        fun algorithm(method: Short) = when (method.toInt()) {
+            0 -> CompressionAlgorithms.None
+            8 -> CompressionAlgorithms.Deflate
+            9 -> CompressionAlgorithms.Deflate
+            14 -> CompressionAlgorithms.LZMA
+            else -> throw IllegalArgumentException("Unsupported compression method: $method")
+        }
+
         fun decodeSignature(signature: Int, minLength: Int, buffer: ByteBuffer) {
             buffer.apply {
                 if (remaining < minLength)
@@ -30,9 +39,41 @@ interface ZipRecord {
         }
 
         fun decodeComment(length: Int, buffer: ByteBuffer): String {
-            return if (length > 0)
-                zipCharset.decode(buffer.getBytes(length))
+            return if (length > 0) zipCharset.decode(buffer.getBytes(length))
             else ""
+        }
+
+        fun decodeComment(length: Int, file: RawFile): String {
+            var comment = ""
+            if (length > 0) {
+                ByteBuffer(length).apply {
+                    file.read(this)
+                    comment = zipCharset.decode(this.contentBytes)
+                }
+            }
+            return comment
+        }
+
+        fun decodeName(nameLength: Short, file: RawFile): String {
+            var name = ""
+            if (nameLength > 0) {
+                ByteBuffer(nameLength.toInt()).apply {
+                    file.read(this)
+                    name = zipCharset.decode(this.contentBytes)
+                }
+            }
+            return name
+        }
+
+        fun decodeExtra(extraLength: Short, file: RawFile): ByteArray {
+            var bytes = ByteArray(0)
+            if (extraLength > 0) {
+                ByteBuffer(extraLength.toInt()).apply {
+                    file.read(this)
+                    bytes = this.contentBytes
+                }
+            }
+            return bytes
         }
 
         /**
@@ -105,7 +146,7 @@ data class ZipEOCD (
             int = directoryOffset
             short = comment.length.toShort()
             if (comment.isNotEmpty())
-                put(ZipRecord.zipCharset.encode(comment))
+                put(zipCharset.encode(comment))
         }
     }
 
@@ -216,14 +257,14 @@ data class ZipEOCD64 (
             long = directoryLength
             long = directoryOffset
             if (comment.isNotEmpty())
-                put(ZipRecord.zipCharset.encode(comment))
+                put(zipCharset.encode(comment))
         }
     }
 
     companion object {
         const val signature = 0x06064b50
-        const val minimumLength = 56
-        const val commentLengthLimit = (2 * 1024 * 1024).toLong()
+        private const val minimumLength = 56
+        private const val commentLengthLimit = (2 * 1024 * 1024).toLong()
 
         /**
          * This entry can be very long, so this decode is two steps. Small buffer is used to fetch the beginning of
@@ -340,6 +381,16 @@ data class ZipDirectoryRecord(
         comment
     )
 
+    val isZip64 = compressedSize == -1 || uncompressedSize == -1
+    val hostAttributesCode = version / 0x100
+    val versionMajor = (version and 0xFF) / 10
+    val versionMinor = (version and 0xFF) % 10
+    val versionString = "$versionMajor.$versionMinor"
+    val minVersionMajor = (versionMinimum and 0xFF) / 10
+    val minVersionMinor = (versionMinimum and 0xFF) % 10
+    val minVersionString = "$minVersionMajor.$minVersionMinor"
+    val algorithm = ZipRecord.algorithm(compression)
+
     /**
      * Encode this entry into the specified ByteBuffer.
      * @param buffer encoding will be written starting at current position. If there is insufficient remaining, an
@@ -372,11 +423,11 @@ data class ZipDirectoryRecord(
             int = externalAttributes
             int = localHeaderOffset
             if (name.isNotEmpty())
-                put(ZipRecord.zipCharset.encode(name))
+                put(zipCharset.encode(name))
             if (extra.isNotEmpty())
                 put(extra)
             if (comment.isNotEmpty())
-                put(ZipRecord.zipCharset.encode(comment))
+                put(zipCharset.encode(comment))
         }
     }
 
@@ -416,51 +467,144 @@ data class ZipDirectoryRecord(
                     ByteArray(0),
                     ""
                 )
-                if (record.nameLength > 0) {
-                    ByteBuffer(record.nameLength.toInt()).apply {
-                        file.read(this)
-                        record.name = zipCharset.decode(this.contentBytes)
-                    }
-                }
-                if (record.extraLength > 0) {
-                    ByteBuffer(record.extraLength.toInt()).apply {
-                        file.read(this)
-                        record.extra = this.contentBytes
-                    }
-                }
-                if (record.commentLength > 0) {
-                    ByteBuffer(record.commentLength.toInt()).apply {
-                        file.read(this)
-                        record.comment = zipCharset.decode(this.contentBytes)
-                    }
-                }
-                return record
+            }
+            return record.apply {
+                name = ZipRecord.decodeName(nameLength, file)
+                extra = ZipRecord.decodeExtra(extraLength, file)
+                comment = decodeComment(commentLength.toInt(), file)
             }
         }
     }
 }
 
+data class ZipLocalExtra(
+    val signature: Short,
+    val length: Short,
+    val buf: ByteBuffer
+) {
+    companion object {
+        fun decode(extraBytes: ByteArray): List<ZipLocalExtra> {
+            ByteBuffer(extraBytes).apply {
+                val list = mutableListOf<ZipLocalExtra>()
+                while (remaining > 0) {
+                    val sig = short
+                    val length = short
+                    list.add(ZipLocalExtra(
+                        sig,
+                        length,
+                        ByteBuffer(getBytes(length.toInt()))
+                    ))
+                }
+                return list
+            }
+        }
+
+        fun encode(list: List<ZipLocalExtra>): ByteArray {
+            return ByteBuffer(list.sumOf { 4 + it.buf.capacity }).apply {
+                list.forEach {
+                    short = it.signature
+                    short = it.length
+                    putBytes(it.buf.buf)
+                }
+            }.contentBytes
+        }
+    }
+}
+
 /**
- * Local File Header record precedes file data for an entry in the zip.
+ * Local File Header record precedes file data for an entry in the zip. It contains an optional encryption header.
  */
-internal data class ZipLocalRecord(
-    var versionMinimum: Short,
-    var purposeBits: Short,
-    var compression: Short,
-    var lastModTime: Short,
-    var lastModDate: Short,
-    var crc32: Int,
-    var compressedSize: Int,
-    var uncompressedSize: Int,
+data class ZipLocalRecord(
+    val versionMinimum: Short,
+    val purposeBits: Short,
+    val compression: Short,
+    val lastModTime: Short,
+    val lastModDate: Short,
+    val crc32: Int,
+    val intCompressedSize: Int,
+    val intUncompressedSize: Int,
+    val nameLength: Short,
+    val extraLength: Short,
     var name: String,
     var extra: ByteArray,
+    var encryptionHeader: ByteArray,
+    var longCompressedSize: Long = 0L,
+    var longUncompressedSize: Long = 0L
+): ZipRecord {
 
-    ): ZipRecord {
+    /**
+     * Zip64 constructor
+     */
+    constructor(
+        versionMinimum: Short,
+        purposeBits: Short,
+        compression: Short,
+        lastModTime: Short,
+        lastModDate: Short,
+        crc32: Int,
+        nameLength: Short,
+        extraLength: Short,
+        name: String,
+        extra: ByteArray,
+        encryptionHeader: ByteArray
+    ): this(
+        versionMinimum,
+        purposeBits,
+        compression,
+        lastModTime,
+        lastModDate,
+        crc32,
+        intCompressedSize = -1,
+        intUncompressedSize = -1,
+        nameLength,
+        extraLength,
+        name,
+        extra,
+        encryptionHeader,
+        0L,
+        0L
+    )
 
-    fun setZip64() {
-        compressedSize = -1
-        uncompressedSize = -1
-    }
+    /**
+     * Compression field has these values from the spec:
+     * 4.4.5 compression method: (2 bytes)
+        0 - The file is stored (no compression)
+        1 - The file is Shrunk
+        2 - The file is Reduced with compression factor 1
+        3 - The file is Reduced with compression factor 2
+        4 - The file is Reduced with compression factor 3
+        5 - The file is Reduced with compression factor 4
+        6 - The file is Imploded
+        7 - Reserved for Tokenizing compression algorithm
+        8 - The file is Deflated
+        9 - Enhanced Deflating using Deflate64(tm)
+        10 - PKWARE Data Compression Library Imploding (old IBM TERSE)
+        11 - Reserved by PKWARE
+        12 - File is compressed using BZIP2 algorithm
+        13 - Reserved by PKWARE
+        14 - LZMA
+        15 - Reserved by PKWARE
+        16 - IBM z/OS CMPSC Compression
+        17 - Reserved by PKWARE
+        18 - File is compressed using IBM TERSE (new)
+        19 - IBM LZ77 z Architecture
+        20 - deprecated (use method 93 for zstd)
+        93 - Zstandard (zstd) Compression
+        94 - MP3 Compression
+        95 - XZ Compression
+        96 - JPEG variant
+        97 - WavPack compressed data
+        98 - PPMd version I, Rev 1
+        99 - AE-x encryption marker (see APPENDIX E)
+     */
+
+    val algorithm = ZipRecord.algorithm(compression)
+    val hasDataDescriptor = crc32 == 0 && intCompressedSize == 0 && intUncompressedSize == 0
+    val isZip64 = intCompressedSize < 0
+    val compressedSize: ULong get() = if (isZip64) longCompressedSize.toULong() else intCompressedSize.toULong()
+    val uncompressedSize: ULong get() = if (isZip64) longUncompressedSize.toULong() else intUncompressedSize.toULong()
+
+    val extraRecords get() = ZipLocalExtra.decode(extra)
 
     /**
      * Encode this entry into the specified ByteBuffer.
@@ -481,48 +625,57 @@ internal data class ZipLocalRecord(
             short = lastModTime
             short = lastModDate
             int = crc32
-            int = compressedSize
-            int = uncompressedSize
+            int = intCompressedSize
+            int = intUncompressedSize
             short = name.length.toShort()
             short = extra.size.toShort()
             if (name.isNotEmpty())
-                put(ZipRecord.zipCharset.encode(name))
+                put(zipCharset.encode(name))
             if (extra.isNotEmpty())
                 put(extra)
-        }
-    }
-
-    /**
-     * Starting at buffer position, verifies signature, decodes buffer into Central Directory Record. If buffer
-     * can't be decoded, an exception is thrown
-     * @param buffer position is pointing at location where record starts
-     */
-    fun decode(buffer: ByteBuffer) {
-        buffer.apply {
-            decodeSignature(signature, minimumLength, this)
-            versionMinimum = short
-            purposeBits = short
-            compression = short
-            lastModTime = short
-            lastModDate = short
-            crc32 = int
-            compressedSize = int
-            uncompressedSize = int
-            val nameLength = short
-            val extraLength = short
-            name = if (nameLength > 0)
-                ZipRecord.zipCharset.decode(getBytes(nameLength.toInt()))
-            else
-                ""
-            extra = if (extraLength > 0)
-                getBytes(extraLength.toInt())
-            else
-                ByteArray(0)
         }
     }
 
     companion object {
         const val signature = 0x04034b50
         const val minimumLength = 30
+
+        /**
+         * Starting at buffer position, verifies signature, decodes buffer into Central Directory Record. If buffer
+         * can't be decoded, an exception is thrown
+         * @param buffer position is pointing at location where record starts
+         */
+        fun decode(file: RawFile, position: ULong): ZipLocalRecord {
+            ByteBuffer(minimumLength).apply {
+                file.read(this, position)
+                rewind()
+                decodeSignature(signature, minimumLength, this)
+                return ZipLocalRecord(
+                    versionMinimum = short,
+                    purposeBits = short,
+                    compression = short,
+                    lastModTime = short,
+                    lastModDate = short,
+                    crc32 = int,
+                    intCompressedSize = int,
+                    intUncompressedSize = int,
+                    nameLength = short,
+                    extraLength = short,
+                    "",
+                    ByteArray(0),
+                    ByteArray(0)
+                ).apply {
+                    name = ZipRecord.decodeName(nameLength, file)
+                    extra = ZipRecord.decodeExtra(extraLength, file)
+                    if (isZip64) {
+                        extraRecords.firstOrNull { it.signature.toInt() == 1 && it.length.toInt() == 16}?.let {
+                            longCompressedSize = it.buf.long
+                            longUncompressedSize = it.buf.long
+                        } ?: throw ZipException("Zip64 entry $name must have an extra field signature == 1. Extra: $extraRecords")
+                    }
+                    // if encryption is present, get encryption header here (12 bytes)
+                }
+            }
+        }
     }
 }

@@ -158,6 +158,7 @@ actual class RawFile actual constructor(
     actual fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong): UInt {
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
         buf.put(javaBuf.array())
         return bytesRead.toUInt()
     }
@@ -172,6 +173,7 @@ actual class RawFile actual constructor(
     actual fun read(buf: UByteBuffer, newPos: ULong): UInt {
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
         buf.put(javaBuf.array().toUByteArray())
         return bytesRead.toUInt()
     }
@@ -185,6 +187,7 @@ actual class RawFile actual constructor(
     actual fun write(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong) {
         val javaBuf = makeJavaBuffer(buf)
         val bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesWritten.toULong()).toLong())
         buf.position += bytesWritten
     }
 
@@ -197,6 +200,7 @@ actual class RawFile actual constructor(
     actual fun write(buf: UByteBuffer, newPos: ULong) {
         val javaBuf = makeJavaBuffer(buf)
         val bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesWritten.toULong()).toLong())
         buf.position += bytesWritten
     }
 

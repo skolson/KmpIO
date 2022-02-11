@@ -22,7 +22,7 @@ interface ZipFileBase: Closeable {
     suspend fun open()
     suspend fun readEntry(
         entryName: String,
-        block: suspend (content: ByteArray, bytes: Int) -> Boolean
+        block: suspend (content: ByteArray, bytes: UInt) -> Unit
     ): ZipEntry
     suspend fun readTextEntry(
         entryName: String,
@@ -103,9 +103,14 @@ class ZipFileImpl(
 
     override suspend fun readEntry(
         entryName: String,
-        block: suspend (content: ByteArray, bytes: Int) -> Boolean
+        block: suspend (content: ByteArray, bytes: UInt) -> Unit
     ): ZipEntry {
-        TODO("Not yet implemented")
+        val entry = map[entryName]
+            ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
+        val record = ZipLocalRecord.decode(file, entry.record.localHeaderOffset.toULong())
+        var fileSize = record.compressedSize
+        decompress(file, record, block)
+        return entry.entry
     }
 
     override suspend fun readTextEntry(
@@ -186,4 +191,39 @@ class ZipFileImpl(
         }
     }
 
+    private suspend fun decompress(
+        file: RawFile,
+        record: ZipLocalRecord,
+        block: suspend (content: ByteArray, bytes: UInt) -> Unit) {
+        var remaining = record.compressedSize
+        var uncompressedCount = 0UL
+        val buf = ByteBuffer(bufferSize)
+        while (remaining > 0u) {
+            buf.positionLimit(0, min(buf.capacity, remaining.toInt()))
+            var count = file.read(buf).toUInt()
+            buf.positionLimit(0, count.toInt())
+            when (record.algorithm) {
+                CompressionAlgorithms.None -> block(buf.getBytes(count.toInt()), count)
+                else ->
+                    Compression(record.algorithm).apply {
+                        decompress(buf) {
+                            val outCount = it.remaining.toUInt()
+                            uncompressedCount += outCount
+                            block(it.getBytes(outCount.toInt()), outCount)
+                            if (remaining - count > 0u) {
+                                buf.clear()
+                                count = file.read(buf)
+                                buf.positionLimit(0, count.toInt())
+                            }
+                            else buf.positionLimit(0, 0)
+                            buf
+                        }
+                    }
+            }
+            remaining -= count.toULong()
+        }
+        if (uncompressedCount != record.uncompressedSize) {
+            throw ZipException("Uncompressing file ${record.name}, expected uncompressed: ${record.uncompressedSize}, found: $uncompressedCount")
+        }
+    }
 }
