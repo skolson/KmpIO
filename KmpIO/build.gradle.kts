@@ -173,6 +173,11 @@ kotlin {
         }
         val androidAndroidTest by getting {
             dependsOn(commonTest)
+            dependencies {
+                implementation(kotlin("test-junit"))
+                implementation("junit:junit:4.13.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0")
+            }
         }
         val appleNativeMain by creating {
             dependsOn(commonMain)
