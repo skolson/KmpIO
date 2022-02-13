@@ -27,12 +27,13 @@ interface ZipFileBase: Closeable {
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
      * directory structures are rewritten after each add. Use the lambda for adding content for this entry.
      * @param entry to be added. If name matches existing entry, exception is thrown.
-     * @param block function called repeatedly until content argument is empty array. All of array will be written to
-     * entry and number of bytes written (after any compression) is returned.
+     * @param block function called repeatedly until content argument is empty array. Implementation
+     * should return a full ByteArray containing bytes to be compressed. All of array will be compressed
+     * and written to the zip file.Pass an empty ByteArray to signal end of data for the entry.
      */
     suspend fun addEntry(
         entry: ZipEntry,
-        block: suspend (content: ByteArray) -> Int
+        block: suspend () -> ByteArray
     )
     /**
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
@@ -77,7 +78,7 @@ interface ZipFileBase: Closeable {
     suspend fun readEntry(
         entryName: String,
         block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
-    ): ZipEntry
+    ): ZipEntryImpl
 
     /**
      * Same setup as [readEntry], with the additional feature that content is read, uncompressed, decoded using the
@@ -93,8 +94,8 @@ interface ZipFileBase: Closeable {
     suspend fun readTextEntry(
         entryName: String,
         charset: Charset = Charset(Charsets.Utf8),
-        block: suspend (text: String) -> Boolean
-    ): ZipEntry
+        block: suspend (text: String) -> Unit
+    ): ZipEntryImpl
 
     /**
      * Removes an entry from the file. File must be FileMode.Write. Content is NOT removed. Only directory structure is
@@ -117,8 +118,8 @@ interface ZipFileBase: Closeable {
     suspend fun useEntries(block: suspend (entry: ZipEntryImpl) -> Boolean)
 
     /**
-     * Adds entries to existing Zip file found in specified directory, or creates a new Zip file if none exists. Entries
-     * added in the zip have path names relative from the specified directory.
+     * Adds entries to existing Zip file found in specified directory, or creates a new Zip file if
+     * none exists. Entries added in the zip have path names relative from the specified directory.
      * @param directory must be a File instance where isDirectory is true. Directory contents is enumerated.
      * @param shallow If true only the first-level contents of the directory are processed. If false, a left-wise
      * recursive enumeration of all subdirectories and their files is performed.
@@ -126,7 +127,7 @@ interface ZipFileBase: Closeable {
      */
     suspend fun zipDirectory(directory: File,
                              shallow: Boolean = false,
-                             filter: (suspend (pathName: String) -> Boolean)? = null)
+                             filter: ((pathName: String) -> Boolean)? = null)
 
     /**
      * Extracts the content of the Zip file into the specified directory.
@@ -173,12 +174,14 @@ class ZipFileImpl(
     override val file: RawFile = RawFile(fileArg, mode, FileSource.File)
 
     private var eocdPosition: ULong = 0u
+    private var buffer = ByteBuffer(bufferSize)
 
     override suspend fun addEntry(entry: ZipEntry) {
         TODO("Not yet implemented")
     }
 
-    override suspend fun addEntry(entry: ZipEntry, block: suspend (content: ByteArray) -> Int) {
+    override suspend fun addEntry(entry: ZipEntry,
+                                  block: suspend () -> ByteArray) {
         TODO("Not yet implemented")
     }
 
@@ -217,21 +220,30 @@ class ZipFileImpl(
 
     override suspend fun readEntry(
         entryName: String,
-        block: suspend (entry:ZipEntry, content: ByteArray, bytes: UInt) -> Unit
-    ): ZipEntry {
+        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
+    ): ZipEntryImpl {
         val entry = map[entryName]
             ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
         val record = ZipLocalRecord.decode(file, entry.record.localHeaderOffset.toULong())
-        decompress(record, entry.entry, block)
-        return entry.entry
+        decompress(record, entry, block)
+        return entry
     }
 
     override suspend fun readTextEntry(
         entryName: String,
         charset: Charset,
-        block: suspend (text: String) -> Boolean
-    ): ZipEntry {
-        TODO("Not yet implemented")
+        block: suspend (text: String) -> Unit
+    ): ZipEntryImpl {
+        val entry = map[entryName]
+            ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
+        ZipLocalRecord.decode(file, entry.record.localHeaderOffset.toULong()).apply {
+            decompress(this, entry) { _, content, count ->
+                if (count > 0u && content.size > 0) {
+                    block(charset.decode(content))
+                }
+            }
+        }
+        return entry
     }
 
     override suspend fun removeEntry(entry: ZipEntry): Boolean {
@@ -263,9 +275,41 @@ class ZipFileImpl(
     override suspend fun zipDirectory(
         directory: File,
         shallow: Boolean,
-        filter: (suspend (pathName: String) -> Boolean)?
+        filter: ((pathName: String) -> Boolean)?
     ) {
-        TODO("Not yet implemented")
+        if (!directory.isDirectory)
+            throw IllegalArgumentException("Path ${file.file.path} os not a directory")
+        val parentPath = if (directory.path.endsWith(File.pathSeparator))
+            directory.path
+        else
+            directory.path + File.pathSeparator
+        zipOneDirectory(directory, shallow, parentPath, filter)
+    }
+
+    private suspend fun zipOneDirectory(directory: File,
+                        shallow: Boolean,
+                        parentPath: String,
+                        filter: ((pathName: String) -> Boolean)?)
+    {
+        directory.listFiles.forEach { path ->
+            val name = (if (path.isDirectory && !path.path.endsWith(File.pathSeparator))
+                path.path + File.pathSeparator
+            else
+                path.path).replace(parentPath, "")
+            if (filter?.invoke(name) != false) {
+                RawFile(path).use { rdr ->
+                    addEntry(ZipEntry(rdr.file.name)) {
+                        buffer.apply {
+                            positionLimit(0, bufferSize)
+                            val count = rdr.read(this).toInt()
+                            positionLimit(0, count)
+                        }.getBytes()
+                    }
+                }
+                if (!shallow && path.isDirectory)
+                    zipOneDirectory(path, shallow, parentPath, filter)
+            }
+        }
     }
 
     override suspend fun extractToDirectory(
@@ -276,6 +320,22 @@ class ZipFileImpl(
         TODO("Not yet implemented")
     }
 
+    /**
+     * Rest of methods in the class are private and manage the processing of the various ZipRecord
+     * implementations required during reading and writing zip files.
+     */
+
+    /**
+     * Finds the trailing End of Central Directory (EOCD) record that all zip files must have.  Note
+     * that this record has a variable length comment that can be up to 64K long. So when a comment
+     * is present, the EOCD record signature must be searched. This implementation is:
+     * - read from EOF - [ZipEOCD.minimumLength] to check for signature of EOCD with no comment
+     * - if not found, read back another [bufferSize] and search the content from the end of
+     * buffer to zero looking for the 4 byte EOCD signature
+     * - if still not found, back up another [bufferSize] and search again.
+     * - if signature not found after reading more that [64K + 22] bytes from the EOF, throw a ZipException
+     * exception.
+     */
     private fun findEocdRecord(): ZipEOCD {
         file.apply {
             val sz = size
@@ -336,9 +396,18 @@ class ZipFileImpl(
         }
     }
 
+    /**
+     * support method used by entry readers. Handles locating and reading content, block by block.
+     * Each read of compressed data is [bufferSize] bytes or less. Determines which (if any)
+     * decompression is required. Total bytes read from file MUST be equal to the record's
+     * compressedSize. Uncompressed total bytes passed to all calls to the [block] function must
+     * equal to the record's [uncompressedSize]. CRC checking is done on the uncompressed data, and
+     * that MUST match the records [crc32] value.  If any of these checks fail, a ZipException is
+     * thrown.
+     */
     private suspend fun decompress(
         record: ZipLocalRecord,
-        entry: ZipEntry,
+        entry: ZipEntryImpl,
         block: suspend (entry: ZipEntry, content: ByteArray, bytes: UInt) -> Unit) {
         var remaining = record.compressedSize
         var uncompressedCount = 0UL
@@ -349,7 +418,7 @@ class ZipFileImpl(
             var count = file.read(buf)
             buf.positionLimit(0, count.toInt())
             when (record.algorithm) {
-                CompressionAlgorithms.None -> block(entry, buf.getBytes(count.toInt()), count)
+                CompressionAlgorithms.None -> block(entry.entry, buf.getBytes(count.toInt()), count)
                 else ->
                     Compression(record.algorithm).apply {
                         decompress(buf) {
@@ -357,7 +426,7 @@ class ZipFileImpl(
                             uncompressedCount += outCount
                             val uncompressedContent = it.getBytes(outCount.toInt())
                             crc.update(uncompressedContent)
-                            block(entry, uncompressedContent, outCount)
+                            block(entry.entry, uncompressedContent, outCount)
                             if (remaining - count > 0u) {
                                 buf.clear()
                                 count = file.read(buf)
@@ -370,10 +439,19 @@ class ZipFileImpl(
             }
             remaining -= count.toULong()
         }
-        if (uncompressedCount != record.uncompressedSize) {
+        var workCrc = record.crc32
+        if (record.generalPurpose.isDataDescriptor) {
+            ZipDataDescriptor.decode(file, record.isZip64).also {
+                workCrc = it.crc32
+                if (it.compressedSize.toULong() != record.compressedSize)
+                    throw ZipException("Uncompressing file ${record.name}, data descriptor compressed: ${it.compressedSize}, expected: $${record.compressedSize}")
+                if (it.uncompressedSize.toULong() != record.uncompressedSize)
+                    throw ZipException("Uncompressing file ${record.name}, data descriptor uncompressed: ${it.uncompressedSize}, expected: ${record.uncompressedSize}")
+            }
+        } else if (uncompressedCount != record.uncompressedSize) {
             throw ZipException("Uncompressing file ${record.name}, expected uncompressed: ${record.uncompressedSize}, found: $uncompressedCount")
         }
-        if (crc.result != record.crc32) {
+        if (crc.result != workCrc) {
             throw ZipException("CRC32 values don't match. Entry CRC: ${record.crc32.toString(16)}, content CRC: ${crc.result.toString(16)}")
         }
     }

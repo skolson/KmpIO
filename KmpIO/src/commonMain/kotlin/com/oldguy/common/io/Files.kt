@@ -29,6 +29,7 @@ expect class TimeZones {
     }
 }
 
+class IOException(message: String, cause: Throwable?): Exception(message, cause)
 
 /**
  * Some platform-specific file descriptors are not easily encoded to a string.  Platform specific
@@ -69,8 +70,12 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val size: ULong
 
     fun delete(): Boolean
-    fun copy(destinationPath: String): File
+    suspend fun copy(destinationPath: String): File
     fun resolve(directoryName: String): File
+
+    companion object {
+        val pathSeparator: String
+    }
 }
 
 enum class FileSource {
@@ -81,7 +86,7 @@ expect interface Closeable {
     fun close()
 }
 
-expect inline fun <T : Closeable?, R> T.use(body: (T) -> R): R
+expect suspend inline fun <T : Closeable?, R> T.use(body: (T) -> R): R
 
 enum class FileMode {
     Read, Write

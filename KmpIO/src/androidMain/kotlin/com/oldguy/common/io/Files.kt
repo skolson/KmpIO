@@ -89,28 +89,32 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
         return directory
     }
 
-    actual fun copy(destinationPath: String): File {
+    actual suspend fun copy(destinationPath: String): File {
         val dest = java.io.File(destinationPath)
-        FileOutputStream(dest).use { outputStream ->
-            FileInputStream(javaFile).use { inStream ->
-                val buf = ByteArray(4096)
-                var bytesRead: Int
-                while (inStream.read(buf).also { bytesRead = it } > 0) {
-                    outputStream.write(buf, 0, bytesRead)
+        kotlin.runCatching {
+            FileOutputStream(dest).use { outputStream ->
+                FileInputStream(javaFile).use { inStream ->
+                    val buf = ByteArray(4096)
+                    var bytesRead: Int
+                    while (inStream.read(buf).also { bytesRead = it } > 0) {
+                        outputStream.write(buf, 0, bytesRead)
+                    }
                 }
             }
+        }.onFailure {
+            throw IOException("Copy failed: ${it.message}", it)
         }
         return File(dest.absolutePath, null)
     }
 
-    companion object {
-        private const val pathSeparator = "/"
+    actual companion object {
+        actual val pathSeparator = "/"
     }
 }
 
 actual typealias Closeable = java.io.Closeable
 
-actual inline fun <T : Closeable?, R> T.use(body: (T) -> R): R =
+actual suspend inline fun <T : Closeable?, R> T.use(body: (T) -> R): R =
     kotlinIoUse(body)
 
 /**

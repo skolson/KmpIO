@@ -6,15 +6,18 @@ package com.oldguy.common.io
  * Uses a decently fast table-lookup.
  */
 class Crc32() {
+    /**
+     * Actual accumulated working crc from all calls to [update] since construction or last reset.
+     */
     private var value: Int = -1
 
     /**
-     * Current result of all update calls since constructor or last reset
+     * Current usable result of all update calls since constructor or last reset
      */
     val result get() = value xor -0x1
 
     /**
-     * Apply all bytes in array to current value
+     * Apply all bytes in array to current CRC value
      * @param inputs content
      */
     fun update(inputs: ByteArray) {
@@ -22,7 +25,7 @@ class Crc32() {
     }
 
     /**
-     * Apply all bytes in buffer from position to limit to current value
+     * Apply bytes in buffer (from position to limit) to current CRC value
      * @param inputs content
      */
     fun update(inputs: ByteBuffer) {
@@ -30,7 +33,7 @@ class Crc32() {
     }
 
     /**
-     * Apply all bytes in array to current value
+     * Apply all bytes in array to current CRC value
      * @param inputs content
      */
     fun update(inputs: UByteArray) {
@@ -38,13 +41,16 @@ class Crc32() {
     }
 
     /**
-     * Apply all bytes in buffer from position to limit to current value
+     * Apply bytes in buffer (from position to limit) to current CRC value
      * @param inputs content
      */
     fun update(inputs: UByteBuffer) {
         tableLookup(inputs.getBytes(inputs.remaining))
     }
 
+    /**
+     * resets value to beginning value, ready for calls to update
+     */
     fun reset() {
         value = -1
     }
@@ -66,7 +72,7 @@ class Crc32() {
          *  Using table lookup
          *  Reference: http://snippets.dzone.com/tag/crc32
          */
-        val table = intArrayOf(
+        private val table = intArrayOf(
             0x00000000,
             0x77073096,
             -0x11f19ed4,

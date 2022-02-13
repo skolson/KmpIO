@@ -59,6 +59,10 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual override fun resolve(directoryName: String): File {
         return super.resolve(directoryName)
    }
+
+    actual companion object {
+        actual val pathSeparator = "/"
+    }
 }
 
 actual inline fun <T : Closeable?, R> T.use(body: (T) -> R): R {
