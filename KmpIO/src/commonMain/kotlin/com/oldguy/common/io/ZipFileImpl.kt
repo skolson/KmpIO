@@ -224,7 +224,7 @@ class ZipFileImpl(
     ): ZipEntryImpl {
         val entry = map[entryName]
             ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
-        val record = ZipLocalRecord.decode(file, entry.record.localHeaderOffset.toULong())
+        val record = ZipLocalRecord.decode(file, entry.record.localHeaderOffset)
         decompress(record, entry, block)
         return entry
     }
@@ -236,7 +236,7 @@ class ZipFileImpl(
     ): ZipEntryImpl {
         val entry = map[entryName]
             ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
-        ZipLocalRecord.decode(file, entry.record.localHeaderOffset.toULong()).apply {
+        ZipLocalRecord.decode(file, entry.record.localHeaderOffset).apply {
             decompress(this, entry) { _, content, count ->
                 if (count > 0u && content.size > 0) {
                     block(charset.decode(content))
@@ -382,11 +382,13 @@ class ZipFileImpl(
 
 
     private fun parseDirectory() {
-        val eocd = findEocdRecord()
-        if (eocd.isZip64)
-            findZip64Eocd(eocd)
-        else
-            ZipEOCD64.upgrade(eocd)
+        val eocd: ZipEOCD64
+        findEocdRecord().apply {
+            eocd = if (isZip64)
+                findZip64Eocd(this)
+            else
+                ZipEOCD64.upgrade(this)
+        }
 
         file.position = eocd.directoryOffset.toULong()
         map.clear()
@@ -409,35 +411,44 @@ class ZipFileImpl(
         record: ZipLocalRecord,
         entry: ZipEntryImpl,
         block: suspend (entry: ZipEntry, content: ByteArray, bytes: UInt) -> Unit) {
-        var remaining = record.compressedSize
         var uncompressedCount = 0UL
-        val buf = ByteBuffer(bufferSize)
         val crc = Crc32()
-        while (remaining > 0u) {
-            buf.positionLimit(0, min(buf.capacity, remaining.toInt()))
-            var count = file.read(buf)
-            buf.positionLimit(0, count.toInt())
-            when (record.algorithm) {
-                CompressionAlgorithms.None -> block(entry.entry, buf.getBytes(count.toInt()), count)
-                else ->
-                    Compression(record.algorithm).apply {
-                        decompress(buf) {
+        when (record.algorithm) {
+            CompressionAlgorithms.None -> {
+                var remaining = record.compressedSize
+                val buf = ByteBuffer(bufferSize)
+                while (remaining > 0u) {
+                    buf.positionLimit(0, min(bufferSize.toULong(), remaining).toInt())
+                    val length = buf.remaining.toUInt()
+                    val count = file.read(buf)
+                    buf.positionLimit(0, count.toInt())
+                    if (count != length)
+                        throw ZipException("Read error on entry: ${entry.entry.name}, expected $length bytes, read $count}")
+                    val uncompressedContent = buf.getBytes(buf.remaining)
+                    crc.update(uncompressedContent)
+                    block(entry.entry, uncompressedContent, count)
+                    remaining -= count
+                }
+            }
+            else ->
+                Compression(record.algorithm).apply {
+                    val buf = ByteBuffer(bufferSize)
+                    uncompressedCount = decompress(
+                        record.compressedSize,
+                        4096u,
+                        input = { bytesToRead ->
+                            buf.positionLimit(0, bytesToRead)
+                            val c = file.read(buf)
+                            buf.positionLimit(0, c.toInt())
+                            buf
+                        }) {
                             val outCount = it.remaining.toUInt()
                             uncompressedCount += outCount
                             val uncompressedContent = it.getBytes(outCount.toInt())
                             crc.update(uncompressedContent)
                             block(entry.entry, uncompressedContent, outCount)
-                            if (remaining - count > 0u) {
-                                buf.clear()
-                                count = file.read(buf)
-                                buf.positionLimit(0, count.toInt())
-                            }
-                            else buf.positionLimit(0, 0)
-                            buf
                         }
-                    }
-            }
-            remaining -= count.toULong()
+                }
         }
         var workCrc = record.crc32
         if (record.generalPurpose.isDataDescriptor) {

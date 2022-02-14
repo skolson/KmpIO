@@ -56,4 +56,32 @@ class ZipFileTests {
             }
         }
     }
+
+    @Test
+    fun zip64FileRead() {
+        val file = File("..\\TestFiles\\ZerosZip64.zip", null)
+        ZipFileImpl(file, FileMode.Read).apply {
+            runTest {
+                try {
+                    open()
+                    val testEntry = map["0000"]
+                        ?: throw IllegalStateException("0000 file not found")
+                    val uSize = 5242880UL * 1024UL
+                    assertEquals(5611526UL, testEntry.record.compressedSize)
+                    assertEquals(uSize, testEntry.record.uncompressedSize)
+                    assertEquals(0UL, testEntry.record.localHeaderOffset)
+                    // read 5 gig entry
+                    var uncompressedCount = 0UL
+                    readEntry(testEntry.entry.name) { entry, content, count ->
+                        assertEquals(count, content.size.toUInt())
+                        assertEquals("0000", entry.name)
+                        uncompressedCount += count
+                    }
+                    assertEquals(uSize, uncompressedCount)
+                } finally {
+                    close()
+                }
+            }
+        }
+    }
 }

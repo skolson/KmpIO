@@ -39,13 +39,24 @@ expect class Compression(algorithm: CompressionAlgorithms) {
      * constructor time.
      * If the selected algorithm fails during the operation, and IllegalArgumentException is thrown. There is no
      * attempt at dynamically determining the algorithm used to originally do the compression.
-     * @param first Compressed data. Will de-compress starting at the current position (typically 0) until limit.
-     * @return buffer large enough to contain all De-compressed data from input.  Buffer size and remaining value are
-     * both equal to the uncompressed byte count. Position of the buffer on return is zero, no rewind required. Size
-     * will always be >= input remaining.
+     * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
+     * process.  Function will continue until this number of bytes are provided via the [input] function.
+     * @param input will be invoked once for each input required.  Total size (sum of remainings) of
+     * all ByteBuffers provided must equal [totalCompressedBytes]. Note if input is remaining == 0
+     * indicating an empty buffer, decompress operation will cease.
+     * @param output will be called repeatedly as decompressed bytes are produced. Buffer argument will
+     * have position zero and limit set to however many bytes were uncompressed. This buffer has a
+     * capacity equal to the input ByteBuffer, but the number of bytes it contains will be 0 < limit
+     * <= capacity, as any one compress can produce any non-zero number of bytes.
+     * Implementation should consume Buffer content (between position 0 and remaining) as for large
+     * payloads with high compression ratios, this function may be called MANY times.
+     * @return sum of all uncompressed bytes count passed via [output] function calls.
      */
-    suspend fun decompress(first: ByteBuffer,
-                   next: suspend (output: ByteBuffer) -> ByteBuffer
+    suspend fun decompress(
+        totalCompressedBytes: ULong,
+        bufferSize: UInt,
+        input: suspend (bytesToRead: Int) -> ByteBuffer,
+        output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong
 
     /**

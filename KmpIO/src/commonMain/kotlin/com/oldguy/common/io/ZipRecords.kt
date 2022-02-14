@@ -230,8 +230,8 @@ data class ZipEOCD64Locator(
  * self-defense default limit of 2MB for the comment.
  */
 data class ZipEOCD64 (
-    val version: Short,
-    val versionMinimum: Short,
+    val version: ZipVersion,
+    val versionMinimum: ZipVersion,
     val diskNumber: Int,
     val directoryDisk: Int,
     val diskEntryCount: Long,
@@ -249,8 +249,8 @@ data class ZipEOCD64 (
         buffer.apply {
             encodeSignature(signature, this)
             long = (36 + comment.length).toLong()
-            short = version
-            short = versionMinimum
+            short = version.version
+            short = versionMinimum.version
             int = diskNumber
             int = directoryDisk
             long = diskEntryCount
@@ -275,18 +275,22 @@ data class ZipEOCD64 (
          * @param position where record is located
          */
         fun decode(file: RawFile, position: ULong): ZipEOCD64 {
-            val buf = ByteBuffer(minimumLength)
+            var buf = ByteBuffer(minimumLength)
             file.read(buf, position)
             buf.rewind()
             decodeSignature(signature, minimumLength, buf)
             val totalLength = buf.long + 12
             val commentLength = min(totalLength - minimumLength, commentLengthLimit).toInt()
-            ByteBuffer(totalLength.toInt()).apply {
-                file.read(this)
+            if (commentLength > 0) {
+                buf = ByteBuffer(totalLength.toInt())
+                file.read(buf, position)
                 buf.rewind()
+                decodeSignature(signature, minimumLength, buf)
+            }
+            buf.apply {
                 return ZipEOCD64(
-                    version = short,
-                    versionMinimum = short,
+                    version = ZipVersion(short),
+                    versionMinimum = ZipVersion(short),
                     diskNumber = int,
                     directoryDisk = int,
                     diskEntryCount = long,
@@ -294,14 +298,17 @@ data class ZipEOCD64 (
                     directoryLength = long,
                     directoryOffset = long,
                     comment = decodeComment(commentLength, buf)
-                )
+                ).apply {
+                    if (!versionMinimum.supportsZip64)
+                        throw ZipException("Zip64 expects minimum version 4.5, actual: ${versionMinimum.versionString}")
+                }
             }
         }
 
         fun upgrade(eocd: ZipEOCD): ZipEOCD64 {
             return ZipEOCD64(
-                -1,
-                -1,
+                ZipVersion(0x0045),
+                ZipVersion(0x0045),
                 eocd.diskNumber.toInt(),
                 eocd.directoryDisk.toInt(),
                 eocd.diskEntryCount.toLong(),
@@ -385,186 +392,19 @@ data class ZipGeneralPurpose(val bits: Short) {
         set(value) { bitSet[13] = value }
 }
 
-/**
- * Directory record contents.
- */
-data class ZipDirectoryRecord(
-    val version: Short,
-    val versionMinimum: Short,
-    val purposeBits: Short,
-    val compression: Short,
-    val lastModTime: Short,
-    val lastModDate: Short,
-    val crc32: Int,
-    val intCompressedSize: Int,
-    val intUncompressedSize: Int,
-    val nameLength: Short,
-    val extraLength: Short,
-    val commentLength: Short,
-    val diskNumber: Short,
-    val internalAttributes: Short,
-    val externalAttributes: Int,
-    val intLocalHeaderOffset: Int,
-    var name: String,
-    var extra: ByteArray,
-    var comment: String,
-
-): ZipRecord {
-
-    /**
-     * Makes a Zip64 flavor of a directory record.
-     */
-    constructor(
-        version: Short,
-        versionMinimum: Short,
-        purposeBits: Short,
-        compression: Short,
-        lastModTime: Short,
-        lastModDate: Short,
-        crc32: Int,
-        nameLength: Short,
-        extraLength: Short,
-        commentLength: Short,
-        internalAttributes: Short,
-        externalAttributes: Int,
-        intLocalHeaderOffset: Int,
-        name: String,
-        extra: ByteArray,
-        comment: String,
-    ): this(
-        version,
-        versionMinimum,
-        purposeBits,
-        compression,
-        lastModTime,
-        lastModDate,
-        crc32,
-        intCompressedSize = -1,
-        intUncompressedSize = -1,
-        nameLength,
-        extraLength,
-        commentLength,
-        diskNumber = -1,
-        internalAttributes,
-        externalAttributes,
-        intLocalHeaderOffset,
-        name,
-        extra,
-        comment
-    )
-
-    val isZip64 = intCompressedSize == -1 || intUncompressedSize == -1
+data class ZipVersion(val version:Short) {
     val hostAttributesCode = version / 0x100
-    val versionMajor = (version and 0xFF) / 10
-    val versionMinor = (version and 0xFF) % 10
-    val versionString = "$versionMajor.$versionMinor"
-    val minVersionMajor = (versionMinimum and 0xFF) / 10
-    val minVersionMinor = (versionMinimum and 0xFF) % 10
-    val minVersionString = "$minVersionMajor.$minVersionMinor"
-    val algorithm = ZipRecord.algorithm(compression)
-    val generalPurpose = ZipGeneralPurpose(purposeBits)
-    val extraRecords get() = ZipExtra.decode(extra)
-    var extraZip64: ZipExtraZip64? = null
-    val compressedSize: ULong get() = if (isZip64)
-        extraZip64?.compressedSize ?: throw ZipException("Zip64 spec requires Zip64 Extended Information Extra Field")
-    else
-        intCompressedSize.toULong()
-    val localHeaderOffset: ULong get() = if (isZip64)
-        extraZip64?.localHeaderOffset ?: throw ZipException("Zip64 spec requires Zip64 Extended Information Extra Field")
-    else
-        intLocalHeaderOffset.toULong()
-
-    /**
-     * Encode this entry into the specified ByteBuffer.
-     * @param buffer encoding will be written starting at current position. If there is insufficient remaining, an
-     * exception is thrown. If ByteBuffer is not little endian, exception is thrown
-     */
-    fun encode(buffer: ByteBuffer) {
-        buffer.apply {
-            encodeSignature(signature, this)
-            if (comment.length > Short.MAX_VALUE)
-                throw IllegalArgumentException("Zip file comment must be < ${Short.MAX_VALUE}>")
-            if (name.length > Short.MAX_VALUE)
-                throw IllegalArgumentException("Zip file name must be < ${Short.MAX_VALUE}>")
-            if (extra.size > Short.MAX_VALUE)
-                throw IllegalArgumentException("Zip file extra data length must be < ${Short.MAX_VALUE}>")
-
-            short = version
-            short = versionMinimum
-            short = generalPurpose.shortValue
-            short = compression
-            short = lastModTime
-            short = lastModDate
-            int = crc32
-            int = intCompressedSize
-            int = intUncompressedSize
-            short = name.length.toShort()
-            short = extra.size.toShort()
-            short = comment.length.toShort()
-            short = diskNumber
-            short = internalAttributes
-            int = externalAttributes
-            int = intLocalHeaderOffset
-            if (name.isNotEmpty())
-                put(zipCharset.encode(name))
-            if (extra.isNotEmpty())
-                put(extra)
-            if (comment.isNotEmpty())
-                put(zipCharset.encode(comment))
-        }
-    }
-
-    companion object {
-        const val signature = 0x02014b50
-        private const val minimumLength = 46
-        /**
-         * Starting at specified position, verifies signature, decodes buffer into Central Directory Record. If buffer
-         * can't be decoded, an exception is thrown. Since the record can be long, this is done with two reads. One to
-         * get the relevant length data, and one to read the entire record.
-         * @param buffer position is pointing at location where record starts
-         */
-        fun decode(file: RawFile): ZipDirectoryRecord {
-            var record: ZipDirectoryRecord
-            ByteBuffer(minimumLength).apply {
-                file.read(this)
-                rewind()
-                decodeSignature(signature, minimumLength, this)
-                record = ZipDirectoryRecord(
-                    version = short,
-                    versionMinimum = short,
-                    purposeBits = short,
-                    compression = short,
-                    lastModTime = short,
-                    lastModDate = short,
-                    crc32 = int,
-                    intCompressedSize = int,
-                    intUncompressedSize = int,
-                    nameLength = short,
-                    extraLength = short,
-                    commentLength = short,
-                    diskNumber = short,
-                    internalAttributes = short,
-                    externalAttributes = int,
-                    intLocalHeaderOffset = int,
-                    "",
-                    ByteArray(0),
-                    ""
-                )
-            }
-            return record.apply {
-                name = ZipRecord.decodeName(nameLength, file)
-                extra = ZipRecord.decodeExtra(extraLength, file)
-                comment = decodeComment(commentLength.toInt(), file)
-                if (isZip64) {
-                    extraRecords.firstOrNull { it.isZip64}?.let {
-                        extraZip64 = ZipExtraZip64.decode(it)
-                    } ?: throw ZipException("Zip64 entry $name must have an zip64 extra field signature. Extra: $extraRecords")
-                }
-            }
-        }
-    }
+    val lsb = version and 0xff
+    val major = lsb / 10
+    val minor = lsb % 10
+    val versionString = "$major.$minor"
+    val supportsZip64 = major > 4 || (major == 4 && minor >= 5 )
 }
 
+/**
+ * Every data field in this entry is optional, and only present if the corresponding value in the
+ * directory entry is -1. Unspecified fields are set to the same value as the directory entry.
+ */
 data class ZipExtraZip64(
     val originalSize: ULong,
     val compressedSize: ULong,
@@ -573,19 +413,43 @@ data class ZipExtraZip64(
 ) {
     companion object {
         const val signature: Short = 1
-        private val length: Short = 28
+        private val minimumLength: Short = 12
+        private val maximumLength: Short = 32
 
-        fun decode(extra: ZipExtra): ZipExtraZip64 {
+        fun decode(extra: ZipExtra,
+                   dirOriginalSize: Int,
+                   dirCompressedSize: Int,
+                   dirOffset: Int,
+                   dirDiskNumber: Short
+        ): ZipExtraZip64 {
             if (extra.signature != signature)
                 throw ZipException("Extra zip64 decode expected signature: $signature, found: ${extra.signature}")
-            if (extra.length != length)
-                throw ZipException("Extra zip64 decode expected length: $length, found: ${extra.length}")
+            if (extra.length < minimumLength || extra.length > maximumLength)
+                throw ZipException("Extra zip64 decode length: ${extra.length}, not in range: $minimumLength - ${maximumLength}")
             extra.buf.apply {
                 return ZipExtraZip64(
-                    long.toULong(),
-                    long.toULong(),
-                    long.toULong(),
-                    int
+                    if (dirOriginalSize < 0) long.toULong() else dirOriginalSize.toULong(),
+                    if (dirCompressedSize < 0) long.toULong() else dirCompressedSize.toULong(),
+                    if (dirOffset < 0) long.toULong() else dirOffset.toULong(),
+                    if (dirDiskNumber < 0) int else dirDiskNumber.toInt()
+                )
+            }
+        }
+
+        fun decodeLocal(extra: ZipExtra,
+                   dirOriginalSize: Int,
+                   dirCompressedSize: Int
+        ): ZipExtraZip64 {
+            if (extra.signature != signature)
+                throw ZipException("Extra zip64 decode expected signature: $signature, found: ${extra.signature}")
+            if (extra.length < 8 || extra.length > 16)
+                throw ZipException("Extra zip64 local decode length: ${extra.length}, not in range: 8 - 16")
+            extra.buf.apply {
+                return ZipExtraZip64(
+                    if (dirOriginalSize < 0) long.toULong() else dirOriginalSize.toULong(),
+                    if (dirCompressedSize < 0) long.toULong() else dirCompressedSize.toULong(),
+                    0u,
+                    0
                 )
             }
         }
@@ -631,168 +495,6 @@ data class ZipExtra(
                     putBytes(it.buf.buf)
                 }
             }.contentBytes
-        }
-    }
-}
-
-/**
- * Local File Header record precedes file data for an entry in the zip. It contains an optional encryption header.
- */
-data class ZipLocalRecord(
-    val versionMinimum: Short,
-    val purposeBits: Short,
-    val compression: Short,
-    val lastModTime: Short,
-    val lastModDate: Short,
-    val crc32: Int,
-    val intCompressedSize: Int,
-    val intUncompressedSize: Int,
-    val nameLength: Short,
-    val extraLength: Short,
-    var name: String,
-    var extra: ByteArray,
-    var encryptionHeader: ByteArray,
-    var longCompressedSize: Long = 0L,
-    var longUncompressedSize: Long = 0L
-): ZipRecord {
-
-    /**
-     * Zip64 constructor
-     */
-    constructor(
-        versionMinimum: Short,
-        purposeBits: Short,
-        compression: Short,
-        lastModTime: Short,
-        lastModDate: Short,
-        crc32: Int,
-        nameLength: Short,
-        extraLength: Short,
-        name: String,
-        extra: ByteArray,
-        encryptionHeader: ByteArray
-    ): this(
-        versionMinimum,
-        purposeBits,
-        compression,
-        lastModTime,
-        lastModDate,
-        crc32,
-        intCompressedSize = -1,
-        intUncompressedSize = -1,
-        nameLength,
-        extraLength,
-        name,
-        extra,
-        encryptionHeader,
-        0L,
-        0L
-    )
-
-    /**
-     * Compression field has these values from the spec:
-     * 4.4.5 compression method: (2 bytes)
-        0 - The file is stored (no compression)
-        1 - The file is Shrunk
-        2 - The file is Reduced with compression factor 1
-        3 - The file is Reduced with compression factor 2
-        4 - The file is Reduced with compression factor 3
-        5 - The file is Reduced with compression factor 4
-        6 - The file is Imploded
-        7 - Reserved for Tokenizing compression algorithm
-        8 - The file is Deflated
-        9 - Enhanced Deflating using Deflate64(tm)
-        10 - PKWARE Data Compression Library Imploding (old IBM TERSE)
-        11 - Reserved by PKWARE
-        12 - File is compressed using BZIP2 algorithm
-        13 - Reserved by PKWARE
-        14 - LZMA
-        15 - Reserved by PKWARE
-        16 - IBM z/OS CMPSC Compression
-        17 - Reserved by PKWARE
-        18 - File is compressed using IBM TERSE (new)
-        19 - IBM LZ77 z Architecture
-        20 - deprecated (use method 93 for zstd)
-        93 - Zstandard (zstd) Compression
-        94 - MP3 Compression
-        95 - XZ Compression
-        96 - JPEG variant
-        97 - WavPack compressed data
-        98 - PPMd version I, Rev 1
-        99 - AE-x encryption marker (see APPENDIX E)
-     */
-
-    val algorithm = ZipRecord.algorithm(compression)
-    val hasDataDescriptor = crc32 == 0 && intCompressedSize == 0 && intUncompressedSize == 0
-    val isZip64 = intCompressedSize < 0
-    val compressedSize: ULong get() = if (isZip64) longCompressedSize.toULong() else intCompressedSize.toULong()
-    val uncompressedSize: ULong get() = if (isZip64) longUncompressedSize.toULong() else intUncompressedSize.toULong()
-    val generalPurpose = ZipGeneralPurpose(purposeBits)
-
-    /**
-     * Encode this entry into the specified ByteBuffer.
-     * @param buffer encoding will be written starting at current position. If there is insufficient remaining, an
-     * exception is thrown. If ByteBuffer is not little endian, exception is thrown
-     */
-    fun encode(buffer: ByteBuffer) {
-        buffer.apply {
-            encodeSignature(signature, this)
-            if (name.length > Short.MAX_VALUE)
-                throw IllegalArgumentException("Zip file name must be < ${Short.MAX_VALUE}>")
-            if (extra.size > Short.MAX_VALUE)
-                throw IllegalArgumentException("Zip file extra data length must be < ${Short.MAX_VALUE}>")
-
-            short = versionMinimum
-            short = generalPurpose.shortValue
-            short = compression
-            short = lastModTime
-            short = lastModDate
-            int = crc32
-            int = intCompressedSize
-            int = intUncompressedSize
-            short = name.length.toShort()
-            short = extra.size.toShort()
-            if (name.isNotEmpty())
-                put(zipCharset.encode(name))
-            if (extra.isNotEmpty())
-                put(extra)
-        }
-    }
-
-    companion object {
-        const val signature = 0x04034b50
-        const val minimumLength = 30
-
-        /**
-         * Starting at buffer position, verifies signature, decodes buffer into Central Directory Record. If buffer
-         * can't be decoded, an exception is thrown
-         * @param buffer position is pointing at location where record starts
-         */
-        fun decode(file: RawFile, position: ULong): ZipLocalRecord {
-            ByteBuffer(minimumLength).apply {
-                file.read(this, position)
-                rewind()
-                decodeSignature(signature, minimumLength, this)
-                return ZipLocalRecord(
-                    versionMinimum = short,
-                    purposeBits = short,
-                    compression = short,
-                    lastModTime = short,
-                    lastModDate = short,
-                    crc32 = int,
-                    intCompressedSize = int,
-                    intUncompressedSize = int,
-                    nameLength = short,
-                    extraLength = short,
-                    "",
-                    ByteArray(0),
-                    ByteArray(0)
-                ).apply {
-                    name = ZipRecord.decodeName(nameLength, file)
-                    extra = ZipRecord.decodeExtra(extraLength, file)
-                    // if encryption is present, get encryption header here (12 bytes)
-                }
-            }
         }
     }
 }
