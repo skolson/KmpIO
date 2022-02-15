@@ -3,6 +3,27 @@ package com.oldguy.common.io
 import kotlin.math.min
 
 /**
+ * Represents a Zip file entry. If creating one, the internal records will be instantiated when 
+ * writing the entry.  When non-null they contain the Zip internals, intended for read-only use.
+ */
+class ZipEntry(
+    val name: String,
+    val comment: String = "",
+    val extra: List<ZipExtra> = emptyList()
+) {
+    var directoryRecord: ZipDirectoryRecord? = null
+        private set
+    val directory get() = directoryRecord ?: throw IllegalStateException("directoryRecord not initialized")
+    var localDirectoryRecord: ZipLocalRecord? = null
+    val localDirectory get() = localDirectoryRecord ?: throw IllegalStateException("localDirectoryRecord not initialized")
+
+    constructor(record: ZipDirectoryRecord)
+        :this(record.name, record.comment, record.extraRecords) {
+        directoryRecord = record
+    }
+}
+
+/**
  * This is the base for an internal KMP implementation of the Zip file specification. Written mostly because there is no
  * non-third-party Apple Objective C implementation. Under the covers, an expect/actual setup uses platform-specific
  * implementations of the compression librarires offerd in the JVM and in Apple.
@@ -55,9 +76,9 @@ interface ZipFileBase: Closeable {
     /**
      * Merges the specified Zip files into this one. Input zipfile entries with matching paths are ignored. Each new
      * entry is added to the end of this one. Directory is re-written after all entries have been copied.
-     * @param zipFiles one or more ZipFileImpl instances
+     * @param zipFiles one or more ZipFile instances
      */
-    fun merge(vararg zipFiles: ZipFileImpl): List<ZipEntry>
+    fun merge(vararg zipFiles: ZipFile): List<ZipEntry>
 
     /**
      * Opens a Zip file. For FileMode Read, and for FileMode.Write where there is an existing file, all directory entries
@@ -78,7 +99,7 @@ interface ZipFileBase: Closeable {
     suspend fun readEntry(
         entryName: String,
         block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
-    ): ZipEntryImpl
+    ): ZipEntry
 
     /**
      * Same setup as [readEntry], with the additional feature that content is read, uncompressed, decoded using the
@@ -95,7 +116,7 @@ interface ZipFileBase: Closeable {
         entryName: String,
         charset: Charset = Charset(Charsets.Utf8),
         block: suspend (text: String) -> Unit
-    ): ZipEntryImpl
+    ): ZipEntry
 
     /**
      * Removes an entry from the file. File must be FileMode.Write. Content is NOT removed. Only directory structure is
@@ -115,7 +136,7 @@ interface ZipFileBase: Closeable {
      * Convenience wrapper for existing files only. Does open, followed by invoking [block] for each entry found.
      * After all entries processed, or from uncaught exception, ZipFile is closed.
      */
-    suspend fun useEntries(block: suspend (entry: ZipEntryImpl) -> Boolean)
+    suspend fun useEntries(block: suspend (entry: ZipEntry) -> Boolean)
 
     /**
      * Adds entries to existing Zip file found in specified directory, or creates a new Zip file if
@@ -138,8 +159,8 @@ interface ZipFileBase: Closeable {
      * @return List of File objects extracted.
      */
     suspend fun extractToDirectory(directory: File,
-                                   filter: (suspend (entry: ZipEntryImpl) -> Boolean)? = null,
-                                   mapPath: ((entry: ZipEntryImpl) -> String)? = null): List<File>
+                                   filter: (suspend (entry: ZipEntry) -> Boolean)? = null,
+                                   mapPath: ((entry: ZipEntry) -> String)? = null): List<File>
 }
 
 /**
@@ -147,12 +168,6 @@ interface ZipFileBase: Closeable {
  * [IllegalArgumentException] for bad ones.  All other exceptions detected or caught throw [ZipException]
  */
 class ZipException(message: String): Exception(message)
-
-class ZipEntryImpl(
-    val record: ZipDirectoryRecord
-) {
-    val entry = ZipEntry(record.name, record.comment, record.extra)
-}
 
 /**
  * This is a pure Kotlin MP implementation of a subset of the Zip specification. Zip Files can be read, created, updated,
@@ -163,14 +178,14 @@ class ZipEntryImpl(
  * multi-"disk" or segmented disk files
  * encryption
  */
-class ZipFileImpl(
+class ZipFile(
     fileArg: File,
     val mode: FileMode
 ) :ZipFileBase {
 
-    val map = mutableMapOf<String, ZipEntryImpl>()
+    val map = mutableMapOf<String, ZipEntry>()
     override val bufferSize = 4096
-    override val entries get() = map.values.map { it.entry }.toList()
+    override val entries get() = map.values.toList()
     override val file: RawFile = RawFile(fileArg, mode, FileSource.File)
 
     private var eocdPosition: ULong = 0u
@@ -198,7 +213,7 @@ class ZipFileImpl(
         file.close()
     }
 
-    override fun merge(vararg zipFiles: ZipFileImpl): List<ZipEntry> {
+    override fun merge(vararg zipFiles: ZipFile): List<ZipEntry> {
         TODO("Not yet implemented")
     }
 
@@ -221,10 +236,10 @@ class ZipFileImpl(
     override suspend fun readEntry(
         entryName: String,
         block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
-    ): ZipEntryImpl {
+    ): ZipEntry {
         val entry = map[entryName]
             ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
-        val record = ZipLocalRecord.decode(file, entry.record.localHeaderOffset)
+        val record = ZipLocalRecord.decode(file, entry.directory.localHeaderOffset)
         decompress(record, entry, block)
         return entry
     }
@@ -233,10 +248,10 @@ class ZipFileImpl(
         entryName: String,
         charset: Charset,
         block: suspend (text: String) -> Unit
-    ): ZipEntryImpl {
+    ): ZipEntry {
         val entry = map[entryName]
             ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
-        ZipLocalRecord.decode(file, entry.record.localHeaderOffset).apply {
+        ZipLocalRecord.decode(file, entry.directory.localHeaderOffset).apply {
             decompress(this, entry) { _, content, count ->
                 if (count > 0u && content.size > 0) {
                     block(charset.decode(content))
@@ -261,7 +276,7 @@ class ZipFileImpl(
         }
     }
 
-    override suspend fun useEntries(block: suspend (entry: ZipEntryImpl) -> Boolean) {
+    override suspend fun useEntries(block: suspend (entry: ZipEntry) -> Boolean) {
         try {
             open()
             map.values.forEach {
@@ -314,8 +329,8 @@ class ZipFileImpl(
 
     override suspend fun extractToDirectory(
         directory: File,
-        filter: (suspend (entry: ZipEntryImpl) -> Boolean)?,
-        mapPath: ((entry: ZipEntryImpl) -> String)?
+        filter: (suspend (entry: ZipEntry) -> Boolean)?,
+        mapPath: ((entry: ZipEntry) -> String)?
     ): List<File> {
         TODO("Not yet implemented")
     }
@@ -366,7 +381,7 @@ class ZipFileImpl(
         }
     }
 
-    private fun findZip64Eocd(eocd: ZipEOCD): ZipEOCD64 {
+    private fun findZip64Eocd(): ZipEOCD64 {
         //find locator, use it to find EOCD64
         val sz = ZipEOCD64Locator.minimumLength.toUInt()
         val buf = ByteBuffer(sz.toInt())
@@ -385,7 +400,7 @@ class ZipFileImpl(
         val eocd: ZipEOCD64
         findEocdRecord().apply {
             eocd = if (isZip64)
-                findZip64Eocd(this)
+                findZip64Eocd()
             else
                 ZipEOCD64.upgrade(this)
         }
@@ -393,8 +408,7 @@ class ZipFileImpl(
         file.position = eocd.directoryOffset.toULong()
         map.clear()
         for (index in 0 until eocd.entryCount) {
-            val record = ZipDirectoryRecord.decode(file)
-            map[record.name] = ZipEntryImpl(record)
+            ZipDirectoryRecord.decode(file).apply { map[name] = ZipEntry(this) }
         }
     }
 
@@ -403,13 +417,13 @@ class ZipFileImpl(
      * Each read of compressed data is [bufferSize] bytes or less. Determines which (if any)
      * decompression is required. Total bytes read from file MUST be equal to the record's
      * compressedSize. Uncompressed total bytes passed to all calls to the [block] function must
-     * equal to the record's [uncompressedSize]. CRC checking is done on the uncompressed data, and
-     * that MUST match the records [crc32] value.  If any of these checks fail, a ZipException is
+     * equal to the record's uncompressedSize. CRC checking is done on the uncompressed data, and
+     * that MUST match the records crc32 value.  If any of these checks fail, a ZipException is
      * thrown.
      */
     private suspend fun decompress(
         record: ZipLocalRecord,
-        entry: ZipEntryImpl,
+        entry: ZipEntry,
         block: suspend (entry: ZipEntry, content: ByteArray, bytes: UInt) -> Unit) {
         var uncompressedCount = 0UL
         val crc = Crc32()
@@ -423,15 +437,15 @@ class ZipFileImpl(
                     val count = file.read(buf)
                     buf.positionLimit(0, count.toInt())
                     if (count != length)
-                        throw ZipException("Read error on entry: ${entry.entry.name}, expected $length bytes, read $count}")
+                        throw ZipException("Read error on entry: ${entry.name}, expected $length bytes, read $count}")
                     val uncompressedContent = buf.getBytes(buf.remaining)
                     crc.update(uncompressedContent)
-                    block(entry.entry, uncompressedContent, count)
+                    block(entry, uncompressedContent, count)
                     remaining -= count
                 }
             }
-            else ->
-                Compression(record.algorithm).apply {
+            CompressionAlgorithms.Deflate -> {
+                CompressionDeflate().apply {
                     val buf = ByteBuffer(bufferSize)
                     uncompressedCount = decompress(
                         record.compressedSize,
@@ -446,9 +460,12 @@ class ZipFileImpl(
                             uncompressedCount += outCount
                             val uncompressedContent = it.getBytes(outCount.toInt())
                             crc.update(uncompressedContent)
-                            block(entry.entry, uncompressedContent, outCount)
+                            block(entry, uncompressedContent, outCount)
                         }
                 }
+            }
+            else -> throw ZipException("Unsupported compression: ${record.algorithm}")
+
         }
         var workCrc = record.crc32
         if (record.generalPurpose.isDataDescriptor) {

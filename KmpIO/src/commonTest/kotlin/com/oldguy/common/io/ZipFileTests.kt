@@ -16,7 +16,7 @@ class ZipFileTests {
     fun zipFileRead() {
         val file = File("..\\TestFiles\\SmallTextAndBinary.zip", null)
         val imgFile = File("..\\TestFiles\\ic_help_grey600_48dp.png", null)
-        val zip = ZipFileImpl(file, FileMode.Read)
+        val zip = ZipFile(file, FileMode.Read)
         runTest {
             try {
                 zip.open()
@@ -57,27 +57,36 @@ class ZipFileTests {
         }
     }
 
+    /**
+     * Reads a test entry that is 5+MB compressed and 5+GB uncompressed.
+     */
     @Test
-    fun zip64FileRead() {
+    fun zip64LargeFileRead() {
         val file = File("..\\TestFiles\\ZerosZip64.zip", null)
-        ZipFileImpl(file, FileMode.Read).apply {
+        ZipFile(file, FileMode.Read).apply {
             runTest {
                 try {
                     open()
                     val testEntry = map["0000"]
                         ?: throw IllegalStateException("0000 file not found")
                     val uSize = 5242880UL * 1024UL
-                    assertEquals(5611526UL, testEntry.record.compressedSize)
-                    assertEquals(uSize, testEntry.record.uncompressedSize)
-                    assertEquals(0UL, testEntry.record.localHeaderOffset)
-                    // read 5 gig entry
+                    testEntry.directory.apply {
+                        assertEquals(5611526UL, compressedSize)
+                        assertEquals(uSize, uncompressedSize)
+                        assertEquals(0UL, localHeaderOffset)
+                    }
                     var uncompressedCount = 0UL
-                    readEntry(testEntry.entry.name) { entry, content, count ->
+                    var gb = 1UL
+                    readEntry(testEntry.name) { entry, content, count ->
                         assertEquals(count, content.size.toUInt())
                         assertEquals("0000", entry.name)
                         uncompressedCount += count
+                        if (uncompressedCount > gb * 1000000000UL) {
+                            println("Decompressed ${gb++}GB")
+                        }
                     }
                     assertEquals(uSize, uncompressedCount)
+                    // CRC is already verified
                 } finally {
                     close()
                 }

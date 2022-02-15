@@ -1,38 +1,49 @@
 package com.oldguy.common.io
 
 /**
- * Uses platform-specific compression implementations to provide basic compress/decompress functions. Actual
- * implementations will typically use a built-in library like ZLIB (for Apple and Android), or can cinterop to
- * ZLIB if desired (for mimgw64 as an example).
- * This class maintains state on the current compression op. NEVER use the same instance for multiple different
- * simultaneous operations.
+ * Use platform-specific compression implementations to provide basic compress/decompress functions.
+ * Actual implementations will typically use a built-in library like ZLIB (for Apple and Android),
+ * or can cinterop to ZLIB or any other compression lib if desired.
  */
 
 enum class CompressionAlgorithms {
     None, Deflate, Deflate64, LZ4, LZMA, LZFSE
 }
 
-expect class Compression(algorithm: CompressionAlgorithms) {
+/**
+ * Implementations should handle one Algorithm and provide the various coroutine-friendly operations.
+ * Strategy is for implementations to manage the logic for accessing the compression algorithms,
+ * and have callers just implement input and output functions for producing and consuming data.
+ */
+interface Compression {
+    val algorithm: CompressionAlgorithms
 
     /**
-     * Call this with one or more blocks of data to compress any amount of data using the algorithm specified at
-     * constructor time.
-     * @param input Uncompressed data. Will compress starting at the current position (typically 0) until limit.
-     * @return buffer large enough to contain all Compressed data from input.  Buffer size and remaining value are
-     * both equal to the uncompressed byte count. Position of the buffer on return is zero, no rewind required. Size
-     * will always be <= input remaining
+     * Compress one or more blocks of data in ByteBuffer using an implementation-specific algorithm.
+     * @param input Uncompressed data starting at the current position (typically 0) until limit.
+     * ByteBuffer returned typically is reusing the same buffer with different data, but that is
+     * not required.
+     * @param output argument contains compressed data starting at position 0 until limit. This buffer
+     * is reused for every call with different data each time. Any changes to the state of the
+     * ByteBuffer argument will be ignored. Intended for read-only use.
+     * @return count of total compressed bytes by this operation
      */
-    fun compress(input: ByteBuffer): ByteBuffer
+    suspend fun compress(input: suspend () -> ByteBuffer,
+                         output: suspend (buffer: ByteBuffer) -> Unit
+    ): ULong
 
     /**
      * Call this with one or more blocks of data to compress any amount of data using the algorithm specified at
      * constructor time.
      * @param input Uncompressed data.
-     * @param startIndex specify only for cases where only a portion of an array should be compressed. Default 0
-     * @param length number of bytes. if ([startIndex] + [length] > [input.size] an exception is thrown.
-     * @return array large enough to contain all Compressed data from input.
+     * @param output argument contains compressed data. Any changes to the state of the
+     * ByteArray argument will be ignored. Intended for read-only use.
+     * @return count of total compressed bytes by this operation. This will be the sum of the sizes
+     * of every ByteArray passed to the [output] function.
      */
-    fun compress(input: ByteArray, startIndex: Int = 0, length: Int = input.size): ByteArray
+    suspend fun compressArray(input: suspend () -> ByteArray,
+                              output: suspend (buffer: ByteArray) -> Unit
+    ): ULong
 
     /**
      * Call this with one or more blocks of data to de-compress any amount of data using the algorithm specified at
@@ -41,9 +52,11 @@ expect class Compression(algorithm: CompressionAlgorithms) {
      * attempt at dynamically determining the algorithm used to originally do the compression.
      * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
      * process.  Function will continue until this number of bytes are provided via the [input] function.
+     * @param bufferSize specifies max amount of bytes that will be passed in the bytesToRead argument
      * @param input will be invoked once for each input required.  Total size (sum of remainings) of
      * all ByteBuffers provided must equal [totalCompressedBytes]. Note if input is remaining == 0
-     * indicating an empty buffer, decompress operation will cease.
+     * indicating an empty buffer, decompress operation will cease. If total bytes provided
+     * exceeds [totalCompressedBytes], an exception is thrown.
      * @param output will be called repeatedly as decompressed bytes are produced. Buffer argument will
      * have position zero and limit set to however many bytes were uncompressed. This buffer has a
      * capacity equal to the input ByteBuffer, but the number of bytes it contains will be 0 < limit
@@ -61,15 +74,29 @@ expect class Compression(algorithm: CompressionAlgorithms) {
 
     /**
      * Call this with one or more blocks of data to de-compress any amount of data using the algorithm specified at
-     * constructor time.
-     * @param first beginning of compressed data.
-     * @param nextBuffer if more input is required to complete the decompress, this lambda is invoked and must provide
-     * the next block of bytes.
+     * constructor time. This is a convenience wrapper for the above [decompress] using ByteBuffers.
+     * There may be a little extra performance hit with this version as implementation uses
+     * ByteBuffers
+     * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
+     * process.  Function will continue until this number of bytes are provided via the [input] function.
+     * @param bufferSize specifies max amount of bytes that will be passed in the bytesToRead argument
+     * @param input will be invoked once for each input required.  Total size of
+     * all ByteArrays provided must equal [totalCompressedBytes]. Note if input is an empty
+     * ByteArray, decompress operation will cease/abort and crc check will likely throw an exception.
+     * @param output will be called repeatedly as decompressed bytes are produced. ByteArray argument will
+     * contain however many bytes were uncompressed. The size is dictated by the Deflate algorithm,
+     * as any one decompress can produce any non-zero number of bytes.
+     * Implementation should consume the ByteArray data in some non-memory-intensive way as for large
+     * payloads with high compression ratios, this function may be called many more times then the
+     * [input] function.
      * @return count of total uncompressed bytes.
      */
-    fun decompress(first: ByteArray,
-                   next: (output: ByteArray, count: Int) -> ByteArray
-    ): Long
+    suspend fun decompressArray(
+        totalCompressedBytes: ULong,
+        bufferSize: UInt,
+        input: suspend (bytesToRead: Int) -> ByteArray,
+        output: suspend (buffer: ByteArray) -> Unit
+    ): ULong
 
     /**
      * Use this to reset state back to the same as initialization.  This allows reuse of this instance for additional
