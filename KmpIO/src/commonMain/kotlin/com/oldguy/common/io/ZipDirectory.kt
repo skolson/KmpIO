@@ -1,7 +1,106 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.getShortAt
+import kotlin.experimental.and
+
 /**
- * Common properties and logic shared by ZipLocalDirectory and ZipDirectory
+ * 4.4.4 general purpose bit flag
+ * https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
+ *
+ * Class to assign named properties to used portions of the General Purpose bitmask from the zip spec.
+ * See spec for details of each property.
+ */
+data class ZipGeneralPurpose(val bits: Short) {
+    private val compressBitsError = IllegalArgumentException("Property only settable to true")
+    private val bitSet = BitSet(byteArrayOf(
+        (bits.toInt() shr 8).toByte(),
+        (bits and 0xff).toByte()
+    ))
+
+    val shortValue get() = bitSet.toByteArray().getShortAt(0)
+
+    var isEncrypted get() = bitSet[0]
+        set(value) {
+            bitSet[0] = value
+        }
+    var isDeflateNormal get() = !bitSet[2] && !bitSet[1]
+        set(value) {
+            if (value) {
+                bitSet[2] = false
+                bitSet[1] = false
+            } else {
+                throw compressBitsError
+            }
+        }
+    var isDeflateMax get() = !bitSet[2] && bitSet[1]
+        set(value) {
+            if (value) {
+                bitSet[2] = false
+                bitSet[1] = true
+            } else {
+                throw compressBitsError
+            }
+        }
+    var isDeflateFast get() = bitSet[2] && !bitSet[1]
+        set(value) {
+            if (value) {
+                bitSet[2] = true
+                bitSet[1] = false
+            } else {
+                throw compressBitsError
+            }
+        }
+
+    var isDeflateSuper get() = bitSet[2] && bitSet[1]
+        set(value) {
+            if (value) {
+                bitSet[2] = true
+                bitSet[1] = true
+            } else {
+                throw compressBitsError
+            }
+        }
+
+    var isLzmaEosUsed get() = bitSet[1]
+        set(value) { bitSet[1] = value }
+
+    var isDataDescriptor get() = bitSet[3]
+        set(value) { bitSet[3] = value }
+    var isStrongEncryption get() = bitSet[6]
+        set(value) { bitSet[6] = value }
+    var isUtf8 get() = bitSet[11]
+        set(value) { bitSet[11] = value }
+    var isDirectoryMasked get() = bitSet[13]
+        set(value) { bitSet[13] = value }
+
+    companion object {
+        val defaultValue = ZipGeneralPurpose(0).apply {
+            isUtf8 = true
+            isDeflateNormal = true
+            isDataDescriptor = true
+        }
+    }
+}
+
+/**
+ * Holds a host attributes value byte (currently unused), and a major and minor version code.
+ */
+data class ZipVersion(val version:Short) {
+    constructor(major:Int, minor: Int): this(((major*10) + minor).toShort())
+
+    val hostAttributesCode = version / 0x100
+    val lsb = version and 0xff
+    val major = lsb / 10
+    val minor = lsb % 10
+    val versionString = "$major.$minor"
+    val supportsZip64 = major > 4 || (major == 4 && minor >= 5 )
+}
+
+
+/**
+ * Common properties and logic shared by ZipLocalDirectory and ZipDirectory. Intent of this is for
+ * subclasses to be used as if they are immutable, even though [name] and [extra] properties are
+ * defined as var to make decode logic easier.
  */
 open class ZipDirectoryCommon(
     val versionMinimum: ZipVersion,
@@ -42,6 +141,10 @@ open class ZipDirectoryCommon(
             throw IllegalArgumentException("Zip file name must be < ${Short.MAX_VALUE}>")
         if (extra.size > Short.MAX_VALUE)
             throw IllegalArgumentException("Zip file extra data length must be < ${Short.MAX_VALUE}>")
+    }
+
+    open fun allocateBuffer(): ByteBuffer {
+        throw ZipException("Bug: Subclasses must implement this")
     }
 
     open fun encode(buffer: ByteBuffer) {
@@ -91,7 +194,7 @@ open class ZipDirectoryCommon(
 }
 
 /**
- * Directory record contents.
+ * Directory record contents. This object should be used as if it is immutable.
  */
 class ZipDirectoryRecord(
     val version: ZipVersion,
@@ -196,6 +299,10 @@ class ZipDirectoryRecord(
     else
         intLocalHeaderOffset.toULong()
 
+    override fun allocateBuffer(): ByteBuffer {
+        return ByteBuffer(minimumLength + name.length + extra.size + comment.length)
+    }
+
     /**
      * Encode this entry into the specified ByteBuffer.
      * @param buffer encoding will be written starting at current position. If there is insufficient remaining, an
@@ -203,6 +310,7 @@ class ZipDirectoryRecord(
      */
     override fun encode(buffer: ByteBuffer) {
         buffer.apply {
+            val start = position
             super.encodeSignature(this, signature)
             short = version.version
             super.encode(buffer)
@@ -217,6 +325,7 @@ class ZipDirectoryRecord(
             encodeNameExtra(this)
             if (comment.isNotEmpty())
                 put(ZipRecord.zipCharset.encode(comment))
+            positionLimit(start, position - start)
         }
     }
 
@@ -224,10 +333,11 @@ class ZipDirectoryRecord(
         const val signature = 0x02014b50
         private const val minimumLength = 46
         /**
-         * Starting at specified position, verifies signature, decodes buffer into Central Directory Record. If buffer
-         * can't be decoded, an exception is thrown. Since the record can be long, this is done with two reads. One to
-         * get the relevant length data, and one to read the entire record.
-         * @param buffer position is pointing at location where record starts
+         * Starting at the current file position, verifies signature, decodes buffer into Central
+         * Directory Record. If buffer can't be decoded, an exception is thrown. Since the record
+         * can be long, this is done with two reads. One to get the relevant length data,
+         * and one to read the entire record.
+         * @param file Zip file's RawFile directory record is read from.
          */
         fun decode(file: RawFile): ZipDirectoryRecord {
             ByteBuffer(minimumLength).apply {
@@ -247,17 +357,15 @@ class ZipDirectoryRecord(
                     name = ZipRecord.decodeName(nameLength, file)
                     extra = ZipRecord.decodeExtra(extraLength, file)
                     comment = ZipRecord.decodeComment(commentLength.toInt(), file)
-                    if (isZip64) {
-                        extraRecords.firstOrNull { it.isZip64}?.let {
-                            extraZip64 = ZipExtraZip64.decode(
-                                it,
-                                intUncompressedSize,
-                                intCompressedSize,
-                                intLocalHeaderOffset,
-                                diskNumber
-                            )
-                        } ?: throw ZipException("Zip64 entry $name must have an zip64 extra field signature. Extra: $extraRecords")
-                    }
+                    extraRecords.firstOrNull { it.isZip64}?.let {
+                        extraZip64 = ZipExtraZip64.decode(
+                            it,
+                            intUncompressedSize,
+                            intCompressedSize,
+                            intLocalHeaderOffset,
+                            diskNumber
+                        )
+                    } ?: if (isZip64) throw ZipException("Zip64 entry $name must have an zip64 extra field signature. Extra: $extraRecords")
                 }
             }
         }
@@ -377,6 +485,10 @@ class ZipLocalRecord(
 
     val hasDataDescriptor = crc32 == 0 && intCompressedSize == 0 && intUncompressedSize == 0
 
+    override fun allocateBuffer(): ByteBuffer {
+        return ByteBuffer(minimumLength + name.length + extra.size)
+    }
+
     /**
      * Encode this entry into the specified ByteBuffer.
      * @param buffer encoding will be written starting at current position. If there is insufficient remaining, an
@@ -384,12 +496,14 @@ class ZipLocalRecord(
      */
     override fun encode(buffer: ByteBuffer) {
         buffer.apply {
+            val start = position
             super.encodeSignature(this, ZipDirectoryRecord.signature)
             super.encode(buffer)
             if (name.isNotEmpty())
                 put(ZipRecord.zipCharset.encode(name))
             if (extra.isNotEmpty())
                 put(extra)
+            positionLimit(start, position - start)
         }
     }
 

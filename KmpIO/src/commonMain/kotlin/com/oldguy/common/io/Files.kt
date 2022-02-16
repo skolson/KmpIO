@@ -89,7 +89,7 @@ expect interface Closeable {
     fun close()
 }
 
-expect suspend inline fun <T : Closeable?, R> T.use(body: (T) -> R): R
+expect inline fun <T : Closeable?, R> T.use(body: (T) -> R): R
 
 enum class FileMode {
     Read, Write
@@ -141,8 +141,6 @@ expect class RawFile(
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param newPos zero-relative position of file to start reading,
-     * or if default of -1, the current file position
      * @return number of bytes actually read
      */
     fun read(buf: UByteBuffer): UInt
@@ -159,7 +157,6 @@ expect class RawFile(
     /**
      * Write bytes to a file, staring at the current file position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
-     * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
      */
     fun write(buf: ByteBuffer)
@@ -175,7 +172,6 @@ expect class RawFile(
     /**
      * Write bytes to a file, staring at the current file position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
-     * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
      */
     fun write(buf: UByteBuffer)

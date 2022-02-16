@@ -1,11 +1,9 @@
 package com.oldguy.common.io
 
 import com.oldguy.common.getIntAt
-import com.oldguy.common.getShortAt
 import com.oldguy.common.io.ZipRecord.Companion.decodeComment
 import com.oldguy.common.io.ZipRecord.Companion.decodeSignature
 import com.oldguy.common.io.ZipRecord.Companion.zipCharset
-import kotlin.experimental.and
 import kotlin.math.min
 
 interface ZipRecord {
@@ -115,18 +113,19 @@ data class ZipEOCD (
 ): ZipRecord {
 
     val isZip64 get() = directoryLength == -1
+    val length = minimumLength + comment.length
 
     /**
      * Constructs a Zip64 flavor of this record
      */
-    constructor(comment: String): this(
+    constructor(): this(
         diskNumber = -1,
         directoryDisk = -1,
         diskEntryCount = -1,
         entryCount = -1,
         directoryLength = -1,
         directoryOffset = -1,
-        comment = comment
+        comment = ""
     )
 
     /**
@@ -186,7 +185,7 @@ data class ZipEOCD (
 
 data class ZipEOCD64Locator(
     val diskNumber: Int,
-    val eocdOffset: Long,
+    val eocdOffset: ULong,
     val disksCount: Int
 ): ZipRecord {
     /**
@@ -198,14 +197,14 @@ data class ZipEOCD64Locator(
         buffer.apply {
             encodeSignature(signature, this)
             int = diskNumber
-            long = eocdOffset
+            ulong = eocdOffset
             int = disksCount
         }
     }
 
     companion object {
         const val signature = 0x07064b50
-        const val minimumLength = 20
+        const val length = 20
 
         /**
          * Starting at buffer position, verifies signature, decodes buffer into End of Central Directory Record. If buffer
@@ -214,10 +213,10 @@ data class ZipEOCD64Locator(
          */
         fun decode(buffer: ByteBuffer): ZipEOCD64Locator {
             buffer.apply {
-                decodeSignature(signature, minimumLength, this)
+                decodeSignature(signature, length, this)
                 return ZipEOCD64Locator(
                     diskNumber = int,
-                    eocdOffset = long,
+                    eocdOffset = ulong,
                     disksCount = int
                 )
             }
@@ -234,12 +233,16 @@ data class ZipEOCD64 (
     val versionMinimum: ZipVersion,
     val diskNumber: Int,
     val directoryDisk: Int,
-    val diskEntryCount: Long,
-    val entryCount: Long,
-    val directoryLength: Long,
-    val directoryOffset: Long,
+    val diskEntryCount: ULong,
+    val entryCount: ULong,
+    val directoryLength: ULong,
+    val directoryOffset: ULong,
     val comment: String
 ): ZipRecord {
+
+    fun allocateBuffer(): ByteBuffer {
+        return ByteBuffer(minimumLength + min(comment.length, ZipFile.maxCommentLength))
+    }
     /**
      * Encode this entry into the specified ByteBuffer.
      * @param buffer encoding will be written starting at current position. If there is insufficient remaining, an
@@ -253,10 +256,10 @@ data class ZipEOCD64 (
             short = versionMinimum.version
             int = diskNumber
             int = directoryDisk
-            long = diskEntryCount
-            long = entryCount
-            long = directoryLength
-            long = directoryOffset
+            ulong = diskEntryCount
+            ulong = entryCount
+            ulong = directoryLength
+            ulong = directoryOffset
             if (comment.isNotEmpty())
                 put(zipCharset.encode(comment))
         }
@@ -271,7 +274,7 @@ data class ZipEOCD64 (
          * This entry can be very long, so this decode is two steps. Small buffer is used to fetch the beginning of
          * the record, determine its length, then do a second read.
          * NOTE: As a self-defense mechanism, if a comment longer than 2MB is found, it is truncated at 2MB.
-         * @param rawFile to be read
+         * @param file to be read
          * @param position where record is located
          */
         fun decode(file: RawFile, position: ULong): ZipEOCD64 {
@@ -293,10 +296,10 @@ data class ZipEOCD64 (
                     versionMinimum = ZipVersion(short),
                     diskNumber = int,
                     directoryDisk = int,
-                    diskEntryCount = long,
-                    entryCount = long,
-                    directoryLength = long,
-                    directoryOffset = long,
+                    diskEntryCount = ulong,
+                    entryCount = ulong,
+                    directoryLength = ulong,
+                    directoryOffset = ulong,
                     comment = decodeComment(commentLength, buf)
                 ).apply {
                     if (!versionMinimum.supportsZip64)
@@ -311,94 +314,14 @@ data class ZipEOCD64 (
                 ZipVersion(0x0045),
                 eocd.diskNumber.toInt(),
                 eocd.directoryDisk.toInt(),
-                eocd.diskEntryCount.toLong(),
-                eocd.entryCount.toLong(),
-                eocd.directoryLength.toLong(),
-                eocd.directoryOffset.toLong(),
+                eocd.diskEntryCount.toULong(),
+                eocd.entryCount.toULong(),
+                eocd.directoryLength.toULong(),
+                eocd.directoryOffset.toULong(),
                 eocd.comment
             )
         }
     }
-}
-
-/**
- * 4.4.4 general purpose bit flag
- * https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
- *
- * Class to assign named properties to used portions of the General Purpose bitmask from the zip spec.
- * See spec for details of each property.
- */
-data class ZipGeneralPurpose(val bits: Short) {
-    private val compressBitsError = IllegalArgumentException("Property only settable to true")
-    private val bitSet = BitSet(byteArrayOf(
-        (bits.toInt() shr 8).toByte(),
-        (bits and 0xff).toByte()
-    ))
-
-    val shortValue get() = bitSet.toByteArray().getShortAt(0)
-
-    var isEncrypted get() = bitSet[0]
-        set(value) {
-            bitSet[0] = value
-        }
-    var isDeflateNormal get() = !bitSet[2] && !bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = false
-                bitSet[1] = false
-            } else {
-                throw compressBitsError
-            }
-        }
-    var isDeflateMax get() = !bitSet[2] && bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = false
-                bitSet[1] = true
-            } else {
-                throw compressBitsError
-            }
-        }
-    var isDeflateFast get() = bitSet[2] && !bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = true
-                bitSet[1] = false
-            } else {
-                throw compressBitsError
-            }
-        }
-
-    var isDeflateSuper get() = bitSet[2] && bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = true
-                bitSet[1] = true
-            } else {
-                throw compressBitsError
-            }
-        }
-
-    var isLzmaEosUsed get() = bitSet[1]
-        set(value) { bitSet[1] = value }
-
-    var isDataDescriptor get() = bitSet[3]
-        set(value) { bitSet[3] = value }
-    var isStrongEncryption get() = bitSet[6]
-        set(value) { bitSet[6] = value }
-    var isUtf8 get() = bitSet[11]
-        set(value) { bitSet[11] = value }
-    var isDirectoryMasked get() = bitSet[13]
-        set(value) { bitSet[13] = value }
-}
-
-data class ZipVersion(val version:Short) {
-    val hostAttributesCode = version / 0x100
-    val lsb = version and 0xff
-    val major = lsb / 10
-    val minor = lsb % 10
-    val versionString = "$major.$minor"
-    val supportsZip64 = major > 4 || (major == 4 && minor >= 5 )
 }
 
 /**
@@ -409,8 +332,23 @@ data class ZipExtraZip64(
     val originalSize: ULong,
     val compressedSize: ULong,
     val localHeaderOffset: ULong,
-    val diskNumber: Int
+    val diskNumber: Int = 0
 ) {
+    fun encode(directory: ZipDirectoryRecord): ZipExtra {
+        val buf = ByteBuffer(maximumLength - 4).apply {
+            if (directory.intUncompressedSize < 0) ulong = originalSize
+            if (directory.intCompressedSize < 0) ulong = compressedSize
+            if (directory.intLocalHeaderOffset < 0) ulong = localHeaderOffset
+            if (directory.diskNumber < 0) int = diskNumber
+        }
+        buf.positionLimit(0, buf.position)
+        return ZipExtra(
+            signature,
+            buf.remaining.toShort(),
+            buf
+        )
+    }
+
     companion object {
         const val signature: Short = 1
         private val minimumLength: Short = 12

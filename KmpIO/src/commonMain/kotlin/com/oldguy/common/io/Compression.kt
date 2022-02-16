@@ -7,7 +7,7 @@ package com.oldguy.common.io
  */
 
 enum class CompressionAlgorithms {
-    None, Deflate, Deflate64, LZ4, LZMA, LZFSE
+    None, Deflate, Deflate64, BZip2, LZMA
 }
 
 /**

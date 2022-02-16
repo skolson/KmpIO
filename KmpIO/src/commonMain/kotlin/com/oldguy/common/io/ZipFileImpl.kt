@@ -1,44 +1,212 @@
 package com.oldguy.common.io
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.math.min
 
 /**
  * Represents a Zip file entry. If creating one, the internal records will be instantiated when 
  * writing the entry.  When non-null they contain the Zip internals, intended for read-only use.
+ *
+ * Contains default properties for all of the required fields in the Zip specification when creating
+ * entries. Many of the properties can be changed for use during save.
+ *
+ * @param directoryRecord typically decoded from an input file
  */
-class ZipEntry(
-    val name: String,
-    val comment: String = "",
-    val extra: List<ZipExtra> = emptyList()
-) {
-    var directoryRecord: ZipDirectoryRecord? = null
+class ZipEntry(directoryRecord: ZipDirectoryRecord) {
+    var directory: ZipDirectoryRecord = directoryRecord
         private set
-    val directory get() = directoryRecord ?: throw IllegalStateException("directoryRecord not initialized")
-    var localDirectoryRecord: ZipLocalRecord? = null
-        set(value) {
-            field = value
-            if (value != null) {
-                setCompression()
-            }
-        }
-    val localDirectory get() = localDirectoryRecord ?: throw IllegalStateException("localDirectoryRecord not initialized")
+    val localDirectory:ZipLocalRecord get() = createLocal()
+    val name get() = directory.name
+    val comment get() = directory.comment
 
     var compression: Compression = CompressionDeflate()
+        set(value) {
+            field = value
+            updateDirectory()
+        }
+    var deflateStrategy = CompressionDeflate.Strategy.Default
 
-    constructor(record: ZipDirectoryRecord)
-        :this(record.name, record.comment, record.extraRecords) {
-        directoryRecord = record
+    val algorithm get() = when (compression) {
+        is CompressionNone -> CompressionAlgorithms.None
+        is CompressionDeflate -> CompressionAlgorithms.Deflate
+        else -> throw ZipException("Bug: missing algorithm for subclass of compression: ${compression::class.simpleName ?: ""}")
     }
+    val compressionValue: Short get() = when (algorithm) {
+        CompressionAlgorithms.None -> 0
+        CompressionAlgorithms.Deflate -> 8
+        CompressionAlgorithms.Deflate64 -> 9
+        CompressionAlgorithms.BZip2 -> 12
+        CompressionAlgorithms.LZMA -> 14
+    }
+    var timeModified = defaultDateTime
+        set(value) {
+            field = value
+            updateDirectory()
+        }
 
-    private fun setCompression() {
+    val dateModified get() = timeModified.date
+    val zipModDate: Short get() = modDate(timeModified)
+    val zipModeTime: Short get() = modTime(timeModified)
+    val extras get() = directory.extraRecords
+
+    constructor(
+        isZip64: Boolean,
+        nameArg: String,
+        commentArg: String = "",
+        extraArg: List<ZipExtra> = emptyList()
+    ): this(
+        ZipDirectoryRecord(
+            defaultVersion,
+            defaultVersion,
+            ZipGeneralPurpose.defaultValue.shortValue,
+            defaultCompressionValue,
+            modTime(defaultDateTime),
+            modDate(defaultDateTime),
+            0,
+            if (isZip64) -1 else 0,
+            if (isZip64) -1 else 0,
+            nameArg.length.toShort(),
+            ZipExtra.encode(extraArg).size.toShort(),
+            commentArg.length.toShort(),
+            0,
+            0,
+            0,
+            if (isZip64) -1 else 0,
+            nameArg,
+            ZipExtra.encode(extraArg),
+            commentArg
+        )
+    )
+
+    init {
         compression = when (directory.algorithm) {
             CompressionAlgorithms.None -> CompressionNone()
             CompressionAlgorithms.Deflate -> CompressionDeflate()
             CompressionAlgorithms.Deflate64,
-            CompressionAlgorithms.LZ4,
-            CompressionAlgorithms.LZMA,
-            CompressionAlgorithms.LZFSE ->
+            CompressionAlgorithms.BZip2,
+            CompressionAlgorithms.LZMA ->
                 throw ZipException("Unsupported compression algorithm ${directory.algorithm}")
+        }
+    }
+
+    fun updateDirectory(
+        isZip64: Boolean,
+        compressedSize: ULong,
+        uncompressedSize: ULong,
+        crc: Int,
+        localFileOffset: ULong
+    ) {
+        val newExtra = if (isZip64) {
+            val list = extras.toMutableList()
+            list.removeAll { it.signature == ZipExtraZip64.signature }
+            ZipExtraZip64(
+                uncompressedSize,
+                compressedSize,
+                localFileOffset
+            ).apply {
+                list.add(this.encode(directory))
+            }
+            ZipExtra.encode(list)
+        } else
+            directory.extra
+
+        directory = ZipDirectoryRecord(
+            directory.version,
+            directory.versionMinimum,
+            ZipGeneralPurpose.defaultValue.shortValue,
+            compressionValue,
+            zipModeTime,
+            zipModDate,
+            crc,
+            if (isZip64) -1 else compressedSize.toInt(),
+            if (isZip64) -1 else uncompressedSize.toInt(),
+            directory.name.length.toShort(),
+            newExtra.size.toShort(),
+            directory.commentLength,
+            directory.diskNumber,
+            directory.internalAttributes,
+            directory.externalAttributes,
+            if (isZip64) -1 else localFileOffset.toInt(),
+            directory.name,
+            newExtra,
+            directory.comment
+        )
+    }
+
+    /**
+     * Since the directory record objects are immutable, changes to state require a new instance.
+     * This is a copy constructor of the current directory using updated values from the entry.
+     */
+    private fun updateDirectory() {
+        directory = ZipDirectoryRecord(
+            directory.version,
+            directory.versionMinimum,
+            ZipGeneralPurpose.defaultValue.shortValue,
+            compressionValue,
+            zipModeTime,
+            zipModDate,
+            directory.crc32,
+            directory.intCompressedSize,
+            directory.intUncompressedSize,
+            directory.name.length.toShort(),
+            directory.extra.size.toShort(),
+            directory.commentLength,
+            directory.diskNumber,
+            directory.internalAttributes,
+            directory.externalAttributes,
+            directory.intLocalHeaderOffset,
+            directory.name,
+            directory.extra,
+            directory.comment
+        )
+    }
+    /**
+     * Set time using the Zip specification encoding for date and time
+     */
+    fun setTime(lastModTime: Short, lastModDate: Short) {
+        val i = lastModDate.toInt()
+        val t = lastModTime.toInt()
+        timeModified = LocalDateTime(
+            1980 + ((i shr 9) and 0x7f),
+            ((i shr 5) and 0xf) - 1,
+            i and 0x1f,
+            (t shr 11) and 0x1f,
+            (t shr 5) and 0x3f,
+            (t and 0x1f) shl 1
+        )
+    }
+
+    private fun createLocal(): ZipLocalRecord {
+        return ZipLocalRecord(
+            directory,
+            directory.name,
+            directory.extra,
+            ByteArray(0)
+        )
+    }
+
+    companion object {
+        val defaultVersion = ZipVersion(4, 5)
+        const val defaultCompressionValue: Short = 8
+        val defaultDateTime get() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+
+        fun modDate(timeModified: LocalDateTime): Short {
+            return if (timeModified.year < 1980)
+                0x21.toShort()
+            else {
+                ((timeModified.year - 1980 shl 9) or
+                        (timeModified.month.ordinal + 1 shl 5) or
+                        timeModified.dayOfMonth).toShort()
+            }
+        }
+
+        fun modTime(timeModified: LocalDateTime): Short {
+            return ((timeModified.hour shl 11) or
+                    (timeModified.minute shl 5) or
+                    (timeModified.second shr 1)).toShort()
         }
     }
 }
@@ -56,6 +224,8 @@ interface ZipFileBase: Closeable {
     val entries: List<ZipEntry>
     val file: RawFile
     val bufferSize: Int
+    var isZip64: Boolean
+    var comment: String
 
     /**
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
@@ -68,13 +238,13 @@ interface ZipFileBase: Closeable {
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
      * directory structures are rewritten after each add. Use the lambda for adding content for this entry.
      * @param entry to be added. If name matches existing entry, exception is thrown.
-     * @param block function called repeatedly until content argument is empty array. Implementation
+     * @param inputBlock function called repeatedly until content argument is empty array. Implementation
      * should return a full ByteArray containing bytes to be compressed. All of array will be compressed
      * and written to the zip file.Pass an empty ByteArray to signal end of data for the entry.
      */
     suspend fun addEntry(
         entry: ZipEntry,
-        block: suspend () -> ByteArray
+        inputBlock: suspend () -> ByteArray
     )
     /**
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
@@ -92,6 +262,14 @@ interface ZipFileBase: Closeable {
         appendEol: Boolean = true,
         block: suspend () -> String
     )
+
+    /**
+     * Call this on FileMode.Write files after one or more addEntry operations to save the
+     * updated directory structure.  If not called explicitly, will be called on close. After the
+     * first addEntry, readEntry calls will cause exceptions. finish() must be called before readEntry
+     * calls are usable again.
+     */
+    fun finish()
 
     /**
      * Merges the specified Zip files into this one. Input zipfile entries with matching paths are ignored. Each new
@@ -199,6 +377,7 @@ class ZipException(message: String): Exception(message)
  * merged. There are methods to assist with adding raw content (binary) and text content with charset encdoing.
  * Support includes:
  * Zip and Zip64 formats
+ * Deflate compression
  * Support does not include:
  * multi-"disk" or segmented disk files
  * encryption
@@ -212,18 +391,61 @@ class ZipFile(
     override val bufferSize = 4096
     override val entries get() = map.values.toList()
     override val file: RawFile = RawFile(fileArg, mode, FileSource.File)
+    override var isZip64: Boolean = false
 
     private var eocdPosition: ULong = 0u
     private var buffer = ByteBuffer(bufferSize)
     private var isOpen = false
 
+    private var directoryPosition = 0UL
+    private var pendingChanges = false
+    override var comment = ""
+        set(value) {
+            field = value
+            if (value.length > maxCommentLength)
+                throw ZipException("Zip file comment length: ${value.length} greater than supported limit of $maxCommentLength")
+        }
+
     override suspend fun addEntry(entry: ZipEntry) {
-        TODO("Not yet implemented")
+        checkWriteMode()
+        if (map.containsKey(entry.name))
+            throw IllegalArgumentException("Entry with name ${entry.name} already added")
+        map[entry.name] = entry
+        pendingChanges = true
     }
 
     override suspend fun addEntry(entry: ZipEntry,
-                                  block: suspend () -> ByteArray) {
-        TODO("Not yet implemented")
+                                  inputBlock: suspend () -> ByteArray) {
+        checkWriteMode()
+        file.position = directoryPosition
+        val savePosition = directoryPosition
+        saveLocal(entry)
+        var uncompressed = 0UL
+        val crc = Crc32()
+        val compressed = entry.compression.compressArray(
+            input = {
+                inputBlock().also {
+                    uncompressed += it.size.toUInt()
+                    crc.update(it)
+                }
+            }
+        ) {
+            file.write(ByteBuffer(it))
+        }
+        if (!isZip64 && uncompressed > Int.MAX_VALUE.toULong()) {
+            file.position = savePosition
+            throw ZipException("Zip64 is not enabled, but entry size: $uncompressed requires Zip64. Entry not saved")
+        } else {
+            pendingChanges = true
+            directoryPosition = file.position
+            entry.updateDirectory(
+                isZip64,
+                compressedSize = compressed,
+                uncompressedSize = uncompressed,
+                crc.result,
+                savePosition
+            )
+        }
     }
 
     override suspend fun addTextEntry(
@@ -236,8 +458,15 @@ class ZipFile(
     }
 
     override fun close() {
+        if (pendingChanges) finish()
         file.close()
         isOpen = false
+    }
+
+    override fun finish() {
+        if (!pendingChanges) return
+        saveDirectory()
+        pendingChanges = false
     }
 
     override fun merge(vararg zipFiles: ZipFile): List<ZipEntry> {
@@ -247,13 +476,11 @@ class ZipFile(
     override suspend fun open() {
         if (isOpen) return
         try {
-            when (mode) {
-                FileMode.Read -> if (file.size > 0u) {
-                    parseDirectory()
-                }
-                FileMode.Write -> {
-
-                }
+            if (file.size > 0u)
+                parseDirectory()
+            else when (mode) {
+                FileMode.Read -> throw ZipException("File: ${file.file.path} is empty, cannot be read")
+                FileMode.Write -> directoryPosition = 0UL
             }
             isOpen = true
         } catch (e: Throwable) {
@@ -267,6 +494,8 @@ class ZipFile(
         entryName: String,
         block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
     ): ZipEntry {
+        if (pendingChanges)
+            throw ZipException("Pending changes not saved to directory. Call close() or finish()")
         (map[entryName]
             ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")).apply {
             readEntry(this, block)
@@ -278,9 +507,11 @@ class ZipFile(
         entry: ZipEntry,
         block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
     ) {
-        entry.apply {
-            localDirectoryRecord = ZipLocalRecord.decode(file, directory.localHeaderOffset)
-            decompress(localDirectory, this, block)
+        entry.also {
+            ZipLocalRecord.decode(file, it.directory.localHeaderOffset).apply {
+                // verify local record content against directory?
+                decompress(this, it, block)
+            }
         }
     }
 
@@ -289,18 +520,18 @@ class ZipFile(
         charset: Charset,
         block: suspend (text: String) -> Unit
     ): ZipEntry {
-        (map[entryName]
-            ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")).apply {
-            localDirectoryRecord = ZipLocalRecord.decode(file, directory.localHeaderOffset)
-            decompress(localDirectory, this) { _, content, count ->
-                if (count > 0u && content.isNotEmpty()) {
-                    block(charset.decode(content))
+        map[entryName]?.let {
+            ZipLocalRecord.decode(file, it.directory.localHeaderOffset).apply {
+                // verify local record content against directory?
+                decompress(this, it) { _, content, count ->
+                    if (count > 0u && content.isNotEmpty()) {
+                        block(charset.decode(content))
+                    }
                 }
             }
-            return this
-        }
+            return it
+        } ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
     }
-
 
     override suspend fun removeEntry(entry: ZipEntry): Boolean {
         if (!map.containsKey(entry.name))
@@ -412,9 +643,11 @@ class ZipFile(
         }
     }
 
+    /**
+     * Find locator, use it to find EOCD64. save both for later possible saves
+     */
     private fun findZip64Eocd(): ZipEOCD64 {
-        //find locator, use it to find EOCD64
-        val sz = ZipEOCD64Locator.minimumLength.toUInt()
+        val sz = ZipEOCD64Locator.length.toUInt()
         val buf = ByteBuffer(sz.toInt())
         if (eocdPosition <= sz)
             throw ZipException("Zip is Zip64, but no EOCD64 locator record found")
@@ -422,8 +655,9 @@ class ZipFile(
         if (count != sz)
             throw ZipException("Zip is Zip64, but no EOCD64 locator record found")
         buf.rewind()
-        val locator = ZipEOCD64Locator.decode(buf)
-        return ZipEOCD64.decode(file, locator.eocdOffset.toULong())
+        ZipEOCD64Locator.decode(buf).also {
+            return ZipEOCD64.decode(file, it.eocdOffset)
+        }
     }
 
 
@@ -436,9 +670,12 @@ class ZipFile(
                 ZipEOCD64.upgrade(this)
         }
 
-        file.position = eocd.directoryOffset.toULong()
+        eocd.directoryOffset.apply {
+            file.position = this
+            directoryPosition = this
+        }
         map.clear()
-        for (index in 0 until eocd.entryCount) {
+        for (index in 0UL until eocd.entryCount) {
             ZipDirectoryRecord.decode(file).apply { map[name] = ZipEntry(this) }
         }
     }
@@ -505,7 +742,7 @@ class ZipFile(
                 path.path).replace(parentPath, "")
             if (filter?.invoke(name) != false) {
                 RawFile(path).use { rdr ->
-                    addEntry(ZipEntry(rdr.file.name)) {
+                    addEntry(ZipEntry(isZip64, rdr.file.name)) {
                         buffer.apply {
                             positionLimit(0, bufferSize)
                             val count = rdr.read(this).toInt()
@@ -517,5 +754,98 @@ class ZipFile(
                     zipOneDirectory(path, shallow, parentPath, filter)
             }
         }
+    }
+
+    private fun checkWriteMode() {
+        if (mode == FileMode.Read)
+            throw IllegalStateException("Cannot alter zip file when using FileMode.Read")
+    }
+
+    /**
+     * File must be positioned at local header start position.
+     */
+    private fun saveLocal(entry: ZipEntry) {
+        entry.localDirectory.apply {
+            allocateBuffer().apply {
+                encode(this)
+                file.write(this)
+            }
+        }
+
+    }
+
+    /**
+     * Steps:
+     * 1 - Save all directory entries at the current file position.
+     * 2 - For each entry, save an updated local directory with crc, sizes etc to match directory.
+     * 3 - if Zip64, save the EOCD Zip64 record, and the locator record
+     * 4 - Save the EOCD record
+     */
+    private fun saveDirectory() {
+        val directoryOffset = file.position
+        entries.forEach {
+            it.directory.allocateBuffer().apply {
+                it.directory.encode(this)
+                file.write(this)
+            }
+        }
+        val eocd64Position = file.position
+        entries.forEach {
+            file.position = it.directory.localHeaderOffset
+        }
+        file.position = eocd64Position
+        val directoryLength = eocd64Position - directoryOffset
+        if (isZip64) {
+            ZipEOCD64(
+                ZipEntry.defaultVersion,
+                ZipEntry.defaultVersion,
+                0,
+                0,
+                map.size.toULong(),
+                map.size.toULong(),
+                directoryLength,
+                directoryOffset,
+                comment
+            ).apply {
+                allocateBuffer().apply {
+                    encode(this)
+                    file.write(this)
+                }
+            }
+            ZipEOCD64Locator(
+                0,
+                eocd64Position,
+                0
+            ).apply {
+                ByteBuffer(ZipEOCD64Locator.length).apply {
+                    encode(this)
+                    file.write(this)
+                }
+            }
+        }
+
+        (if (isZip64)
+            ZipEOCD()
+        else
+            ZipEOCD(
+                0,
+                0,
+                map.size.toShort(),
+                map.size.toShort(),
+                directoryLength.toInt(),
+                directoryOffset.toInt(),
+                comment
+            )
+        ).apply {
+            ByteBuffer(length).apply {
+                encode(this)
+                file.write(this)
+            }
+        }
+    }
+
+    companion object {
+        // This is a self defense mechanism against huge comment values in Zip64 formats.
+        const val maxCommentLength = 2 * 1024 * 1024
     }
 }

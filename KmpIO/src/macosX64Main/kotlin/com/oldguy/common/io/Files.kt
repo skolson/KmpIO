@@ -80,7 +80,7 @@ actual class RawFile actual constructor(
     source: FileSource
 ): Closeable, AppleRawFile(fileArg, mode, source)
 {
-    actual override fun close() {
+    actual override suspend fun close() {
         super.close()
     }
 
@@ -161,7 +161,7 @@ actual class TextFile actual constructor(
         source: FileSource
     ) : this(File(filePath, null), charset, mode, source)
 
-    actual override fun close() {
+    actual override suspend fun close() {
         super.close()
     }
 

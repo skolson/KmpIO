@@ -286,7 +286,7 @@ open class AppleRawFile(
     private val path = apple.path
     open val file = fileArg
 
-    override fun close() {
+    override suspend fun close() {
         apple.close()
     }
 
@@ -632,7 +632,7 @@ open class AppleTextFile(
     private var str: String = ""
     private var readLock = false
 
-    override fun close() {
+    override suspend fun close() {
         apple.close()
     }
 
