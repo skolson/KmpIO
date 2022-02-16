@@ -11,10 +11,11 @@ class ZipFileTests {
     private val readme = "readme.txt"
     private val readmeExcerpt: String = "MaterialDesignIcons.com"
     private val binaryFile = "drawable-xxxhdpi/ic_help_grey600_48dp.png"
+    private val testFilePath = "..\\TestFiles\\SmallTextAndBinary.zip"
 
     @Test
     fun zipFileRead() {
-        val file = File("..\\TestFiles\\SmallTextAndBinary.zip", null)
+        val file = File(testFilePath, null)
         val imgFile = File("..\\TestFiles\\ic_help_grey600_48dp.png", null)
         val zip = ZipFile(file, FileMode.Read)
         runTest {
@@ -92,5 +93,28 @@ class ZipFileTests {
                 }
             }
         }
+    }
+
+    /**
+     * Extracts a zip file with a test file and some subdirectories to a test directory and confirm
+     * results.
+     */
+    @Test
+    fun unzipToDirectoryTest() {
+        val dir = File("..\\TestFiles\\SmallTextAndBinaryTest", null)
+        dir.makeDirectory()
+        runTest {
+            ZipFile(File(testFilePath, null), FileMode.Read).apply {
+                extractToDirectory(dir)
+            }
+        }
+        val list = dir.listFiles
+        assertEquals(7, list.size)
+        assertEquals(6, list.count {it.isDirectory})
+        assertEquals(1, list.count {!it.isDirectory})
+        assertEquals(readme, list.first {!it.isDirectory}.name)
+        val tree = dir.listFilesTree
+        assertEquals(69, tree.size)
+        dir.delete()
     }
 }

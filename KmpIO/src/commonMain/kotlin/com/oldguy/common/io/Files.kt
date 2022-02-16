@@ -61,9 +61,11 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val extension: String
     val path: String
     val fullPath: String
+    val directoryPath: String
     val isDirectory: Boolean
     val listNames: List<String>
     val listFiles: List<File>
+    val listFilesTree: List<File>
     val exists: Boolean
     val isUri: Boolean
     val isUriString: Boolean
@@ -71,6 +73,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
 
     fun delete(): Boolean
     suspend fun copy(destinationPath: String): File
+    fun makeDirectory(): Boolean
     fun resolve(directoryName: String): File
 
     companion object {
@@ -158,7 +161,6 @@ expect class RawFile(
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
-     * @return number of bytes actually read
      */
     fun write(buf: ByteBuffer)
 
@@ -167,7 +169,6 @@ expect class RawFile(
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
-     * @return number of bytes actually read
      */
     fun write(buf: ByteBuffer, newPos: ULong)
 
@@ -176,7 +177,6 @@ expect class RawFile(
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
-     * @return number of bytes actually read
      */
     fun write(buf: UByteBuffer)
 

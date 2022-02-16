@@ -15,11 +15,31 @@ class ZipEntry(
         private set
     val directory get() = directoryRecord ?: throw IllegalStateException("directoryRecord not initialized")
     var localDirectoryRecord: ZipLocalRecord? = null
+        set(value) {
+            field = value
+            if (value != null) {
+                setCompression()
+            }
+        }
     val localDirectory get() = localDirectoryRecord ?: throw IllegalStateException("localDirectoryRecord not initialized")
+
+    var compression: Compression = CompressionDeflate()
 
     constructor(record: ZipDirectoryRecord)
         :this(record.name, record.comment, record.extraRecords) {
         directoryRecord = record
+    }
+
+    private fun setCompression() {
+        compression = when (directory.algorithm) {
+            CompressionAlgorithms.None -> CompressionNone()
+            CompressionAlgorithms.Deflate -> CompressionDeflate()
+            CompressionAlgorithms.Deflate64,
+            CompressionAlgorithms.LZ4,
+            CompressionAlgorithms.LZMA,
+            CompressionAlgorithms.LZFSE ->
+                throw ZipException("Unsupported compression algorithm ${directory.algorithm}")
+        }
     }
 }
 
@@ -100,6 +120,11 @@ interface ZipFileBase: Closeable {
         entryName: String,
         block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
     ): ZipEntry
+
+    suspend fun readEntry(
+        entry: ZipEntry,
+        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
+    )
 
     /**
      * Same setup as [readEntry], with the additional feature that content is read, uncompressed, decoded using the
@@ -190,6 +215,7 @@ class ZipFile(
 
     private var eocdPosition: ULong = 0u
     private var buffer = ByteBuffer(bufferSize)
+    private var isOpen = false
 
     override suspend fun addEntry(entry: ZipEntry) {
         TODO("Not yet implemented")
@@ -211,6 +237,7 @@ class ZipFile(
 
     override fun close() {
         file.close()
+        isOpen = false
     }
 
     override fun merge(vararg zipFiles: ZipFile): List<ZipEntry> {
@@ -218,6 +245,7 @@ class ZipFile(
     }
 
     override suspend fun open() {
+        if (isOpen) return
         try {
             when (mode) {
                 FileMode.Read -> if (file.size > 0u) {
@@ -227,8 +255,10 @@ class ZipFile(
 
                 }
             }
+            isOpen = true
         } catch (e: Throwable) {
             close()
+            isOpen = false
             throw e
         }
     }
@@ -237,11 +267,21 @@ class ZipFile(
         entryName: String,
         block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
     ): ZipEntry {
-        val entry = map[entryName]
-            ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
-        val record = ZipLocalRecord.decode(file, entry.directory.localHeaderOffset)
-        decompress(record, entry, block)
-        return entry
+        (map[entryName]
+            ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")).apply {
+            readEntry(this, block)
+            return this
+        }
+    }
+
+    override suspend fun readEntry(
+        entry: ZipEntry,
+        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
+    ) {
+        entry.apply {
+            localDirectoryRecord = ZipLocalRecord.decode(file, directory.localHeaderOffset)
+            decompress(localDirectory, this, block)
+        }
     }
 
     override suspend fun readTextEntry(
@@ -249,17 +289,18 @@ class ZipFile(
         charset: Charset,
         block: suspend (text: String) -> Unit
     ): ZipEntry {
-        val entry = map[entryName]
-            ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
-        ZipLocalRecord.decode(file, entry.directory.localHeaderOffset).apply {
-            decompress(this, entry) { _, content, count ->
-                if (count > 0u && content.size > 0) {
+        (map[entryName]
+            ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")).apply {
+            localDirectoryRecord = ZipLocalRecord.decode(file, directory.localHeaderOffset)
+            decompress(localDirectory, this) { _, content, count ->
+                if (count > 0u && content.isNotEmpty()) {
                     block(charset.decode(content))
                 }
             }
+            return this
         }
-        return entry
     }
+
 
     override suspend fun removeEntry(entry: ZipEntry): Boolean {
         if (!map.containsKey(entry.name))
@@ -301,38 +342,28 @@ class ZipFile(
         zipOneDirectory(directory, shallow, parentPath, filter)
     }
 
-    private suspend fun zipOneDirectory(directory: File,
-                        shallow: Boolean,
-                        parentPath: String,
-                        filter: ((pathName: String) -> Boolean)?)
-    {
-        directory.listFiles.forEach { path ->
-            val name = (if (path.isDirectory && !path.path.endsWith(File.pathSeparator))
-                path.path + File.pathSeparator
-            else
-                path.path).replace(parentPath, "")
-            if (filter?.invoke(name) != false) {
-                RawFile(path).use { rdr ->
-                    addEntry(ZipEntry(rdr.file.name)) {
-                        buffer.apply {
-                            positionLimit(0, bufferSize)
-                            val count = rdr.read(this).toInt()
-                            positionLimit(0, count)
-                        }.getBytes()
-                    }
-                }
-                if (!shallow && path.isDirectory)
-                    zipOneDirectory(path, shallow, parentPath, filter)
-            }
-        }
-    }
-
     override suspend fun extractToDirectory(
         directory: File,
         filter: (suspend (entry: ZipEntry) -> Boolean)?,
         mapPath: ((entry: ZipEntry) -> String)?
     ): List<File> {
-        TODO("Not yet implemented")
+        directory.makeDirectory()
+        val list = mutableListOf<File>()
+        useEntries {
+            if (filter?.invoke(it) != false) {
+                val name = mapPath?.invoke(it) ?: it.name
+                val f = File(name)
+                val d = directory.resolve(f.directoryPath)
+                val copy = RawFile(File(d, f.name), FileMode.Write)
+                readEntry(it) { _, bytes, _ ->
+                    copy.write(ByteBuffer(bytes))
+                }
+                copy.close()
+                list.add(copy.file)
+            }
+            true
+        }
+        return list
     }
 
     /**
@@ -427,45 +458,23 @@ class ZipFile(
         block: suspend (entry: ZipEntry, content: ByteArray, bytes: UInt) -> Unit) {
         var uncompressedCount = 0UL
         val crc = Crc32()
-        when (record.algorithm) {
-            CompressionAlgorithms.None -> {
-                var remaining = record.compressedSize
-                val buf = ByteBuffer(bufferSize)
-                while (remaining > 0u) {
-                    buf.positionLimit(0, min(bufferSize.toULong(), remaining).toInt())
-                    val length = buf.remaining.toUInt()
-                    val count = file.read(buf)
-                    buf.positionLimit(0, count.toInt())
-                    if (count != length)
-                        throw ZipException("Read error on entry: ${entry.name}, expected $length bytes, read $count}")
-                    val uncompressedContent = buf.getBytes(buf.remaining)
-                    crc.update(uncompressedContent)
-                    block(entry, uncompressedContent, count)
-                    remaining -= count
-                }
+        entry.compression.apply {
+            val buf = ByteBuffer(bufferSize)
+            uncompressedCount = decompress(
+                record.compressedSize,
+                4096u,
+                input = { bytesToRead ->
+                    buf.positionLimit(0, bytesToRead)
+                    val c = file.read(buf)
+                    buf.positionLimit(0, c.toInt())
+                    buf
+                }) {
+                val outCount = it.remaining.toUInt()
+                uncompressedCount += outCount
+                val uncompressedContent = it.getBytes(outCount.toInt())
+                crc.update(uncompressedContent)
+                block(entry, uncompressedContent, outCount)
             }
-            CompressionAlgorithms.Deflate -> {
-                CompressionDeflate().apply {
-                    val buf = ByteBuffer(bufferSize)
-                    uncompressedCount = decompress(
-                        record.compressedSize,
-                        4096u,
-                        input = { bytesToRead ->
-                            buf.positionLimit(0, bytesToRead)
-                            val c = file.read(buf)
-                            buf.positionLimit(0, c.toInt())
-                            buf
-                        }) {
-                            val outCount = it.remaining.toUInt()
-                            uncompressedCount += outCount
-                            val uncompressedContent = it.getBytes(outCount.toInt())
-                            crc.update(uncompressedContent)
-                            block(entry, uncompressedContent, outCount)
-                        }
-                }
-            }
-            else -> throw ZipException("Unsupported compression: ${record.algorithm}")
-
         }
         var workCrc = record.crc32
         if (record.generalPurpose.isDataDescriptor) {
@@ -481,6 +490,32 @@ class ZipFile(
         }
         if (crc.result != workCrc) {
             throw ZipException("CRC32 values don't match. Entry CRC: ${record.crc32.toString(16)}, content CRC: ${crc.result.toString(16)}")
+        }
+    }
+
+    private suspend fun zipOneDirectory(directory: File,
+                                        shallow: Boolean,
+                                        parentPath: String,
+                                        filter: ((pathName: String) -> Boolean)?)
+    {
+        directory.listFiles.forEach { path ->
+            val name = (if (path.isDirectory && !path.path.endsWith(File.pathSeparator))
+                path.path + File.pathSeparator
+            else
+                path.path).replace(parentPath, "")
+            if (filter?.invoke(name) != false) {
+                RawFile(path).use { rdr ->
+                    addEntry(ZipEntry(rdr.file.name)) {
+                        buffer.apply {
+                            positionLimit(0, bufferSize)
+                            val count = rdr.read(this).toInt()
+                            positionLimit(0, count)
+                        }.getBytes()
+                    }
+                }
+                if (!shallow && path.isDirectory)
+                    zipOneDirectory(path, shallow, parentPath, filter)
+            }
         }
     }
 }

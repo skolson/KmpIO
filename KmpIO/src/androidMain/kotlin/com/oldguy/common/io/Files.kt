@@ -58,6 +58,7 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
     actual val extension: String = javaFile.extension
     actual val path: String = javaFile.path.trimEnd(pathSeparator[0])
     actual val fullPath: String = javaFile.absolutePath.trimEnd(pathSeparator[0])
+    actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator[0])
     actual val isDirectory get() = javaFile.isDirectory
     actual val exists get() = javaFile.exists()
     actual val isUri = platformFd?.code == 1 && platformFd.descriptor is Uri
@@ -65,12 +66,26 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
     actual val size: ULong get() = javaFile.length().toULong()
     actual val listFiles: List<File>
         get() {
+            val list = mutableListOf<File>()
             return if (isDirectory)
                 javaFile.listFiles()?.map { File(it.absolutePath, null) } ?: emptyList()
             else
-                emptyList()
+                list
+        }
+    actual val listFilesTree: List<File> get() {
+            return mutableListOf<File>().apply {
+                listFiles.forEach { directoryWalk(it, this) }
+            }
         }
     actual val listNames: List<String> get() = listFiles.map { it.name }
+
+    private fun directoryWalk(dir: File, list: MutableList<File>) {
+        if (dir.isDirectory) {
+            list.add(dir)
+            dir.listFiles.forEach { directoryWalk(it, list) }
+        } else
+            list.add(dir)
+    }
 
     val fd: Uri? =
         if (platformFd != null && platformFd.code == 1)
@@ -82,10 +97,14 @@ actual class File actual constructor(val filePath: String, val platformFd: FileD
         return javaFile.delete()
     }
 
+    actual fun makeDirectory(): Boolean {
+        return javaFile.mkdir()
+    }
+
     actual fun resolve(directoryName: String): File {
         val directory = File(this, directoryName)
         if (!directory.javaFile.exists())
-            directory.javaFile.mkdir()
+            directory.makeDirectory()
         return directory
     }
 

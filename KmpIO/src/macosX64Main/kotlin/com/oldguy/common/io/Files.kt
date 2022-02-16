@@ -38,6 +38,7 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual override val isDirectory: Boolean get() = super.isDirectory
     actual override val listNames: List<String> get() = super.listNames
     actual override val listFiles: List<File> get() = super.listFiles
+    actual override val listFilesTree: List<File> get() = super.listFilesTree
     actual override val exists: Boolean get() = super.exists
     actual override val isUri: Boolean get() = super.isUri
     actual override val isUriString: Boolean get() = super.isUriString
@@ -49,6 +50,10 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
 
     actual override fun copy(destinationPath: String): File {
         return super.copy(destinationPath)
+    }
+
+    actual fun makeDirectory(): Boolean {
+        return super.makeDirectory()
     }
 
     /**

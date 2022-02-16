@@ -119,6 +119,12 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         return listNames.map { File(path, it) }
     }
 
+    open val listFilesTree: List<File> get() {
+        return mutableListOf<File>().apply {
+            listFiles.forEach { directoryWalk(it, this) }
+        }
+    }
+
     open val exists: Boolean get() = pathExists(path)
 
     open val isUri: Boolean
@@ -126,6 +132,13 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     open val isUriString: Boolean
         get() = TODO("Not yet implemented")
 
+    private fun directoryWalk(dir: File, list: MutableList<File>) {
+        if (dir.isDirectory) {
+            list.add(dir)
+            dir.listFiles.forEach { directoryWalk(it, list) }
+        } else
+            list.add(dir)
+    }
 
     private fun matches(path: String): List<String> {
         memScoped {
@@ -186,19 +199,21 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     open fun resolve(directoryName: String): File {
         if (directoryName.isEmpty() || directoryName.startsWith(pathSeparator))
             throw IllegalArgumentException("resolve requires $directoryName to be not empty and cannot start with $pathSeparator")
-        val newPath = "$path/$directoryName"
-        if (!pathExists(newPath)) {
-            throwError { errorPointer ->
-                val withIntermediates = directoryName.contains(pathSeparator)
-                fm.createDirectoryAtPath(
-                    newPath,
-                    withIntermediates,
-                    null,
-                    errorPointer
-                )
-            }
+        File("$path/$directoryName", null).apply {
+            return makeDirectory()
         }
-        return File(newPath, null)
+    }
+
+    fun makeDirectory(): Boolean {
+        throwError { errorPointer ->
+            val withIntermediates = path.contains(pathSeparator)
+            fm.createDirectoryAtPath(
+                path,
+                withIntermediates,
+                null,
+                errorPointer
+            )
+        }
     }
 
     companion object {
