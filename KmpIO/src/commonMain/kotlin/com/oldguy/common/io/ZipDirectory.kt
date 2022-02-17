@@ -497,7 +497,7 @@ class ZipLocalRecord(
     override fun encode(buffer: ByteBuffer) {
         buffer.apply {
             val start = position
-            super.encodeSignature(this, ZipDirectoryRecord.signature)
+            super.encodeSignature(this, signature)
             super.encode(buffer)
             if (name.isNotEmpty())
                 put(ZipRecord.zipCharset.encode(name))
@@ -509,12 +509,13 @@ class ZipLocalRecord(
 
     companion object {
         const val signature = 0x04034b50
-        const val minimumLength = 30
+        private const val minimumLength = 30
 
         /**
          * Starting at buffer position, verifies signature, decodes buffer into Central Directory Record. If buffer
          * can't be decoded, an exception is thrown
-         * @param buffer position is pointing at location where record starts
+         * @param file ZipFile
+         * @param position must be pointing at location where record starts
          */
         fun decode(file: RawFile, position: ULong): ZipLocalRecord {
             ByteBuffer(minimumLength).apply {

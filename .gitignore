@@ -5,6 +5,6 @@
 /commonMain/.gradle/
 /build/
 /KmpIO/build/
-/TestFiles/SmallTextAndBinaryTest/
+/TestFiles/Work/
 *.iml
 local.properties

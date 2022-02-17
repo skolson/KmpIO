@@ -33,7 +33,7 @@ interface ZipRecord {
                 val t = position
                 val sig = int
                 if (sig != signature)
-                    throw IllegalArgumentException("Buffer at position: $t does not match signature: $signature, found: ${sig.toString(16)}")
+                    throw IllegalArgumentException("Buffer at position: $t does not match signature: ${signature.toString(16)}, found: ${sig.toString(16)}")
             }
         }
 
@@ -147,6 +147,7 @@ data class ZipEOCD (
             short = comment.length.toShort()
             if (comment.isNotEmpty())
                 put(zipCharset.encode(comment))
+            flip()
         }
     }
 
@@ -199,6 +200,7 @@ data class ZipEOCD64Locator(
             int = diskNumber
             ulong = eocdOffset
             int = disksCount
+            flip()
         }
     }
 
@@ -243,6 +245,7 @@ data class ZipEOCD64 (
     fun allocateBuffer(): ByteBuffer {
         return ByteBuffer(minimumLength + min(comment.length, ZipFile.maxCommentLength))
     }
+
     /**
      * Encode this entry into the specified ByteBuffer.
      * @param buffer encoding will be written starting at current position. If there is insufficient remaining, an
@@ -262,6 +265,7 @@ data class ZipEOCD64 (
             ulong = directoryOffset
             if (comment.isNotEmpty())
                 put(zipCharset.encode(comment))
+            flip()
         }
     }
 
@@ -432,6 +436,7 @@ data class ZipExtra(
                     short = it.length
                     putBytes(it.buf.buf)
                 }
+                flip()
             }.contentBytes
         }
     }
@@ -450,20 +455,26 @@ data class ZipExtra(
  */
 data class ZipDataDescriptor(
     val crc32: Int,
-    val compressedSize: Long,
-    val uncompressedSize: Long
+    val compressedSize: ULong,
+    val uncompressedSize: ULong
 ): ZipRecord {
+
+    fun allocateBuffer(isZip64: Boolean): ByteBuffer {
+        return ByteBuffer(if(isZip64) zip64Length else length)
+    }
+
     fun encode(buffer: ByteBuffer, isZip64: Boolean) {
         buffer.apply {
             encodeSignature(signature, this)
             int = crc32
             if (isZip64) {
-                long = compressedSize
-                long = uncompressedSize
+                ulong = compressedSize
+                ulong = uncompressedSize
             } else {
                 int = compressedSize.toInt()
                 int = uncompressedSize.toInt()
             }
+            flip()
         }
     }
 
@@ -482,20 +493,20 @@ data class ZipDataDescriptor(
             ByteBuffer(l).apply {
                 if (file.read(this) != l.toUInt())
                     throw ZipException("Data descriptor expected length $l not found (zip64: $isZip64")
-                positionLimit(0, l)
-                val sigFound = getElementAsInt(position) == signature
-                if (sigFound) int       // position past signature only if it IS a signature
+                flip()
+                val sigFound = int == signature
+                if (!sigFound) rewind()
                 val descriptor = if (isZip64) {
                     ZipDataDescriptor(
                         crc32 =  int,
-                        compressedSize = long,
-                        uncompressedSize = long
+                        compressedSize = ulong,
+                        uncompressedSize = ulong
                     )
                 } else {
                     ZipDataDescriptor(
                         crc32 = int,
-                        compressedSize = int.toLong(),
-                        uncompressedSize = int.toLong()
+                        compressedSize = int.toULong(),
+                        uncompressedSize = int.toULong()
                     )
                 }
                 if (!sigFound) {

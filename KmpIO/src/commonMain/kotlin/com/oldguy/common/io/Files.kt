@@ -155,6 +155,13 @@ expect class RawFile(
     fun read(buf: UByteBuffer, newPos: ULong): UInt
 
     /**
+     * Sets the length of the file in bytes. Ony usable during FileMode.Write.
+     * @param length If current file size is less than [length], file will be expanded.  If current
+     * file size is greater than [length] file will be shrunk.
+     */
+    fun setLength(length: ULong)
+
+    /**
      * Write bytes to a file, staring at the current file position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * or if default of -1, the current file position

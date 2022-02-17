@@ -1,6 +1,6 @@
 package com.oldguy.common.io
 
-actual class CompressionDeflate: Compression {
+actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression {
     actual enum class Strategy {Default, Filtered, Huffman}
     actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
 

@@ -8,20 +8,25 @@ import kotlin.math.min
  * Uses Android Inflater/Deflater classes for implementation of the Deflate algorithm.
  * This class maintains state on the current compression op. NEVER use the same instance for multiple
  * different simultaneous operations. Instance state is not thread-safe.
+ *
+ * Note - for compatibility with Zip, both the deflater and the inflater use the nowrap=true option
+ * by default. This can be overridden for both, but this class does not offer the ability to use
+ * a deflater and inflater that do not use the same nowrap option.
+ * Nowrap = true adds a header and CRC to the payload on deflate, and expects these on inflate
  */
-actual class CompressionDeflate: Compression {
+actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression {
     actual enum class Strategy {Default, Filtered, Huffman}
     actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
 
-    private val inflater = Inflater(true)
-    private var deflater = Deflater()
+    private val inflater = Inflater(noWrap)
+    private var deflater = Deflater(Deflater.DEFAULT_STRATEGY, noWrap)
 
     private fun setDeflater(strategy: Strategy) {
         deflater = Deflater(when (strategy) {
             Strategy.Default -> Deflater.DEFAULT_STRATEGY
             Strategy.Filtered -> Deflater.FILTERED
             Strategy.Huffman -> Deflater.HUFFMAN_ONLY
-        })
+        }, true)
     }
 
     actual suspend fun compress(strategy: Strategy,
@@ -45,28 +50,13 @@ actual class CompressionDeflate: Compression {
     actual override suspend fun compress(input: suspend () -> ByteBuffer,
                                          output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        var count = 0UL
-        val bufferSize = 4096
-        deflater.apply {
-            reset()
-            var inProgress = true
-            var out = ByteArray(bufferSize)
-            while (inProgress) {
-                input().also {
-                    if (it.capacity > out.size) out = ByteArray(it.capacity + 100)
-                    val opCount = if (!it.hasRemaining) {
-                        inProgress = false
-                        deflate(out).also { finish() }
-                    } else {
-                        deflate(out)
-                    }
-                    output(ByteBuffer(out))
-                    count += opCount.toUInt()
-                }
+        return compressArray(
+            input = {
+                input().getBytes()
             }
-            end()
+        ) {
+            output(ByteBuffer(it))
         }
-        return count
     }
 
     actual suspend fun compressArray(strategy: Strategy,
@@ -92,19 +82,30 @@ actual class CompressionDeflate: Compression {
         val bufferSize = 4096
         deflater.apply {
             reset()
-            var inProgress = true
-            var out = ByteArray(bufferSize)
-            while (inProgress) {
+            val out = ByteArray(bufferSize)
+            var run = true
+            while (run) {
                 input().also {
-                    if (it.size > out.size) out = ByteArray(it.size + 100)
-                    val opCount = if (it.isEmpty()) {
-                        inProgress = false
-                        deflate(out).also { finish() }
+                    if (it.isEmpty()) {
+                        finish()
+                        while (!finished()) {
+                            val opCount = deflate(out)
+                            if (opCount > 0) {
+                                output(out.sliceArray(0 until opCount))
+                                count += opCount.toUInt()
+                            }
+                        }
+                        run = false
                     } else {
-                        deflate(out)
+                        setInput(it)
+                        while (!needsInput()) {
+                            val opCount = deflate(out)
+                            if (opCount > 0) {
+                                output(out.sliceArray(0 until opCount))
+                                count += opCount.toUInt()
+                            }
+                        }
                     }
-                    output(out.sliceArray(0 until opCount))
-                    count += opCount.toUInt()
                 }
             }
             end()
@@ -141,33 +142,28 @@ actual class CompressionDeflate: Compression {
         var remaining = totalCompressedBytes
         var outCount = 0UL
         var inBuf = input(min(bufferSize.toULong(), remaining).toInt())
-        val outBuf = ByteBuffer(inBuf.capacity)
-        while (inBuf.remaining > 0 && remaining > 0U) {
-            when (algorithm) {
-                CompressionAlgorithms.Deflate -> {
+        remaining -= inBuf.remaining.toULong()
+        val outBuf = ByteArray(inBuf.capacity)
+        inflater.apply {
+            reset()
+            val b = inBuf.getBytes()
+            setInput(b)
+            var count: Int
+            while (!finished()) {
+                count = inflate(outBuf)
+                if (count > 0) {
+                    output(ByteBuffer(outBuf.sliceArray(0 until count)))
+                    outCount += count.toULong()
+                }
+                if (!finished() && needsInput()) {
+                    inBuf = input(min(bufferSize.toULong(), remaining).toInt())
                     remaining -= inBuf.remaining.toULong()
                     if (remaining < 0UL)
                         throw IllegalStateException("totalCompressedBytes expected: $totalCompressedBytes. Excess bytes provided: ${remaining.toLong() *-1L}")
-                    inflater.apply {
-                        setInput(inBuf.getBytes(inBuf.remaining))
-                        var count: Int
-                        do {
-                            count = inflate(outBuf.contentBytes)
-                            if (count > 0) {
-                                outBuf.positionLimit(0, count)
-                                output(outBuf)
-                                outCount += count.toULong()
-                            }
-                            val need = needsInput()
-                        } while (count > 0 || !need)
-                        if (remaining > 0u)
-                            inBuf = input(min(bufferSize.toULong(), remaining).toInt())
-                        else
-                            end()
-                    }
+                    setInput(inBuf.getBytes())
                 }
-                else -> throw IllegalArgumentException("Unsupported compression $algorithm")
             }
+            end()
         }
         return outCount
     }

@@ -142,7 +142,7 @@ actual inline fun <T : Closeable?, R> T.use(body: (T) -> R): R =
  */
 actual class RawFile actual constructor(
     fileArg: File,
-    mode: FileMode,
+    val mode: FileMode,
     source: FileSource
 ) : Closeable {
     actual val file = fileArg
@@ -199,6 +199,12 @@ actual class RawFile actual constructor(
         javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
         buf.put(javaBuf.array().toUByteArray())
         return bytesRead.toUInt()
+    }
+
+    actual fun setLength(length: ULong) {
+        if (mode != FileMode.Write)
+            throw IllegalStateException("setLength only usable with FileMode.Write")
+        javaFile.setLength(length.toLong())
     }
 
     actual fun write(buf: com.oldguy.common.io.ByteBuffer) {
