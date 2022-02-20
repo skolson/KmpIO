@@ -2,8 +2,8 @@ package com.oldguy.common.io
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDateTime
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -16,6 +16,8 @@ class ZipFileTests {
     private val testDirectory = File("..\\TestFiles")
     private val workDirectory = testDirectory.resolve("Work")
     private val testFile = File(testDirectory, "SmallTextAndBinary.zip")
+    private val testFileTime = LocalDateTime(2017, 6, 23, 18, 46, 2)
+    private val parser = ZipFile.defaultExtraParser
 
     @Test
     fun zipFileRead() {
@@ -44,6 +46,7 @@ class ZipFileTests {
                     assertTrue(s.contains(readmeExcerpt))
                     assertEquals(148u, count)
                     assertEquals(148, s.length)
+                    assertEquals(testFileTime, entry.timeModified)
                 }
                 val imgBuf = ByteBuffer(4096)
                 val fileSize = RawFile(imgFile).read(imgBuf).toInt()
@@ -54,6 +57,7 @@ class ZipFileTests {
                     assertEquals(3650, count.toInt())
                     assertEquals(3650, content.size)
                     assertTrue(imgBuf.getBytes(imgBuf.remaining).contentEquals(content))
+                    assertEquals(testFileTime, entry.timeModified)
                 }
             } finally {
                 zip.close()
@@ -74,7 +78,7 @@ class ZipFileTests {
                     val testEntry = map["0000"]
                         ?: throw IllegalStateException("0000 file not found")
                     val uSize = 5242880UL * 1024UL
-                    testEntry.directory.apply {
+                    testEntry.entryDirectory.apply {
                         assertEquals(5611526UL, compressedSize)
                         assertEquals(uSize, uncompressedSize)
                         assertEquals(0UL, localHeaderOffset)
@@ -168,6 +172,38 @@ class ZipFileTests {
     }
 
     @Test
+    fun testTime() {
+        assertEquals(testFileTime, ZipTime(testFileTime).zipTime)
+        assertEquals(testFileTime, ZipTime(0x9DC1u, 0x4AD7u).zipTime)
+
+        val modTime: UShort = 0x7a9cu
+        val modDate: UShort = 0x544bu
+        val z = ZipTime(modTime, modDate)
+        val d = LocalDateTime(2022, 2, 11, 15, 20, 56)
+        ZipTime(d).apply {
+            assertEquals(modTime, modTime)
+            assertEquals(modDate, modDate)
+        }
+        assertEquals(d, z.zipTime)
+
+        val t2 = LocalDateTime(2017, 6, 23, 18, 46, 2)
+        val z1 = ZipTime(t2)
+        assertEquals(t2, z1.zipTime)
+
+        val tFile = File(testDirectory, testImageFileName)
+        ZipEntry(parser, "Any", lastModTime = tFile.lastModified, ).apply {
+            assertEquals(d.year, timeModified.year)
+            assertEquals(d.month, timeModified.month)
+            assertEquals(d.dayOfMonth, timeModified.dayOfMonth)
+            assertEquals(d.hour, timeModified.hour)
+            assertEquals(d.minute, timeModified.minute)
+            assertEquals(d.second, (timeModified.second - (timeModified.second % 2)))
+            assertEquals(modTime, zipTime.modTime, "modTime: ${zipTime.modTime.toString(16)}")
+            assertEquals(modDate, zipTime.modDate, "modDate: ${zipTime.modDate.toString(16)}")
+        }
+    }
+
+    @Test
     fun saveOne() {
         val dir = workDirectory.resolve("SaveOne")
         val oneFileZip = File(dir, "saveOne.zip")
@@ -176,7 +212,7 @@ class ZipFileTests {
         runTest {
             ZipFile(oneFileZip, FileMode.Write).use {
                 RawFile(entryFile).apply {
-                    val entry = ZipEntry(testImageFileName)
+                    val entry = ZipEntry(parser, testImageFileName, lastModTime = entryFile.lastModified)
                     val buf = ByteBuffer(4096)
                     it.addEntry(entry) {
                         val count = read(buf)
@@ -190,8 +226,8 @@ class ZipFileTests {
                 assertTrue(e.map.containsKey(testImageFileName))
                 val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
                 assertEquals(testImageFileName, t.name)
-                assertEquals(3650UL, t.directory.uncompressedSize)
-                val copy = File(testDirectory, "Copy$testImageFileName")
+                assertEquals(3650UL, t.entryDirectory.uncompressedSize)
+                val copy = File(workDirectory, "Copy$testImageFileName")
                 copy.delete()
                 RawFile(copy, FileMode.Write).use {
                     (e.readEntry(testImageFileName) { _, bytes, count ->
@@ -200,8 +236,8 @@ class ZipFileTests {
                         it.write(ByteBuffer(bytes))
                     }).apply {
                         assertEquals(testImageFileName, name)
-                        assertEquals(3655UL, directory.compressedSize)
-                        assertEquals(3650UL, directory.uncompressedSize)
+                        assertEquals(3655UL, entryDirectory.compressedSize)
+                        assertEquals(3650UL, entryDirectory.uncompressedSize)
                     }
                 }
             }

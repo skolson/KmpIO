@@ -1,6 +1,8 @@
 package com.oldguy.common.io
 
 import android.net.Uri
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toLocalDateTime
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -64,6 +66,11 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual val isUri = platformFd?.code == 1 && platformFd.descriptor is Uri
     actual val isUriString = platformFd?.code == 2 && platformFd.descriptor is String
     actual val size: ULong get() = javaFile.length().toULong()
+    actual val lastModifiedEpoch: Long = javaFile.lastModified()
+    actual val lastModified get() = Instant
+        .fromEpochMilliseconds(lastModifiedEpoch)
+        .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+
     actual val listFiles: List<File>
         get() {
             val list = mutableListOf<File>()

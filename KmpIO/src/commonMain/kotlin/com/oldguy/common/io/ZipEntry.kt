@@ -4,20 +4,144 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+/*
+    fun createRecords(
+        nameArg: String,
+        isZip64: Boolean = false,
+        commentArg: String = "",
+        extraArg: List<ZipExtra> = emptyList(),
+        lastModTime: LocalDateTime = defaultDateTime
+    ): ZipEntryDirectory {
+        return ZipEntryDirectory(ZipExtraFactory(ZipDirectoryRecord(
+            defaultVersion,
+            defaultVersion,
+            ZipGeneralPurpose.defaultValue.shortValue,
+            defaultCompressionValue,
+            ZipTime(lastModTime),
+            0,
+            if (isZip64) -1 else 0,
+            if (isZip64) -1 else 0,
+            nameArg.length.toShort(),
+            ZipExtraFactory.contentLength(extraArg).toShort(),
+            commentArg.length.toShort(),
+            0,
+            0,
+            0,
+            if (isZip64) -1 else 0,
+            nameArg,
+            ByteArray(0),
+            commentArg
+        ))).apply {
+            factory.encode(extraArg)
+        }
+    }
+ */
 
 /**
- * Represents a Zip file entry. If creating one, the internal records will be instantiated when
- * writing the entry.  When non-null they contain the Zip internals, intended for read-only use.
+ * Combines directory and local directory header [ZipExtraParser] instances. Functions:
+ *  - uncompressed and compressed values independent of Zip64 usage
+ *  - comparisons of [ZipLocalRecord] and [ZipDirectoryRecord] content that should match
+ *  - extra parsing/decoding using the provided ZipExtraFactory
+ *  Used by [ZipEntry] for parsing
+ */
+class ZipDirectory(
+    var directoryRecord: ZipDirectoryRecord,
+    val parserFactory: ExtraParserFactory
+) {
+    val parser get() = parserFactory(directoryRecord)
+    var localParser = parserFactory(ZipLocalRecord(directoryRecord))
+
+    private val directory = parser.directory as ZipDirectoryRecord
+    val localDirectory get() = localParser.directory
+
+    val extras get() = parser.decode()
+    val localExtras get() = localParser.decode()
+    val extraZip64: ZipExtraZip64? get() =
+        extras.firstOrNull { it.signature == ZipExtraParser.zip64Signature } as ZipExtraZip64?
+
+    val compressedSize: ULong
+        get() = extraZip64?.let {
+            if (it.compressedSize > 0)
+                it.compressedSize.toULong()
+            else null
+        } ?: if (directory.intCompressedSize > 0)
+            directory.intCompressedSize.toULong()
+        else
+            throw IllegalStateException("Bug: using compressedSize property when negative")
+
+    val uncompressedSize: ULong
+        get() = extraZip64?.let {
+            if (it.uncompressedSize > 0)
+                it.uncompressedSize.toULong()
+            else null
+        } ?: if (directory.intUncompressedSize > 0)
+            directory.intUncompressedSize.toULong()
+        else
+            throw IllegalStateException("Bug: using uncompressedSize property when negative")
+
+    val localHeaderOffset: ULong
+        get() = extraZip64?.let {
+            if (it.localHeaderOffset > 0)
+                it.localHeaderOffset.toULong()
+            else null
+        } ?: directory.intLocalHeaderOffset.toULong()
+
+
+    /**
+     * If any of the values that are supposed to be copies of the [ZipDirectoryRecord] values
+     * don't match, throw a ZipException
+     */
+    fun compare() {
+        var fields = ""
+        if (directory.intCompressedSize != localDirectory.intCompressedSize) fields = "compressed"
+        if (directory.intUncompressedSize != localDirectory.intUncompressedSize) fields += " uncompressed"
+        if (directory.crc32 != localDirectory.crc32) fields = " CRC32"
+        if (directory.generalPurpose != localDirectory.generalPurpose) fields = " generalPurpose"
+        if (directory.compression != localDirectory.compression) fields = " compressionMethod"
+        if (directory.name != localDirectory.name) fields = " name"
+        if (fields.isNotEmpty())
+            throw ZipException("Entry ${directory.name} unequal fields: $fields ")
+    }
+
+    /**
+     * Use this to add entries to a list, guarantees all signatures are unique.
+     * If matching signature is already present, it is replaced.
+     * Both [ZipDirectoryRecord] and [ZipLocalRecord] extra content will updated
+     */
+    fun addOrReplace(extra: ZipExtra) {
+        val newList = extras.toMutableList()
+        newList.removeAll { it.signature == extra.signature }
+        newList.add(extra)
+        parser.encode(newList)
+        localParser.encode(newList)
+    }
+
+    fun update(localRecord: ZipLocalRecord) {
+        localParser = parserFactory(localRecord)
+    }
+
+    fun update(directoryRecord: ZipDirectoryRecord) {
+        this.directoryRecord = directoryRecord
+        localParser = parserFactory(ZipLocalRecord(directoryRecord))
+    }
+}
+
+/**
+ * Represents a Zip file entry. Contains .
  *
  * Contains default properties for all of the required fields in the Zip specification when creating
  * entries. Many of the properties can be changed for use during save.
  *
  * @param directoryRecord typically decoded from an input file
  */
-class ZipEntry(directoryRecord: ZipDirectoryRecord) {
-    var directory: ZipDirectoryRecord = directoryRecord
-        private set
-    val localDirectory:ZipLocalRecord get() = createLocal()
+class ZipEntry(
+    directoryRecordArg:ZipDirectoryRecord,
+    parserFactory: ExtraParserFactory
+) {
+    val entryDirectory = ZipDirectory(directoryRecordArg, parserFactory)
+    val extraParser get() = entryDirectory.parser
+    val localExtraParser get() = entryDirectory.localParser
+    val directory get() = entryDirectory.directoryRecord
     val name get() = directory.name
     val comment get() = directory.comment
 
@@ -40,45 +164,44 @@ class ZipEntry(directoryRecord: ZipDirectoryRecord) {
         CompressionAlgorithms.BZip2 -> 12
         CompressionAlgorithms.LZMA -> 14
     }
-    var timeModified = defaultDateTime
-        set(value) {
-            field = value
-            updateDirectory()
-        }
+    val timeModified get() = directory.zipTime.zipTime
 
     val dateModified get() = timeModified.date
-    val zipModDate: Short get() = modDate(timeModified)
-    val zipModeTime: Short get() = modTime(timeModified)
-    val extras get() = directory.extraRecords
+    val zipTime get() = ZipTime(timeModified)
 
     constructor(
+        parserFactory: ExtraParserFactory,
         nameArg: String,
         isZip64: Boolean = false,
         commentArg: String = "",
-        extraArg: List<ZipExtra> = emptyList()
+        extraArg: List<ZipExtra> = emptyList(),
+        lastModTime: LocalDateTime = defaultDateTime
     ): this(
         ZipDirectoryRecord(
             defaultVersion,
             defaultVersion,
             ZipGeneralPurpose.defaultValue.shortValue,
             defaultCompressionValue,
-            modTime(defaultDateTime),
-            modDate(defaultDateTime),
+            ZipTime(lastModTime),
             0,
             if (isZip64) -1 else 0,
             if (isZip64) -1 else 0,
             nameArg.length.toShort(),
-            ZipExtra.encode(extraArg).size.toShort(),
+            ZipExtraParser.contentLength(extraArg).toShort(),
             commentArg.length.toShort(),
             0,
             0,
             0,
             if (isZip64) -1 else 0,
             nameArg,
-            ZipExtra.encode(extraArg),
+            ByteArray(0),
             commentArg
-        )
-    )
+        ),
+        parserFactory
+    ) {
+        extraParser.encode(extraArg)
+        localExtraParser.encode(extraArg)
+    }
 
     init {
         compression = when (directory.algorithm) {
@@ -91,6 +214,10 @@ class ZipEntry(directoryRecord: ZipDirectoryRecord) {
         }
     }
 
+    fun addOrReplace(extra: ZipExtra) {
+        entryDirectory.addOrReplace(extra)
+    }
+
     fun updateDirectory(
         isZip64: Boolean,
         compressedSize: ULong,
@@ -98,41 +225,26 @@ class ZipEntry(directoryRecord: ZipDirectoryRecord) {
         crc: Int,
         localFileOffset: ULong
     ) {
-        val newExtra = if (isZip64) {
-            val list = extras.toMutableList()
-            list.removeAll { it.signature == ZipExtraZip64.signature }
-            ZipExtraZip64(
-                uncompressedSize,
-                compressedSize,
-                localFileOffset
-            ).apply {
-                list.add(this.encode(directory))
-            }
-            ZipExtra.encode(list)
-        } else
-            directory.extra
-
-        directory = ZipDirectoryRecord(
+        entryDirectory.update(ZipDirectoryRecord(
             directory.version,
             directory.versionMinimum,
             ZipGeneralPurpose.defaultValue.shortValue,
             compressionValue,
-            zipModeTime,
-            zipModDate,
+            zipTime,
             crc,
             if (isZip64) -1 else compressedSize.toInt(),
             if (isZip64) -1 else uncompressedSize.toInt(),
             directory.name.length.toShort(),
-            newExtra.size.toShort(),
+            directory.extraLength,
             directory.commentLength,
             directory.diskNumber,
             directory.internalAttributes,
             directory.externalAttributes,
             if (isZip64) -1 else localFileOffset.toInt(),
             directory.name,
-            newExtra,
+            directory.extra,
             directory.comment
-        )
+        ))
     }
 
     /**
@@ -140,13 +252,12 @@ class ZipEntry(directoryRecord: ZipDirectoryRecord) {
      * This is a copy constructor of the current directory using updated values from the entry.
      */
     private fun updateDirectory() {
-        directory = ZipDirectoryRecord(
+        entryDirectory.update(ZipDirectoryRecord(
             directory.version,
             directory.versionMinimum,
             ZipGeneralPurpose.defaultValue.shortValue,
             compressionValue,
-            zipModeTime,
-            zipModDate,
+            zipTime,
             directory.crc32,
             directory.intCompressedSize,
             directory.intUncompressedSize,
@@ -160,31 +271,7 @@ class ZipEntry(directoryRecord: ZipDirectoryRecord) {
             directory.name,
             directory.extra,
             directory.comment
-        )
-    }
-    /**
-     * Set time using the Zip specification encoding for date and time
-     */
-    fun setTime(lastModTime: Short, lastModDate: Short) {
-        val i = lastModDate.toInt()
-        val t = lastModTime.toInt()
-        timeModified = LocalDateTime(
-            1980 + ((i shr 9) and 0x7f),
-            ((i shr 5) and 0xf) - 1,
-            i and 0x1f,
-            (t shr 11) and 0x1f,
-            (t shr 5) and 0x3f,
-            (t and 0x1f) shl 1
-        )
-    }
-
-    private fun createLocal(): ZipLocalRecord {
-        return ZipLocalRecord(
-            directory,
-            directory.name,
-            directory.extra,
-            ByteArray(0)
-        )
+        ))
     }
 
     companion object {
@@ -192,20 +279,5 @@ class ZipEntry(directoryRecord: ZipDirectoryRecord) {
         const val defaultCompressionValue: Short = 8
         val defaultDateTime get() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
 
-        fun modDate(timeModified: LocalDateTime): Short {
-            return if (timeModified.year < 1980)
-                0x21.toShort()
-            else {
-                ((timeModified.year - 1980 shl 9) or
-                        (timeModified.month.ordinal + 1 shl 5) or
-                        timeModified.dayOfMonth).toShort()
-            }
-        }
-
-        fun modTime(timeModified: LocalDateTime): Short {
-            return ((timeModified.hour shl 11) or
-                    (timeModified.minute shl 5) or
-                    (timeModified.second shr 1)).toShort()
-        }
     }
 }

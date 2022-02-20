@@ -1,102 +1,5 @@
 package com.oldguy.common.io
 
-import com.oldguy.common.getShortAt
-import kotlin.experimental.and
-
-/**
- * 4.4.4 general purpose bit flag
- * https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
- *
- * Class to assign named properties to used portions of the General Purpose bitmask from the zip spec.
- * See spec for details of each property.
- */
-data class ZipGeneralPurpose(val bits: Short) {
-    private val compressBitsError = IllegalArgumentException("Property only settable to true")
-    private val bitSet = BitSet(byteArrayOf(
-        (bits.toInt() shr 8).toByte(),
-        (bits and 0xff).toByte()
-    ))
-
-    val shortValue get() = bitSet.toByteArray().getShortAt(0)
-
-    var isEncrypted get() = bitSet[0]
-        set(value) {
-            bitSet[0] = value
-        }
-    var isDeflateNormal get() = !bitSet[2] && !bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = false
-                bitSet[1] = false
-            } else {
-                throw compressBitsError
-            }
-        }
-    var isDeflateMax get() = !bitSet[2] && bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = false
-                bitSet[1] = true
-            } else {
-                throw compressBitsError
-            }
-        }
-    var isDeflateFast get() = bitSet[2] && !bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = true
-                bitSet[1] = false
-            } else {
-                throw compressBitsError
-            }
-        }
-
-    var isDeflateSuper get() = bitSet[2] && bitSet[1]
-        set(value) {
-            if (value) {
-                bitSet[2] = true
-                bitSet[1] = true
-            } else {
-                throw compressBitsError
-            }
-        }
-
-    var isLzmaEosUsed get() = bitSet[1]
-        set(value) { bitSet[1] = value }
-
-    var isDataDescriptor get() = bitSet[3]
-        set(value) { bitSet[3] = value }
-    var isStrongEncryption get() = bitSet[6]
-        set(value) { bitSet[6] = value }
-    var isUtf8 get() = bitSet[11]
-        set(value) { bitSet[11] = value }
-    var isDirectoryMasked get() = bitSet[13]
-        set(value) { bitSet[13] = value }
-
-    companion object {
-        val defaultValue = ZipGeneralPurpose(0).apply {
-            isUtf8 = true
-            isDeflateNormal = true
-            isDataDescriptor = true
-        }
-    }
-}
-
-/**
- * Holds a host attributes value byte (currently unused), and a major and minor version code.
- */
-data class ZipVersion(val version:Short) {
-    constructor(major:Int, minor: Int): this(((major*10) + minor).toShort())
-
-    val hostAttributesCode = version / 0x100
-    val lsb = version and 0xff
-    val major = lsb / 10
-    val minor = lsb % 10
-    val versionString = "$major.$minor"
-    val supportsZip64 = major > 4 || (major == 4 && minor >= 5 )
-}
-
-
 /**
  * Common properties and logic shared by ZipLocalDirectory and ZipDirectory. Intent of this is for
  * subclasses to be used as if they are immutable, even though [name] and [extra] properties are
@@ -106,13 +9,12 @@ open class ZipDirectoryCommon(
     val versionMinimum: ZipVersion,
     val purposeBits: Short,
     val compression: Short,
-    val lastModTime: Short,
-    val lastModDate: Short,
+    val zipTime: ZipTime,
     val crc32: Int,
     val intCompressedSize: Int,
     val intUncompressedSize: Int,
     val nameLength: Short,
-    val extraLength: Short,
+    var extraLength: Short,
     var name: String,
     var extra: ByteArray
 ): ZipRecord {
@@ -120,21 +22,11 @@ open class ZipDirectoryCommon(
     val isZip64 = intCompressedSize == -1 || intUncompressedSize == -1
     val algorithm = ZipRecord.algorithm(compression)
     val generalPurpose = ZipGeneralPurpose(purposeBits)
-    val extraRecords get() = ZipExtra.decode(extra)
+    /*
+    val extraRecords get() = extraFactory.decode(extra)
     var extraZip64: ZipExtraZip64? = null
-    val compressedSize: ULong
-        get() = if (isZip64)
-            extraZip64?.compressedSize
-                ?: throw ZipException("Zip64 spec requires Zip64 Extended Information Extra Field")
-        else
-            intCompressedSize.toULong()
-    val uncompressedSize: ULong
-        get() = if (isZip64)
-            extraZip64?.originalSize
-                ?: throw ZipException("Zip64 spec requires Zip64 Extended Information Extra Field")
-        else
-            intUncompressedSize.toULong()
-
+    *
+     */
     fun encodeSignature(buffer: ByteBuffer, signature: Int) {
         super.encodeSignature(signature, buffer)
         if (name.length > Short.MAX_VALUE)
@@ -152,8 +44,8 @@ open class ZipDirectoryCommon(
             short = versionMinimum.version
             short = generalPurpose.shortValue
             short = compression
-            short = lastModTime
-            short = lastModDate
+            ushort = zipTime.modTime
+            ushort = zipTime.modDate
             int = crc32
             int = intCompressedSize
             int = intUncompressedSize
@@ -172,19 +64,26 @@ open class ZipDirectoryCommon(
     }
 
     companion object {
+
+        /**
+         * Decodes the portion of a directory record that is common to both regular and local
+         * directory headers.
+         */
         fun decode(buffer: ByteBuffer): ZipDirectoryCommon {
             buffer.apply {
                 return ZipDirectoryCommon(
-                    versionMinimum = ZipVersion(short),
-                    purposeBits = short,
-                    compression = short,
-                    lastModTime = short,
-                    lastModDate = short,
-                    crc32 = int,
-                    intCompressedSize = int,
-                    intUncompressedSize = int,
-                    nameLength = short,
-                    extraLength = short,
+                    ZipVersion(short),
+                    short,
+                    short,
+                    ZipTime(
+                        ushort,
+                        ushort
+                    ),
+                    int,
+                    int,
+                    int,
+                    short,
+                    short,
                     "",
                     ByteArray(0)
                 )
@@ -201,8 +100,7 @@ class ZipDirectoryRecord(
     versionMinimum: ZipVersion,
     purposeBits: Short,
     compression: Short,
-    lastModTime: Short,
-    lastModDate: Short,
+    zipTime: ZipTime,
     crc32: Int,
     intCompressedSize: Int,
     intUncompressedSize: Int,
@@ -217,7 +115,7 @@ class ZipDirectoryRecord(
     extra: ByteArray,
     var comment: String
 ): ZipDirectoryCommon(
-    versionMinimum, purposeBits, compression, lastModTime, lastModDate,
+    versionMinimum, purposeBits, compression, zipTime,
     crc32, intCompressedSize, intUncompressedSize, nameLength, extraLength,
     name, extra
 ) {
@@ -236,8 +134,7 @@ class ZipDirectoryRecord(
         common.versionMinimum,
         common.purposeBits,
         common.compression,
-        common.lastModTime,
-        common.lastModDate,
+        common.zipTime,
         common.crc32,
         common.intCompressedSize,
         common.intUncompressedSize,
@@ -260,8 +157,7 @@ class ZipDirectoryRecord(
         versionMinimum: ZipVersion,
         purposeBits: Short,
         compression: Short,
-        lastModTime: Short,
-        lastModDate: Short,
+        zipTime: ZipTime,
         crc32: Int,
         nameLength: Short,
         extraLength: Short,
@@ -277,8 +173,7 @@ class ZipDirectoryRecord(
         versionMinimum,
         purposeBits,
         compression,
-        lastModTime,
-        lastModDate,
+        zipTime,
         crc32,
         intCompressedSize = -1,
         intUncompressedSize = -1,
@@ -293,11 +188,6 @@ class ZipDirectoryRecord(
         extra,
         comment
     )
-
-    val localHeaderOffset: ULong get() = if (isZip64)
-        extraZip64?.localHeaderOffset ?: throw ZipException("Zip64 spec requires Zip64 Extended Information Extra Field")
-    else
-        intLocalHeaderOffset.toULong()
 
     override fun allocateBuffer(): ByteBuffer {
         return ByteBuffer(minimumLength + name.length + extra.size + comment.length)
@@ -345,27 +235,18 @@ class ZipDirectoryRecord(
                 rewind()
                 ZipRecord.decodeSignature(signature, minimumLength, this)
                 return ZipDirectoryRecord(
-                    version = ZipVersion(short),
+                    ZipVersion(short),
                     decode(this),
-                    commentLength = short,
-                    diskNumber = short,
-                    internalAttributes = short,
-                    externalAttributes = int,
-                    intLocalHeaderOffset = int,
+                    short,
+                    short,
+                    short,
+                    int,
+                    int,
                     ""
                 ).apply {
                     name = ZipRecord.decodeName(nameLength, file)
                     extra = ZipRecord.decodeExtra(extraLength, file)
                     comment = ZipRecord.decodeComment(commentLength.toInt(), file)
-                    extraRecords.firstOrNull { it.isZip64}?.let {
-                        extraZip64 = ZipExtraZip64.decode(
-                            it,
-                            intUncompressedSize,
-                            intCompressedSize,
-                            intLocalHeaderOffset,
-                            diskNumber
-                        )
-                    } ?: if (isZip64) throw ZipException("Zip64 entry $name must have an zip64 extra field signature. Extra: $extraRecords")
                 }
             }
         }
@@ -379,8 +260,7 @@ class ZipLocalRecord(
     versionMinimum: ZipVersion,
     purposeBits: Short,
     compression: Short,
-    lastModTime: Short,
-    lastModDate: Short,
+    zipTime: ZipTime,
     crc32: Int,
     intCompressedSize: Int,
     intUncompressedSize: Int,
@@ -389,43 +269,52 @@ class ZipLocalRecord(
     name: String,
     extra: ByteArray,
     var encryptionHeader: ByteArray,
-    var longCompressedSize: Long = 0L,
-    var longUncompressedSize: Long = 0L
 ): ZipDirectoryCommon(
-    versionMinimum, purposeBits, compression, lastModTime, lastModDate, crc32, intCompressedSize,
+    versionMinimum, purposeBits, compression, zipTime, crc32, intCompressedSize,
     intUncompressedSize, nameLength, extraLength, name, extra
 ) {
 
+    /**
+     * Construct a default local record from a new (not existing) directory record
+     */
+    constructor(
+        directoryRecord: ZipDirectoryRecord
+    ): this (
+        directoryRecord,
+        directoryRecord.name,
+        ByteArray(0)
+    )
+
+    /**
+     * Construct from a decode of an existing local record
+     */
     constructor(
         common: ZipDirectoryCommon,
         name: String,
-        extra: ByteArray,
         encryptionHeader: ByteArray
     ):this(
         common.versionMinimum,
         common.purposeBits,
         common.compression,
-        common.lastModTime,
-        common.lastModDate,
+        common.zipTime,
         common.crc32,
         common.intCompressedSize,
         common.intUncompressedSize,
         common.nameLength,
         common.extraLength,
         name,
-        extra,
+        common.extra,
         encryptionHeader
     )
 
     /**
-     * Zip64 constructor
+     * Zip64 new entry constructor
      */
     constructor(
         versionMinimum: ZipVersion,
         purposeBits: Short,
         compression: Short,
-        lastModTime: Short,
-        lastModDate: Short,
+        zipTime: ZipTime,
         crc32: Int,
         nameLength: Short,
         extraLength: Short,
@@ -436,8 +325,7 @@ class ZipLocalRecord(
         versionMinimum,
         purposeBits,
         compression,
-        lastModTime,
-        lastModDate,
+        zipTime,
         crc32,
         intCompressedSize = -1,
         intUncompressedSize = -1,
@@ -445,9 +333,7 @@ class ZipLocalRecord(
         extraLength,
         name,
         extra,
-        encryptionHeader,
-        0L,
-        0L
+        encryptionHeader
     )
 
     /**
@@ -525,20 +411,10 @@ class ZipLocalRecord(
                 return ZipLocalRecord(
                     decode(this),
                     "",
-                    ByteArray(0),
                     ByteArray(0)
                 ).apply {
                     name = ZipRecord.decodeName(nameLength, file)
                     extra = ZipRecord.decodeExtra(extraLength, file)
-                    if (isZip64) {
-                        extraRecords.firstOrNull { it.isZip64}?.let {
-                            extraZip64 = ZipExtraZip64.decodeLocal(
-                                it,
-                                intUncompressedSize,
-                                intCompressedSize
-                            )
-                        } ?: throw ZipException("Zip64 entry $name must have an zip64 extra field signature. Extra: $extraRecords")
-                    }
                 }
             }
         }

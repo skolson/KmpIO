@@ -1,5 +1,7 @@
 package com.oldguy.common.io
 
+import kotlinx.datetime.LocalDateTime
+
 enum class Charsets(val charsetName: String, val bytesPerChar: Int = 1) {
     Utf8("UTF-8"),
     Utf16le("UTF-16LE", 2),
@@ -70,6 +72,8 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val isUri: Boolean
     val isUriString: Boolean
     val size: ULong
+    val lastModifiedEpoch: Long
+    val lastModified: LocalDateTime
 
     fun delete(): Boolean
     suspend fun copy(destinationPath: String): File

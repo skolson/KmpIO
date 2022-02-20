@@ -96,7 +96,8 @@ class BitSet(val numberOfBits: Int) {
             x = x ushr 8
         }
 
-        val bytes = ByteArray(len)
+        val sz = if (numberOfBits % 8 > 0) (numberOfBits / 8) + 1 else numberOfBits / 8
+        val bytes = ByteArray(sz)
         val bb = ByteBuffer(bytes)
         bb.order = Buffer.ByteOrder.LittleEndian
         for (i in 0 until n - 1) bb.long = words[i]

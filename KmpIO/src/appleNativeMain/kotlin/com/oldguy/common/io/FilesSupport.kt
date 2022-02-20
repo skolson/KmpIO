@@ -1,6 +1,8 @@
 package com.oldguy.common.io
 
 import kotlinx.cinterop.*
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toLocalDateTime
 import platform.Foundation.*
 import platform.darwin.StringPtrVar
 import platform.posix.memcpy
@@ -85,12 +87,16 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     open val size: ULong get() {
         var result: ULong = 0u
         throwError {
-            val fm = NSFileManager.defaultManager
             val map = fm.attributesOfItemAtPath(path, it) as NSDictionary
             result = map.fileSize()
         }
         return result
     }
+
+    open val lastModifiedEpoch: Long = 0L // TODO
+    open val lastModified get() = Instant
+        .fromEpochMilliseconds(lastModifiedEpoch)
+        .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
 
     open val isDirectory: Boolean get() =
         memScoped {
