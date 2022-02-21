@@ -2,23 +2,20 @@
 
 This is a Kotlin multiplatform (KMP) library for basic Text file, Binary file, and zip/archive file IO. It was initially implemented with the android target, now implementations for Apple targets are being built. 
 
-**2/9/2022** - Both UTF-8 and UTF-16 Charsets pass text file unit tests. Raw file IO basic unit tests are passing. Starting on Zip file support for Apple.
-
-**2/8/2022** - The MacOS text file (UTF-8) unit tests are passing now, but today's commit has a purposefully failing assertEquals as a reproducer for Kotlin Gradle issue https://youtrack.jetbrains.com/issue/KT-51217. RawFle and ZipFile will be in next commit
-
-**2/4/2022** - This is a brand new publish even though the code has been used for a long time in an Android app. The Mac and IOS support is new.
-
 ## Reason for Existence
 
 Kotlin multiplatform code needing basic IO file support should not need platform-specific code to do so. This library provides:
 
+- Coroutine support using Dispatchers.IO
 - Text file reading/writing, by line breaks or by text blocks, with selectable charset encode/decode
 - Binary file reading and writing, with random access by file position
 - Zip/archive file writing or reading, with Kotlin friendly syntax for handling zip entries.
+  - Zip64 support
+  - initially Deflate compression only on Android. Apple adds LZMA, BZip.
 - Bitset class similar to java's Bitset, but KMP only.
 - Base64 encoding KMP only code
 - ByteBuffer support using KMP-only code, similar to Java's ByteBuffer, with endian support. Syntax is a little more Kotlin friendly. Both ByteBuffer and UByteBuffer are available for use.
-- Very basic Charset encode/decode for a limited number of charsets 
+- Basic Charset encode/decode for a limited number of charsets 
 
 Supported platforms (KMM targets) all 64 bit only:
 
@@ -27,7 +24,7 @@ Supported platforms (KMM targets) all 64 bit only:
 - macosX64
 - iosArm64
 - iosX64 Simulator
-- mingw64 currently not supported bu is **easy** to add.
+- mingw64 currently not supported but is **easy** to add.
 
 # Dependencies
 
@@ -60,7 +57,7 @@ This is basically the same functionality as java.util.BitSet using just Kotlin c
 
 ## ByteBuffer and UByteBuffer
 
-These Kotlin-only implementations offer similar functionality to java.nio.ByteBuffer, except any ability to control the memory used.  It offers essentially an enhanced ByteArray (or UByteArray) with endian support and kotlin friendly syntax for reading and writing basic types using the buffer. Endian support defaults to little endian, but big endian is selectable at constructor time. A position property is provided, along with kotlin properties for each of the basic types. Like Bitset there is no expect/actual setup here, just Kotlin code that should build and operate identically on any platform supports by KMP.
+These Kotlin-only implementations offer similar functionality to java.nio.ByteBuffer, except with no ability to control the memory used - everything is standard heap.  It offers essentially an enhanced ByteArray (or UByteArray) with endian support and kotlin friendly syntax for reading and writing basic types using the buffer. Endian support defaults to little endian, but big endian is selectable at constructor time. A position property is provided, along with kotlin properties for each of the basic types. Like Bitset there is no expect/actual setup here, just Kotlin code that should build and operate identically on any platform supports by KMP.
 
 ## Charset
 
@@ -98,7 +95,21 @@ Help for reading/decoding and/or writing/encoding files using a specified Charse
 
 ## ZipFile
 
-Used for reading or writing Zip/archive files using Kotlin-friendly, platform-independent syntax. Platform-specific implementations using expect/actual setup provide entry-based processing. Each entry has a name and optional properties that ZipFile supports, as well as content.
+Used for reading or writing Zip/archive files using Kotlin-friendly, platform-independent syntax. Most of the code is pure Kotlin multi-platform. Platform-specific implementations of Compression schemes use expect/actual setup. Features include:
+
+- Zip and Zip64 support. Has been tested with a 5MB file that expands to 5+GB
+- Support classes visible (but not normally used by users) include
+  - Crc32 for cyclical redundancy calculation
+  - ZipTime converts arcane MSDOS time format used by zip specification to/from kotlinx LocalDateTime instances
+  - ZipDirectoryRecord and ZipLocalRecord for full visibility into content
+  - Extensible ZipExtra class for parsing custom extra data
+    - ZipExtraZip64 subclass for the Zip64 reserved extra data
+    - ZipExtraNtfs subclass for the NTFS reserved extra data segment
+    - Pluggable parser setup for encoding/decoding extra data with custom ZipExtra subclasses
+  - Zip specification record classes of various types
+    - End of Central Directory record
+    - Zip64 End of Central Directory record and locator record
+    - others
 
 ## Extensions
 
@@ -126,14 +137,226 @@ Also note that the Kotlin Native support in this library is using the new memory
 
 # Example Usage
 
-This section will be added in the near future.  The library has been used mostly on Android for use cases that include:
-- reading JSON encoded asset files from an app (for use with Kotlinx Serialization library)
-- reading external text files of various types (XML, JSON, OFX (modified SGML), text) with standard character set encodings
-- reading external binary files using heavily encoded file formats like Microsoft Access files, using KMP code - see the [KmpJillcess](https://github.com/skolson/KmpJillcess) repo for usage
-- encrypting/decrypting files - see the [KmpCryptography](https://github.com/skolson/KmpCryptography) repo for usage
+## Utilities
 
-**2022-02-02 note** the two repos mentioned above have existed for quite a while but are just now being published to Github - should be available in the next couple weeks.
+### BitSet
 
-Examples for each use case are shown below:
+```
+    // Create a 2 byte BitSet, can be any number of bits
+    val bitset = BitSet(byteArrayOf(0x80, 0x80)
+    // or
+    val bitset2 = BitSet(16)
+    var isBit0 get() = bitSet[0]
+        set(value) {
+            bitSet[0] = value
+        } 
+```
+### ByteBuffer, UByteBuffer
 
-*doc will be added during first part of February 2022*
+Basic example of encoding basic types with the specified order, getting the results as a ByteArray, decoding values out
+of a ByteBuffer.
+```
+    val littleEndianBuf = ByteBuffer(ByteArray(1024))  // little endian is default
+    val bigEndianBuf = ByteBuffer(ByteArray(1024), order = ByteOrder.BigEndian)
+    val test = "anytext"
+    val utf8 = Charset(Charsets.Utf8)
+    
+    // encode various basic types into the ByteBuffer,  
+    littleEndianBuf.apply {
+        byte = 0x1.toByte()
+        // position = 1 here, limit is 1024, remaining is 1023
+        short = 0x0101
+        // position = 3 here, limit is 1024, remaining is 1021
+        int = 0x01010101
+        // position = 7 here, limit is 1024, remaining is 1017
+        long = 0x0101010101010101L
+        ulong = 0x0101010101010101UL
+        uint = 0x0101
+        float = 1.01f
+        double = 1.01
+        put(utf8.encode(test))
+        val x = remaining   // number of bytes left before limit is reached
+        flip()  // sets position to 0, limit to former position. 
+        var encodedBytes = getBytes()   // little endian encoded byte array with data above
+    }
+    bigEndianBuf.apply {
+        byte = 0x1
+        // position = 1 here, limit is 1024, remaining is 1023
+        short = 0x0101
+        // position = 3 here, limit is 1024, remaining is 1021
+        int = 0x01010101
+        // position = 7 here, limit is 1024, remaining is 1017
+        long = 0x0101010101010101L
+        float = 1.01f
+        double = 1.01
+        put(utf8.encode(test))
+        ...
+        flip()  // sets position to 0, limit to former position. 
+        var encodedBytes = getBytes()   // big endian encoded byte array with data above
+    }
+    littleEndianBuf.apply {
+        assertEquals(0x1.toByte(), byte)
+        position = 7
+        assertEquals(0x0101010101010101L, long)
+        assertEquals(0x0101010101010101UL, ulong)
+    }
+```
+
+### Charset
+```
+    val utf16 = Charset(Charsets.Utf16LE) // See Charsets enum for supported character sets
+    val test = "anytext"
+    val bytes = utf16.encode(test)
+    assertEquals(test, utf16.decode(bytes)
+```
+
+### Base64
+```
+    Base64().apply {
+        val bytes = encode("any UTF-8 text) // resulting bytes are base-64 encoded
+        val text = decode(bytes)
+    }
+```
+
+## Files
+
+Classes for file handling. Note no streams model in use, just simple buffered reading and writing for random access binary files and for text files.
+
+### File
+
+Examples shown exercise properties available on any platform supported by the library
+```
+    val directory = File("/var/tmp/anydir")
+    val shallowList = directory.listFiles() // lists files in sub-directories in directory, no subdirectory content
+    val deepList = directory.listFilesTree() // lists ALL files in directory and all of its sub-directories
+    val subDirectory = directory.resolve("anysubdir") // finds a subdirectory of directory, makes it if it doesn't exist
+    if (subDirectory.exists) {
+        File(subDirectory, "anyfile.txt").apply {
+            /* some of the properties available
+                name: String
+                nameWithoutExtension: String
+                extension: String
+                path: String            // include file name
+                directoryPath: String   // just the path of the directory containing this file
+                isDirectory: Boolean
+                listNames: List<String>
+                exists: Boolean
+                size: ULong
+                lastModified: LocalDateTime // internal time converted to kotlinx equivalent using system TimeZone 
+           */
+        }
+    }
+```
+
+### RawFile
+Example of creating a file, then reading with change of position
+```
+        val buf = ByteBuffer(4096)
+        val fil = File(subDir, "Somefile.dat")
+        RawFile(fil, FileMode.Write).use {
+            it.write(ByteBuffer(hexContent))
+        }
+        RawFile(fil).use {
+            var count = it.read(buf)
+            it.position = it.size - 12u  // position to last 12 bytes of file
+            buf.clear()
+            count = it.read(buf) // read last 12 bytes
+        }
+    
+```
+
+### TextFile
+Example of creating a text file with ISO-8859-1 encoding, then reading. Same basic setup as RawFile with encoding/decoding of text.
+```
+        val fil = File(subDir, "Text${charset.charset.charsetName}.txt")
+        TextFile(
+            fil,
+            Charset(Charsets.Iso8859_1),
+            FileMode.Write
+        ).use {
+            it.writeLine(textContent)
+        }
+        TextFile(
+            fil,
+            Charset(Charsets.Iso8859_1)
+        ).use {
+            val textContent = it.readLine()
+        }
+
+```
+
+## ZipFiles
+
+Zip file entries can be directories only with no data, or with data of any size.  Content sizes > Int.MAX_VALUE require setting `isZip64 = true`.
+
+### Create a zip file
+
+Create a new Zip file, add an entry from a file, add same file again under new name, add entries for all files in a directory tree that match the specified filter, add an entry with 100 lines of the same text encoded with UTF-16LE that also uses a custom last modified time.
+
+```
+      val dir = File("/anydir")
+      val sourceDirectory = File("/anyPathToaDirectoryTreeToZip")
+      val zip = File(dir, "TestFile.zip")
+      val dataFile = File("SomethingToZip.dat")
+      ZipFile(zip, FileMode.Write).use {
+          it.isZip64 = true  // default is false, but true doesn't require large content or LOTS of entries, just supports them if needed.
+          it.zipFile(dataFile)
+          it.zipFile(dataFile, "Copy${dataFile.name}")
+          it.zipDirectory(sourceDirectory,
+              shallow = false,
+          ) { name -> name.endsWith(".txt") }
+          ZipEntry(
+              name = "someData.dat",
+              comment = "Anything legal here, up to Int.MAX_VALUE length if isZip64 = false",
+              lastModTime = LocalDateTime(year = 2022, monthNumber = 1, dayOfMonth = 1, hour = 12
+          ).apply {
+              var count = 0
+              val dataLine = Charset(Charsets.Utf16Le).encode("Any old stuff from anywhere")
+              it.addEntry(this) {
+                  // this lambda will be called repeatedly until it returns an empty ByteArray()
+                  // provide uncompressed data in ByteArray instances of any size until done
+                  if (count++ < 100) dataline else ByteArray(0)
+              }
+          }
+      }
+```
+
+### Read a zip file
+
+Each ZipEntry returned has properties that can be used to see all the data in the directory record, the local directory record, and other zip-spec-internal stuff. Not normally useful, but available.
+
+```
+      ZipFile(File("anything.zip").use { zip ->
+          // zip.map is a map keyed by name of all ZipEntry instances
+          // zip.entries is the map values as a List
+          zip.bufferSize = 8096 // default is 4K, used during reading entry content
+          /*
+           override defaults in the ZipFile here, like:
+              isZip64 = true
+              comment = "Whatever text you want stored at the end of the ZipFile as a File level comment. See the Zip spec."
+              parser = { it -> ZipExtraParser(it) }   // Can pass a subclass of default ZipExtraParser if desired, argument is a 
+                                                      // ZipDirectoryCommon instance which is either a ZipDirectoryRecord or a ZipLocalRecord 
+           */ 
+          zip.entries
+            .filter { it.name.contains(".txt"}
+            .apply {
+                val extraRecords: List<ZipExtra> = it.extras
+                zip.readEntry(it) { _, content, count ->
+                    // this block is called repeatedly until all uncompressed data has been passed, then ends
+                    // first arg is ZipEntry, second is a ByteArray of content, third arg is byteCount, will be same as content size.
+                    // Max content size for any one call is zip.bufferSize
+                }
+            }
+      }
+```
+
+### ZipEntry Extra data
+
+The Zip specification supports extra data as a ByteArray associated with the entry. The zip specification dictates a general required structure for each entry in the extra data. Extra data is a set of logical records. Each record has a signature, a length, and some bytes of data.  Low number signature values are reserved by the spec. This library has a ZipExtra class that is the base class defining each record. There is a `ZipExtraParser` class that provides encoding and decoding of ZipExtra instances in a List<ZipExtra> to/from ByteArrays conforming to the Zip Spec. Three subclasses of ZipExtra are provided for default support:
+
+- ZipExtraZip64 - reserved signature 0x0001 designates Zip64 data in the extra record - see the zip spec
+- ZipExtraNtfs - reserved signature 0x000a designates NTFS extra file data (dates) - see the zip spec
+- ZipExtraGeneral - any other instance of extra data records
+  - contains signature, length, and ByteArray(length) with any content desired.
+  
+The default ZipExtraParser supports the above. ZipExtra can be subclassed as much as desired for supporting different signature values especially custom (non-reserved) ones.  A subclass of ZipExtraParser is the factory logic that produces the correct subclass for a given signature during decoding of an extra data ByteArray into a List<ZipExtra>. 

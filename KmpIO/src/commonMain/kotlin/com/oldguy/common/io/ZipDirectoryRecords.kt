@@ -229,7 +229,7 @@ class ZipDirectoryRecord(
          * and one to read the entire record.
          * @param file Zip file's RawFile directory record is read from.
          */
-        fun decode(file: RawFile): ZipDirectoryRecord {
+        suspend fun decode(file: RawFile): ZipDirectoryRecord {
             ByteBuffer(minimumLength).apply {
                 file.read(this)
                 rewind()
@@ -403,7 +403,7 @@ class ZipLocalRecord(
          * @param file ZipFile
          * @param position must be pointing at location where record starts
          */
-        fun decode(file: RawFile, position: ULong): ZipLocalRecord {
+        suspend fun decode(file: RawFile, position: ULong): ZipLocalRecord {
             ByteBuffer(minimumLength).apply {
                 file.read(this, position)
                 rewind()

@@ -181,14 +181,14 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         }
     }
 
-    open fun copy(destinationPath: String): File {
+    open suspend fun copy(destinationPath: String): File {
         throwError {
             fm.copyItemAtPath(path, destinationPath, it)
         }
         return File(destinationPath, null)
     }
 
-    open fun delete(): Boolean {
+    open suspend fun delete(): Boolean {
         return if (exists) {
             throwError {
                 fm.removeItemAtPath(path, it)
@@ -202,7 +202,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
      * @param subdirectory of current filePath
      * @return File with path of new subdirectory
      */
-    open fun resolve(directoryName: String): File {
+    open suspend fun resolve(directoryName: String): File {
         if (directoryName.isEmpty() || directoryName.startsWith(pathSeparator))
             throw IllegalArgumentException("resolve requires $directoryName to be not empty and cannot start with $pathSeparator")
         File("$path/$directoryName", null).apply {
@@ -210,7 +210,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         }
     }
 
-    fun makeDirectory(): Boolean {
+    open suspend fun makeDirectory(): Boolean {
         throwError { errorPointer ->
             val withIntermediates = path.contains(pathSeparator)
             fm.createDirectoryAtPath(
@@ -277,7 +277,7 @@ private class AppleFileHandle(val file: File, mode: FileMode)
             }
         } ?: throw IllegalArgumentException("Path ${path} mode $mode could not be opened")
 
-    fun close() {
+    suspend fun close() {
         handle.closeFile()
     }
 }
@@ -336,7 +336,7 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun read(buf: ByteBuffer): UInt {
+    open suspend fun read(buf: ByteBuffer): UInt {
         var len = 0u
         AppleFile.throwError {
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
@@ -356,7 +356,7 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun read(buf: ByteBuffer, newPos: ULong): UInt {
+    open suspend fun read(buf: ByteBuffer, newPos: ULong): UInt {
         var len = 0u
         AppleFile.throwError {
             position = newPos
@@ -376,7 +376,7 @@ open class AppleRawFile(
      * @param buf read buf.remaining bytes into byte buffer.
      * @return number of bytes actually read
      */
-    open fun read(buf: UByteBuffer): UInt {
+    open suspend fun read(buf: UByteBuffer): UInt {
         var len = 0u
         AppleFile.throwError {
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
@@ -397,7 +397,7 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun read(buf: UByteBuffer, newPos: ULong): UInt {
+    open suspend fun read(buf: UByteBuffer, newPos: ULong): UInt {
         var len = 0u
         AppleFile.throwError {
             position = newPos
@@ -417,7 +417,7 @@ open class AppleRawFile(
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * @return number of bytes actually read
      */
-    open fun write(buf: ByteBuffer) {
+    open suspend fun write(buf: ByteBuffer) {
         AppleFile.throwError { error ->
             memScoped {
                 buf.buf.usePinned {
@@ -436,7 +436,7 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun write(buf: ByteBuffer, newPos: ULong) {
+    open suspend fun write(buf: ByteBuffer, newPos: ULong) {
         AppleFile.throwError { error ->
             position = newPos
             memScoped {
@@ -454,7 +454,7 @@ open class AppleRawFile(
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * @return number of bytes actually read
      */
-    open fun write(buf: UByteBuffer) {
+    open suspend fun write(buf: UByteBuffer) {
         AppleFile.throwError { error ->
             memScoped {
                 buf.buf.usePinned {
@@ -473,7 +473,7 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open fun write(buf: UByteBuffer, newPos: ULong) {
+    open suspend fun write(buf: UByteBuffer, newPos: ULong) {
         AppleFile.throwError { error ->
             position = newPos
             memScoped {
@@ -502,7 +502,7 @@ open class AppleRawFile(
      * bytes.
      * @return number of bytes read from source (this).
      */
-    open fun copyTo(
+    open suspend fun copyTo(
         destination: RawFile,
         blockSize: Int,
         transform: ((buffer: ByteBuffer, lastBlock: Boolean) -> ByteBuffer)?
@@ -552,7 +552,7 @@ open class AppleRawFile(
      * write will be invoked to [destination] starting at outBuffer.position for outBuffer.remaining
      * bytes.
      */
-    open fun copyToU(
+    open suspend fun copyToU(
         destination: RawFile,
         blockSize: Int,
         transform: ((buffer: UByteBuffer, lastBlock: Boolean) -> UByteBuffer)?
@@ -589,7 +589,7 @@ open class AppleRawFile(
     /**
      * Copy a portion of the specified source file to the current file at the current position
      */
-    open fun transferFrom(
+    open suspend fun transferFrom(
         source: RawFile,
         startIndex: ULong,
         length: ULong
@@ -614,7 +614,7 @@ open class AppleRawFile(
     /**
      * Truncate the current file to the specified size.  Not usable on Mode.Read files.
      */
-    open fun truncate(size: ULong) {
+    open suspend fun truncate(size: ULong) {
         if (mode == FileMode.Read)
             throw IllegalStateException("No truncate on read-only RawFile")
         AppleFile.throwError {
@@ -679,7 +679,7 @@ open class AppleTextFile(
      * @return a non empty line containing any text found and ended by a line separator. After all lines have been
      * returned subsequent calls will always be an empty string.
      */
-    open fun readLine(): String {
+    open suspend fun readLine(): String {
         var lin: String
         while (!endOfFile && lineEndIndex == -1)
             nextBlockLineState()
@@ -700,7 +700,7 @@ open class AppleTextFile(
         return lin
     }
 
-    open fun forEachLine(action: (count: Int, line: String) -> Boolean) {
+    open suspend fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         try {
             readLock = true
             var count = 1
@@ -718,7 +718,7 @@ open class AppleTextFile(
         }
     }
 
-    open fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
+    open suspend fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
         blockSize = maxSizeBytes
         try {
             readLock = true
@@ -735,14 +735,14 @@ open class AppleTextFile(
         }
     }
 
-    open fun read(maxSizeBytes: Int): String {
+    open suspend fun read(maxSizeBytes: Int): String {
         if (readLock)
             throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
         if (endOfFile) return ""
         return nextBlock()
     }
 
-    open fun write(text: String) {
+    open suspend fun write(text: String) {
         AppleFile.throwError { error ->
             memScoped {
                 val buf = charset.encode(text)
@@ -754,7 +754,7 @@ open class AppleTextFile(
         }
     }
 
-    open fun writeLine(text: String) {
+    open suspend fun writeLine(text: String) {
         write (text + eol)
     }
 

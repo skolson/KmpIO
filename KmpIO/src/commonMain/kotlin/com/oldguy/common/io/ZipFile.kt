@@ -61,7 +61,7 @@ interface ZipFileBase: Closeable {
      * first addEntry, readEntry calls will cause exceptions. finish() must be called before readEntry
      * calls are usable again.
      */
-    fun finish()
+    suspend fun finish()
 
     /**
      * Merges the specified Zip files into this one. Input zipfile entries with matching paths are ignored. Each new
@@ -146,6 +146,16 @@ interface ZipFileBase: Closeable {
                              filter: ((pathName: String) -> Boolean)? = null)
 
     /**
+     * Add one entry built from a ZipEntry. Convenience method with all ZipEntry setup is defaulted.
+     * @param inputFile file to add
+     * @param entryName defaults to name of file with no path.
+     */
+    suspend fun zipFile(
+        inputFile: File,
+        entryName: String = inputFile.name
+    )
+
+    /**
      * Extracts the content of the Zip file into the specified directory.
      * @param directory must be a File instance where isDirectory is true.
      * @param filter optional function returns true to extract file, false to skip
@@ -182,7 +192,7 @@ class ZipFile(
 ) :ZipFileBase {
 
     val map = mutableMapOf<String, ZipEntry>()
-    override val bufferSize = 4096
+    override var bufferSize = 4096
     override val entries get() = map.values.toList()
     override val file: RawFile = RawFile(fileArg, mode, FileSource.File)
     override var isZip64: Boolean = false
@@ -289,13 +299,13 @@ class ZipFile(
         }
     }
 
-    override fun close() {
+    override suspend fun close() {
         if (pendingChanges) finish()
         file.close()
         isOpen = false
     }
 
-    override fun finish() {
+    override suspend fun finish() {
         if (!pendingChanges) return
         saveDirectory()
         pendingChanges = false
@@ -426,6 +436,25 @@ class ZipFile(
         zipOneDirectory(directory, shallow, parentPath, filter)
     }
 
+    override suspend fun zipFile(
+        inputFile: File,
+        entryName: String
+    ) {
+        RawFile(inputFile).use { rdr ->
+            addEntry(ZipEntry(
+                entryName,
+                isZip64 = isZip64,
+                parserFactory = parser)
+            ) {
+                buffer.apply {
+                    positionLimit(0, bufferSize)
+                    rdr.read(this).toInt()
+                    flip()
+                }.getBytes()
+            }
+        }
+    }
+
     override suspend fun extractToDirectory(
         directory: File,
         filter: (suspend (entry: ZipEntry) -> Boolean)?,
@@ -466,7 +495,7 @@ class ZipFile(
      * - if signature not found after reading more that [64K + 22] bytes from the EOF, throw a ZipException
      * exception.
      */
-    private fun findEocdRecord(): ZipEOCD {
+    private suspend fun findEocdRecord(): ZipEOCD {
         file.apply {
             val sz = size
             var bufSize = ZipEOCD.minimumLength
@@ -499,7 +528,7 @@ class ZipFile(
     /**
      * Find locator, use it to find EOCD64. save both for later possible saves
      */
-    private fun findZip64Eocd(): ZipEOCD64 {
+    private suspend fun findZip64Eocd(): ZipEOCD64 {
         val sz = ZipEOCD64Locator.length.toUInt()
         val buf = ByteBuffer(sz.toInt())
         if (eocdPosition <= sz)
@@ -514,7 +543,7 @@ class ZipFile(
     }
 
 
-    private fun parseDirectory() {
+    private suspend fun parseDirectory() {
         val eocd: ZipEOCD64
         findEocdRecord().apply {
             eocd = if (isZip64)
@@ -554,7 +583,7 @@ class ZipFile(
             val buf = ByteBuffer(bufferSize)
             uncompressedCount = decompress(
                 entry.entryDirectory.compressedSize,
-                4096u,
+                bufferSize.toUInt(),
                 input = { bytesToRead ->
                     buf.positionLimit(0, bytesToRead)
                     val c = file.read(buf)
@@ -589,15 +618,7 @@ class ZipFile(
             else
                 path.path).replace(parentPath, "")
             if (filter?.invoke(name) != false) {
-                RawFile(path).use { rdr ->
-                    addEntry(ZipEntry(parser, rdr.file.name, isZip64)) {
-                        buffer.apply {
-                            positionLimit(0, bufferSize)
-                            val count = rdr.read(this).toInt()
-                            positionLimit(0, count)
-                        }.getBytes()
-                    }
-                }
+                zipFile(path)
                 if (!shallow && path.isDirectory)
                     zipOneDirectory(path, shallow, parentPath, filter)
             }
@@ -612,7 +633,7 @@ class ZipFile(
     /**
      * File must be positioned at local header start position.
      */
-    private fun saveLocal(entry: ZipEntry) {
+    private suspend fun saveLocal(entry: ZipEntry) {
         entry.entryDirectory.localDirectory.apply {
             allocateBuffer().apply {
                 encode(this)
@@ -628,7 +649,7 @@ class ZipFile(
      * 3 - if Zip64, save the EOCD Zip64 record, and the locator record
      * 4 - Save the EOCD record
      */
-    private fun saveDirectory() {
+    private suspend fun saveDirectory() {
         val directoryOffset = file.position
         entries.forEach {
             it.directory.allocateBuffer().apply {

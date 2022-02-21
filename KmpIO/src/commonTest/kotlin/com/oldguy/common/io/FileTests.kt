@@ -1,19 +1,24 @@
 package com.oldguy.common.io
 
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlin.test.fail
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.datetime.*
+import kotlin.test.*
 
+@ExperimentalCoroutinesApi
 class FileTests(testDirPath: String) {
     private val testDirectory = File(testDirPath)
     private val subDirName = "kmpIOtestDir"
-    private val subDir = testDirectory.resolve(subDirName)
 
     fun filesBasics() {
         assertTrue(testDirectory.isDirectory)
-        assertTrue(subDir.exists)
-        assertTrue(subDir.isDirectory)
+        runTest {
+            val subDir = testDirectory.resolve(subDirName)
+            assertTrue(subDir.exists)
+            assertTrue(subDir.isDirectory)
+        }
 
         val testFileName = "Test.txt"
         val textFile = File(testDirectory, testFileName)
@@ -22,8 +27,8 @@ class FileTests(testDirPath: String) {
         assertEquals(testFileName, textFile.name)
         assertEquals("Test", textFile.nameWithoutExtension)
         assertEquals(false, textFile.isDirectory)
-        val path ="${testDirectory.path}/$testFileName"
-        assertEquals(path, textFile.path)
+        val path ="${testDirectory.path}/$testFileName".replace('\\', '/')
+        assertEquals(path, textFile.path.replace('\\', '/'))
 
         val tmpList = testDirectory.listFiles
         assertTrue(tmpList.isNotEmpty())
@@ -32,100 +37,125 @@ class FileTests(testDirPath: String) {
 
     private fun checkTextLines(textFile: TextFile): Int {
         var lines = 0
-        textFile.forEachLine { count, it ->
-            when ((count - 1) % 6) {
-                0 -> assertEquals(line1 + eol, it)
-                1 -> assertEquals(line2 + eol, it)
-                2 -> assertEquals(line3 + eol, it)
-                3, 4 -> assertEquals(eol, it)
-                5 -> assertEquals("Line6$eol", it)
-                else -> fail("Unexpected line $count, content:\"$it\", file ${textFile.file.name}, charset: ${textFile.charset}.")
+        runTest {
+            textFile.forEachLine { count, it ->
+                when ((count - 1) % 6) {
+                    0 -> assertEquals(line1, it)
+                    1 -> assertEquals(line2, it)
+                    2 -> assertEquals(line3, it)
+                    3, 4 -> assertTrue(it.isEmpty())
+                    5 -> assertEquals("Line6", it)
+                    else -> fail("Unexpected line $count, content:\"$it\", file ${textFile.file.name}, charset: ${textFile.charset}.")
+                }
+                lines = count
+                true
             }
-            lines = count
-            true
         }
         return lines
     }
 
     fun textFileWriteRead(charset: Charset) {
-        val fil = File(subDir, "Text${charset.charset.charsetName}.txt")
-        fil.delete()
-        assertEquals(false, fil.exists)
-        val textFile = TextFile(
-            fil,
-            charset,
-            FileMode.Write,
-            FileSource.File
-        )
-        textFile.write(textContent)
-        textFile.close()
-        assertEquals(true, fil.exists)
-        assertEquals(textContent.length * charset.charset.bytesPerChar, fil.size.toInt())
+        runTest {
+            val subDir = testDirectory.resolve(subDirName)
+            val fil = File(subDir, "Text${charset.charset.charsetName}.txt")
+            fil.delete()
+            assertEquals(false, fil.exists)
+            TextFile(
+                fil,
+                charset,
+                FileMode.Write,
+                FileSource.File
+            ).use {
+                it.write(textContent)
+            }
 
-        val textFileIn = TextFile(
-            fil,
-            charset,
-            FileMode.Read,
-            FileSource.File
-        )
-        val lines = checkTextLines(textFileIn)
-        assertEquals(6, lines)
-        fil.delete()
+            assertEquals(true, fil.exists)
+            assertEquals(textContent.length * charset.charset.bytesPerChar, fil.size.toInt())
+            val lastModDate = fil.lastModified
+            val createdDate = fil.createdTime
+            val lastAccessDate = fil.lastAccessTime
+            val nowTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            assertEquals(nowTime.year, fil.lastModified.year)
+            assertEquals(nowTime.monthNumber, fil.lastModified.monthNumber)
+            assertEquals(nowTime.dayOfMonth, fil.lastModified.dayOfMonth)
+            assertEquals(nowTime.year, fil.lastAccessTime.year)
+            assertEquals(nowTime.monthNumber, fil.lastAccessTime.monthNumber)
+            assertEquals(nowTime.dayOfMonth, fil.lastAccessTime.dayOfMonth)
+            assertEquals(nowTime.year, fil.createdTime.year)
+            assertEquals(nowTime.monthNumber, fil.createdTime.monthNumber)
+            assertEquals(nowTime.dayOfMonth, fil.createdTime.dayOfMonth)
+
+            val textFileIn = TextFile(
+                fil,
+                charset,
+                FileMode.Read,
+                FileSource.File
+            )
+            val lines = checkTextLines(textFileIn)
+            assertEquals(6, lines)
+            fil.delete()
+        }
     }
 
     fun biggerTextFileWriteRead(charset: Charset, copyCount: Int = 100) {
-        val fil = File(subDir, "TextMedium${charset.charset.charsetName}.txt")
-        fil.delete()
-        assertEquals(false, fil.exists)
-        val textFile = TextFile(
-            fil,
-            charset,
-            FileMode.Write,
-            FileSource.File
-        )
-        for (i in 0 until copyCount)
-            textFile.write(textContent)
-        textFile.close()
-        assertEquals(true, fil.exists)
-        assertEquals(textContent.length * charset.charset.bytesPerChar * copyCount, fil.size.toInt())
+        runTest {
+            val subDir = testDirectory.resolve(subDirName)
+            val fil = File(subDir, "TextMedium${charset.charset.charsetName}.txt")
+            fil.delete()
+            assertEquals(false, fil.exists)
+            val textFile = TextFile(
+                fil,
+                charset,
+                FileMode.Write,
+                FileSource.File
+            )
+            for (i in 0 until copyCount)
+                textFile.write(textContent)
+            textFile.close()
+            assertEquals(true, fil.exists)
+            assertEquals(textContent.length * charset.charset.bytesPerChar * copyCount, fil.size.toInt())
 
-        val textFileIn = TextFile(
-            fil,
-            charset,
-            FileMode.Read,
-            FileSource.File
-        )
-        val lines = checkTextLines(textFileIn)
-        assertEquals(6 * copyCount, lines)
-        fil.delete()
+            val textFileIn = TextFile(
+                fil,
+                charset,
+                FileMode.Read,
+                FileSource.File
+            )
+            val lines = checkTextLines(textFileIn)
+            assertEquals(6 * copyCount, lines)
+            fil.delete()
+        }
     }
 
     fun testRawWriteRead(namePrefix: String, copyCount: Int = 10) {
-        val fil = File(subDir, "${namePrefix}Hex.utf16")
-        fil.delete()
-        val rawFile = RawFile(fil, FileMode.Write)
-        rawFile.write(ByteBuffer(hexContent))
-        rawFile.close()
-        assertTrue(fil.exists)
-        assertEquals((hexContent.size * copyCount).toULong(), fil.size)
-        val rawFileIn = RawFile(fil)
-        val buf = ByteBuffer(4096)
-        var count = rawFileIn.read(buf)
-        assertEquals(hexContent.size, buf.position)
-        assertEquals(hexContent.size.toUInt(), count)
-        buf.rewind()
-        assertContentEquals(hexContent, buf.getBytes(count.toInt()))
-        count = rawFileIn.read(buf)
-        assertEquals(0u, count)
-        val x = rawFileIn.size - 12u
-        rawFileIn.position = x
-        buf.clear()
-        count = rawFileIn.read(buf)
-        assertEquals(12u, count)
-        buf.rewind()
-        val lastLine = Charset(Charsets.Utf16le).decode(buf.getBytes(count.toInt()))
-        assertEquals("Line6\n", lastLine)
-        rawFileIn.close()
+        runTest {
+            val subDir = testDirectory.resolve(subDirName)
+            val fil = File(subDir, "${namePrefix}Hex.utf16")
+            fil.delete()
+            RawFile(fil, FileMode.Write).use {
+                it.write(ByteBuffer(hexContent))
+            }
+            assertTrue(fil.exists)
+            assertEquals((hexContent.size * copyCount).toULong(), fil.size)
+            RawFile(fil).use {
+                val buf = ByteBuffer(4096)
+                var count = it.read(buf)
+                assertEquals(hexContent.size, buf.position)
+                assertEquals(hexContent.size.toUInt(), count)
+                buf.rewind()
+                assertContentEquals(hexContent, buf.getBytes(count.toInt()))
+                count = it.read(buf)
+                assertEquals(0u, count)
+                val x = it.size - 12u
+                it.position = x
+                buf.clear()
+                count = it.read(buf)
+                assertEquals(12u, count)
+                buf.rewind()
+                val lastLine = Charset(Charsets.Utf16le).decode(buf.getBytes(count.toInt()))
+                assertEquals("Line6\n", lastLine)
+            }
+        }
     }
 
     companion object {
@@ -142,5 +172,36 @@ class FileTests(testDirPath: String) {
             Line6
             """.trimIndent() + eol
         val hexContent = Charset(Charsets.Utf16le).encode(textContent)
+    }
+}
+
+@ExperimentalCoroutinesApi
+class FileUnitTests {
+    val path = "d:\\temp"
+    val tests = FileTests(path)
+
+    @Test
+    fun textUtf8Basics() {
+        tests.filesBasics()
+        tests.textFileWriteRead(Charset(Charsets.Utf8))
+    }
+
+    @Test
+    fun textMediumSizeUtf8Basics() {
+        tests.biggerTextFileWriteRead(Charset(Charsets.Utf8), 100)
+    }
+
+    @Test
+    fun textUtf16leBasics() {
+        tests.textFileWriteRead(Charset(Charsets.Utf16le))
+    }
+
+    @Test
+    fun rawSmallTest() {
+        try {
+            tests.testRawWriteRead("Small", 1)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
     }
 }

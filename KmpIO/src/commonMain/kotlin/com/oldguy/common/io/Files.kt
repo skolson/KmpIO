@@ -10,6 +10,9 @@ enum class Charsets(val charsetName: String, val bytesPerChar: Int = 1) {
     UsAscii("US-ASCII");
 
     companion object {
+        /**
+         * Converts a charset name to a Charsets enum value, throws an exception if no match
+         */
         fun fromName(name: String): Charsets {
             return values().first { it.charsetName == name }
         }
@@ -74,11 +77,13 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val size: ULong
     val lastModifiedEpoch: Long
     val lastModified: LocalDateTime
+    val createdTime: LocalDateTime
+    val lastAccessTime: LocalDateTime
 
-    fun delete(): Boolean
+    suspend fun delete(): Boolean
     suspend fun copy(destinationPath: String): File
-    fun makeDirectory(): Boolean
-    fun resolve(directoryName: String): File
+    suspend fun makeDirectory(): Boolean
+    suspend fun resolve(directoryName: String): File
 
     companion object {
         val pathSeparator: String
@@ -90,10 +95,10 @@ enum class FileSource {
 }
 
 expect interface Closeable {
-    fun close()
+    suspend fun close()
 }
 
-expect inline fun <T : Closeable?, R> T.use(body: (T) -> R): R
+expect suspend fun <T : Closeable?, R> T.use(body: suspend (T) -> R): R
 
 enum class FileMode {
     Read, Write
@@ -108,7 +113,7 @@ expect class RawFile(
     mode: FileMode = FileMode.Read,
     source: FileSource = FileSource.File
 ) : Closeable {
-    override fun close()
+    override suspend fun close()
 
     val file: File
 
@@ -131,7 +136,7 @@ expect class RawFile(
      * @param buf read buf.remaining bytes into byte buffer.
      * @return number of bytes actually read
      */
-    fun read(buf: ByteBuffer): UInt
+    suspend fun read(buf: ByteBuffer): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
@@ -140,14 +145,14 @@ expect class RawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun read(buf: ByteBuffer, newPos: ULong): UInt
+    suspend fun read(buf: ByteBuffer, newPos: ULong): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
      * @return number of bytes actually read
      */
-    fun read(buf: UByteBuffer): UInt
+    suspend fun read(buf: UByteBuffer): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
@@ -156,21 +161,21 @@ expect class RawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun read(buf: UByteBuffer, newPos: ULong): UInt
+    suspend fun read(buf: UByteBuffer, newPos: ULong): UInt
 
     /**
      * Sets the length of the file in bytes. Ony usable during FileMode.Write.
      * @param length If current file size is less than [length], file will be expanded.  If current
      * file size is greater than [length] file will be shrunk.
      */
-    fun setLength(length: ULong)
+    suspend fun setLength(length: ULong)
 
     /**
      * Write bytes to a file, staring at the current file position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * or if default of -1, the current file position
      */
-    fun write(buf: ByteBuffer)
+    suspend fun write(buf: ByteBuffer)
 
     /**
      * Write bytes to a file, staring at the specified position.
@@ -178,14 +183,14 @@ expect class RawFile(
      * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
      */
-    fun write(buf: ByteBuffer, newPos: ULong)
+    suspend fun write(buf: ByteBuffer, newPos: ULong)
 
     /**
      * Write bytes to a file, staring at the current file position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
      * or if default of -1, the current file position
      */
-    fun write(buf: UByteBuffer)
+    suspend fun write(buf: UByteBuffer)
 
     /**
      * Write bytes to a file, staring at the specified position.
@@ -194,7 +199,7 @@ expect class RawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    fun write(buf: UByteBuffer, newPos: ULong)
+    suspend fun write(buf: UByteBuffer, newPos: ULong)
 
     /**
      * Copy a file. the optional lambda supports altering the output data on a block-by-block basis.
@@ -212,7 +217,7 @@ expect class RawFile(
      * bytes.
      * @return number of bytes read from source (this).
      */
-    fun copyTo(
+    suspend fun copyTo(
         destination: RawFile, blockSize: Int = 0,
         transform: ((buffer: ByteBuffer, lastBlock: Boolean) -> ByteBuffer)? = null
     ): ULong
@@ -233,7 +238,7 @@ expect class RawFile(
      * write will be invoked to [destination] starting at outBuffer.position for outBuffer.remaining
      * bytes.
      */
-    fun copyToU(
+    suspend fun copyToU(
         destination: RawFile,
         blockSize: Int = 0,
         transform: ((buffer: UByteBuffer, lastBlock: Boolean) -> UByteBuffer)? = null
@@ -242,12 +247,12 @@ expect class RawFile(
     /**
      * Copy a portion of the specified source file to the current file at the current position
      */
-    fun transferFrom(source: RawFile, startIndex: ULong, length: ULong): ULong
+    suspend fun transferFrom(source: RawFile, startIndex: ULong, length: ULong): ULong
 
     /**
      * Truncate the current file to the specified size.  Not usable on Mode.Read files.
      */
-    fun truncate(size: ULong)
+    suspend fun truncate(size: ULong)
 
 }
 
@@ -270,7 +275,7 @@ expect class TextFile(
         source: FileSource = FileSource.File
     )
 
-    override fun close()
+    override suspend fun close()
 
     /**
      * Convenience method for reading text file line by line.  No protection for large text files with no line breaks.
@@ -282,7 +287,7 @@ expect class TextFile(
      * to continue, false to cause function to close the file and return.  Note that file will be closed on return,
      * even if some exception is thrown during processing
      */
-    fun forEachLine(action: (count: Int, line: String) -> Boolean)
+    suspend fun forEachLine(action: (count: Int, line: String) -> Boolean)
 
     /**
      * Convenience method for reading a file by text block. Lambda is invoked once for each block read until end of file,
@@ -293,14 +298,14 @@ expect class TextFile(
      * close file and complete. Note that file will be closed on return, even if some exception is thrown during
      * processing.
      */
-    fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean)
+    suspend fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean)
 
     /**
      * Read one block of text decoded using [Charset]. Caller is responsible for closing file when done.
      * @param maxSizeBytes number of bytes, before character set decoding, to be read from the file.
      * @return decoded String. Will be empty if end of file has been reached.
      */
-    fun read(maxSizeBytes: Int): String
+    suspend fun read(maxSizeBytes: Int): String
 
     /**
      * Reads one line of text. Implementations read a buffer of bytes, decodes them using [Charset], then searches
@@ -309,13 +314,13 @@ expect class TextFile(
      * has no eol, no eol will be returned on last String.  If all lines have been read, subsequent calls return
      * empty String.
      */
-    fun readLine(): String
+    suspend fun readLine(): String
 
     /**
      * Encodes a String using [Charset], then writes it at the current file position.
      * @param text is encoded to bytes, then written to file
      */
-    fun write(text: String)
+    suspend fun write(text: String)
 
     /**
      * This is a convenience method for writing text that should end with an EOL.
@@ -324,5 +329,5 @@ expect class TextFile(
      * bytes using [Charset], then written to file. Note that if text has embedded EOLs these are encoded and written
      * unchanged.
      */
-    fun writeLine(text: String)
+    suspend fun writeLine(text: String)
 }

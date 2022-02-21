@@ -26,7 +26,7 @@ val appleFrameworkName = "KmpIO"
 group = "com.oldguy"
 version = "0.1.0"
 
-val androidMinSdk = 24
+val androidMinSdk = 26
 val androidTargetSdkVersion = 31
 val iosMinSdk = "14"
 val kmpPackageName = "com.oldguy.common.io"
@@ -154,6 +154,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.2")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
             }
         }
         val commonTest by getting {
@@ -171,7 +172,6 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("junit:junit:4.13.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0")
             }
         }
         val androidAndroidTest by getting {
@@ -179,7 +179,6 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("junit:junit:4.13.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0")
             }
         }
         val appleNativeMain by creating {

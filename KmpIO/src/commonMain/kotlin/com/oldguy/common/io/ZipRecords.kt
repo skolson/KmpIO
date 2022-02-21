@@ -42,7 +42,7 @@ interface ZipRecord {
             else ""
         }
 
-        fun decodeComment(length: Int, file: RawFile): String {
+        suspend fun decodeComment(length: Int, file: RawFile): String {
             var comment = ""
             if (length > 0) {
                 ByteBuffer(length).apply {
@@ -53,7 +53,7 @@ interface ZipRecord {
             return comment
         }
 
-        fun decodeName(nameLength: Short, file: RawFile): String {
+        suspend fun decodeName(nameLength: Short, file: RawFile): String {
             var name = ""
             if (nameLength > 0) {
                 ByteBuffer(nameLength.toInt()).apply {
@@ -64,7 +64,7 @@ interface ZipRecord {
             return name
         }
 
-        fun decodeExtra(extraLength: Short, file: RawFile): ByteArray {
+        suspend fun decodeExtra(extraLength: Short, file: RawFile): ByteArray {
             var bytes = ByteArray(0)
             if (extraLength > 0) {
                 ByteBuffer(extraLength.toInt()).apply {
@@ -281,7 +281,7 @@ data class ZipEOCD64 (
          * @param file to be read
          * @param position where record is located
          */
-        fun decode(file: RawFile, position: ULong): ZipEOCD64 {
+        suspend fun decode(file: RawFile, position: ULong): ZipEOCD64 {
             var buf = ByteBuffer(minimumLength)
             file.read(buf, position)
             buf.rewind()
@@ -374,7 +374,7 @@ data class ZipDataDescriptor(
          * current file position MUST BE at the end of the uncompressed data for decode to work.
          * Note: see the class comment, signature of this record on decode is optional which is a pain.
          */
-        fun decode(file: RawFile, isZip64: Boolean): ZipDataDescriptor {
+        suspend fun decode(file: RawFile, isZip64: Boolean): ZipDataDescriptor {
             val l = if (isZip64) zip64Length else length
             ByteBuffer(l).apply {
                 if (file.read(this) != l.toUInt())

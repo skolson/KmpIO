@@ -3,7 +3,9 @@ package com.oldguy.common.io
 object Base64 {
     private val charset = Charset(Charsets.Utf8)
     fun encode(base64: String): ByteArray = encodeBase64(base64.encodeToByteArray())
+    fun encode(base64: ByteArray): ByteArray = encodeBase64(base64)
     fun decode(base64: ByteArray): String = charset.decode(decodeBase64(base64))
+    fun decodeToBytes(base64: ByteArray): ByteArray = decodeBase64(base64)
 
     /**
      * changes UTF-8 to Base64 encoding

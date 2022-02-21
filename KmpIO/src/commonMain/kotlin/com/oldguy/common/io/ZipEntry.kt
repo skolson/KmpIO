@@ -4,38 +4,6 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-/*
-    fun createRecords(
-        nameArg: String,
-        isZip64: Boolean = false,
-        commentArg: String = "",
-        extraArg: List<ZipExtra> = emptyList(),
-        lastModTime: LocalDateTime = defaultDateTime
-    ): ZipEntryDirectory {
-        return ZipEntryDirectory(ZipExtraFactory(ZipDirectoryRecord(
-            defaultVersion,
-            defaultVersion,
-            ZipGeneralPurpose.defaultValue.shortValue,
-            defaultCompressionValue,
-            ZipTime(lastModTime),
-            0,
-            if (isZip64) -1 else 0,
-            if (isZip64) -1 else 0,
-            nameArg.length.toShort(),
-            ZipExtraFactory.contentLength(extraArg).toShort(),
-            commentArg.length.toShort(),
-            0,
-            0,
-            0,
-            if (isZip64) -1 else 0,
-            nameArg,
-            ByteArray(0),
-            commentArg
-        ))).apply {
-            factory.encode(extraArg)
-        }
-    }
- */
 
 /**
  * Combines directory and local directory header [ZipExtraParser] instances. Functions:
@@ -132,7 +100,9 @@ class ZipDirectory(
  * Contains default properties for all of the required fields in the Zip specification when creating
  * entries. Many of the properties can be changed for use during save.
  *
- * @param directoryRecord typically decoded from an input file
+ * @param directoryRecordArg typically decoded from an input file
+ * @param parserFactory from the ZipFile instance, provides the factory class for parsing extra data to a List<ZipExtra>
+ *     instances, or encoding a List<ZipExtra> instances to extra data.
  */
 class ZipEntry(
     directoryRecordArg:ZipDirectoryRecord,
@@ -160,7 +130,6 @@ class ZipEntry(
     val compressionValue: Short get() = when (algorithm) {
         CompressionAlgorithms.None -> 0
         CompressionAlgorithms.Deflate -> 8
-        CompressionAlgorithms.Deflate64 -> 9
         CompressionAlgorithms.BZip2 -> 12
         CompressionAlgorithms.LZMA -> 14
     }
@@ -170,10 +139,10 @@ class ZipEntry(
     val zipTime get() = ZipTime(timeModified)
 
     constructor(
-        parserFactory: ExtraParserFactory,
         nameArg: String,
         isZip64: Boolean = false,
         commentArg: String = "",
+        parserFactory: ExtraParserFactory = ZipFile.defaultExtraParser,
         extraArg: List<ZipExtra> = emptyList(),
         lastModTime: LocalDateTime = defaultDateTime
     ): this(
@@ -207,7 +176,6 @@ class ZipEntry(
         compression = when (directory.algorithm) {
             CompressionAlgorithms.None -> CompressionNone()
             CompressionAlgorithms.Deflate -> CompressionDeflate(true)
-            CompressionAlgorithms.Deflate64,
             CompressionAlgorithms.BZip2,
             CompressionAlgorithms.LZMA ->
                 throw ZipException("Unsupported compression algorithm ${directory.algorithm}")

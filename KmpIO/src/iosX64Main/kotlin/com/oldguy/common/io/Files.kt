@@ -1,5 +1,7 @@
 package com.oldguy.common.io
 
+import kotlinx.datetime.LocalDateTime
+
 actual class Charset actual constructor(set: Charsets)
     : AppleCharset(set){
     actual val charset:Charsets = set
@@ -41,11 +43,11 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual override val isUriString: Boolean get() = super.isUriString
     actual override val size: ULong get() = super.size
 
-    actual override fun delete(): Boolean {
+    actual override suspend fun delete(): Boolean {
         return super.delete()
     }
 
-    actual override fun copy(destinationPath: String): File {
+    actual override suspend fun copy(destinationPath: String): File {
         return super.copy(destinationPath)
     }
 
@@ -54,17 +56,28 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
      * @param subdirectory of current filePath
      * @return File with path of new subdirectory
      */
-    actual override fun resolve(directoryName: String): File {
+    actual override suspend fun resolve(directoryName: String): File {
         return super.resolve(directoryName)
     }
 
     actual companion object {
         actual val pathSeparator = "/"
     }
+
+    actual val directoryPath: String
+        get() = TODO("Not yet implemented")
+    actual val createdTime: LocalDateTime
+        get() = TODO("Not yet implemented")
+    actual val lastAccessTime: LocalDateTime
+        get() = TODO("Not yet implemented")
 }
 
-actual inline fun <T : Closeable?, R> T.use(body: (T) -> R): R {
-    return body(this)
+actual suspend fun <T : Closeable?, R> T.use(body: suspend (T) -> R): R {
+    return try {
+        body(this)
+    } finally {
+        this?.close()
+    }
 }
 
 actual class RawFile actual constructor(
@@ -86,46 +99,46 @@ actual class RawFile actual constructor(
     actual override val size: ULong get() = super.size
     actual override var blockSize: UInt = super.blockSize
 
-    actual override fun read(buf: ByteBuffer, newPos: ULong): UInt {
+    actual override suspend fun read(buf: ByteBuffer, newPos: ULong): UInt {
         return super.read(buf, newPos)
     }
-    actual override fun read(buf: ByteBuffer): UInt {
+    actual override suspend fun read(buf: ByteBuffer): UInt {
         return super.read(buf)
     }
-    actual override fun read(buf: UByteBuffer, newPos: ULong): UInt {
+    actual override suspend fun read(buf: UByteBuffer, newPos: ULong): UInt {
         return super.read(buf, newPos)
     }
-    actual override fun read(buf: UByteBuffer): UInt {
+    actual override suspend fun read(buf: UByteBuffer): UInt {
         return super.read(buf)
     }
-    actual override fun write(buf: ByteBuffer, newPos: ULong) {
+    actual override suspend fun write(buf: ByteBuffer, newPos: ULong) {
         super.write(buf, newPos)
     }
-    actual override fun write(buf: ByteBuffer) {
+    actual override suspend fun write(buf: ByteBuffer) {
         super.write(buf)
     }
-    actual override fun write(buf: UByteBuffer, newPos: ULong) {
+    actual override suspend fun write(buf: UByteBuffer, newPos: ULong) {
         super.write(buf, newPos)
     }
-    actual override fun write(buf: UByteBuffer) {
+    actual override suspend fun write(buf: UByteBuffer) {
         super.write(buf)
     }
 
-    actual override fun copyTo(
+    actual override suspend fun copyTo(
         destination: RawFile,
         blockSize: Int,
         transform: ((buffer: ByteBuffer, lastBlock: Boolean) -> ByteBuffer)?
     ): ULong {
         return super.copyTo(destination, blockSize, transform)
     }
-    actual override fun copyToU(
+    actual override suspend fun copyToU(
         destination: RawFile,
         blockSize: Int,
         transform: ((buffer: UByteBuffer, lastBlock: Boolean) -> UByteBuffer)?
     ): ULong {
         return super.copyToU(destination, blockSize, transform)
     }
-    actual override fun transferFrom(
+    actual override suspend fun transferFrom(
         source: RawFile,
         startIndex: ULong,
         length: ULong
@@ -136,8 +149,16 @@ actual class RawFile actual constructor(
     /**
      * Truncate the current file to the specified size.  Not usable on Mode.Read files.
      */
-    actual override fun truncate(size: ULong) {
+    actual override suspend fun truncate(size: ULong) {
         super.truncate(size)
+    }
+
+    /**
+     * Sets the length of the file in bytes. Ony usable during FileMode.Write.
+     * @param length If current file size is less than [length], file will be expanded.  If current
+     * file size is greater than [length] file will be shrunk.
+     */
+    actual suspend fun setLength(length: ULong) {
     }
 }
 
@@ -158,31 +179,31 @@ actual class TextFile actual constructor(
         super.close()
     }
 
-    actual override fun readLine(): String {
+    actual override suspend fun readLine(): String {
         return super.readLine()
     }
 
-    actual override fun forEachLine(action: (count: Int, line: String) -> Boolean) {
+    actual override suspend fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         super.forEachLine(action)
     }
 
-    actual override fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
+    actual override suspend fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
         super.forEachBlock(maxSizeBytes, action)
     }
 
-    actual override fun read(maxSizeBytes: Int): String {
+    actual override suspend fun read(maxSizeBytes: Int): String {
         return super.read(maxSizeBytes)
     }
 
-    actual override fun write(text: String) {
+    actual override suspend fun write(text: String) {
         super.write(text)
     }
 
-    actual override fun writeLine(text: String) {
+    actual override suspend fun writeLine(text: String) {
         super.writeLine(text)
     }
 }
 
 actual interface Closeable {
-    actual fun close()
+    actual suspend fun close()
 }
