@@ -2,9 +2,9 @@ package com.oldguy.common.io
 
 import kotlinx.cinterop.*
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
 import platform.Foundation.*
-import platform.darwin.StringPtrVar
 import platform.posix.memcpy
 import kotlin.math.min
 
@@ -83,6 +83,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
                 name.substring(index)
         }
     open val fullPath: String = path
+    open val directoryPath: String get() = if (isDirectory) path else path.replace(name, "").trimEnd(pathSeparator[0])
 
     open val size: ULong get() {
         var result: ULong = 0u
@@ -93,10 +94,34 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         return result
     }
 
-    open val lastModifiedEpoch: Long = 0L // TODO
+    open val lastModifiedEpoch: Long get() {
+        var epoch = 0L
+        throwError {
+            (fm.attributesOfItemAtPath(path, it) as NSDictionary)
+                .fileModificationDate()?.let {
+                    epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
+                }
+        }
+        return epoch
+    }
     open val lastModified get() = Instant
         .fromEpochMilliseconds(lastModifiedEpoch)
         .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+
+    open val createdTime: LocalDateTime get() {
+        var epoch = 0L
+        throwError {
+            (fm.attributesOfItemAtPath(path, it) as NSDictionary)
+                .fileCreationDate()?.let {
+                    epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
+                }
+        }
+        return Instant
+            .fromEpochMilliseconds(epoch)
+            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+    }
+
+    open val lastAccessTime: LocalDateTime get() = lastModified
 
     open val isDirectory: Boolean get() =
         memScoped {
@@ -205,21 +230,23 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     open suspend fun resolve(directoryName: String): File {
         if (directoryName.isEmpty() || directoryName.startsWith(pathSeparator))
             throw IllegalArgumentException("resolve requires $directoryName to be not empty and cannot start with $pathSeparator")
-        File("$path/$directoryName", null).apply {
-            return makeDirectory()
+        return File("$path/$directoryName", null).apply {
+            makeDirectory()
         }
     }
 
     open suspend fun makeDirectory(): Boolean {
+        var rc = false
         throwError { errorPointer ->
             val withIntermediates = path.contains(pathSeparator)
-            fm.createDirectoryAtPath(
+            rc = fm.createDirectoryAtPath(
                 path,
                 withIntermediates,
                 null,
                 errorPointer
             )
         }
+        return rc
     }
 
     companion object {
@@ -516,7 +543,7 @@ open class AppleRawFile(
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
             val buffer = ByteBuffer(blkSize.toInt(), isReadOnly = true)
-            var readCount = read(buffer, -1L)
+            var readCount = read(buffer)
             var bytesWritten = 0L
             val fileSize = size
             while (readCount > 0u) {
@@ -526,9 +553,9 @@ open class AppleRawFile(
                 val lastBlock = position >= fileSize
                 val outBuffer = transform(buffer, lastBlock)
                 val count = outBuffer.remaining
-                destination.write(outBuffer, -1)
+                destination.write(outBuffer)
                 bytesWritten += count
-                readCount = if (lastBlock) 0u else read(buffer, -1L)
+                readCount = if (lastBlock) 0u else read(buffer)
             }
         }
         close()
@@ -566,7 +593,7 @@ open class AppleRawFile(
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
             val buffer = UByteBuffer(blkSize.toInt(), isReadOnly = true)
-            var readCount = read(buffer, -1L)
+            var readCount = read(buffer)
             var bytesWritten = 0L
             val fileSize = size
             while (readCount > 0u) {
@@ -576,9 +603,9 @@ open class AppleRawFile(
                 val lastBlock = position >= fileSize
                 val outBuffer = transform(buffer, lastBlock)
                 val count = outBuffer.remaining
-                destination.write(outBuffer, -1)
+                destination.write(outBuffer)
                 bytesWritten += count
-                readCount = if (lastBlock) 0u else read(buffer, -1L)
+                readCount = if (lastBlock) 0u else read(buffer)
             }
         }
         close()
@@ -596,15 +623,15 @@ open class AppleRawFile(
     ): ULong {
         var srcBuf = ByteBuffer(min(blockSize.toULong(), length).toInt())
         var bytesCount: ULong = 0u
-        var rd = source.read(srcBuf, -1).toULong()
+        var rd = source.read(srcBuf).toULong()
         while (rd > 0u) {
             srcBuf.rewind()
             bytesCount += rd
-            write(srcBuf, startIndex.toLong())
+            write(srcBuf, startIndex.toULong())
             srcBuf.rewind()
             if (length - rd < blockSize)
                 srcBuf = ByteBuffer((length - rd).toInt())
-            rd = source.read(srcBuf, -1).toULong()
+            rd = source.read(srcBuf).toULong()
         }
         source.close()
         close()

@@ -1,37 +1,57 @@
 package com.oldguy.common.io
 
+import platform.Foundation.*
+
+
 /**
  * Apple support compression library used to implement compress/decompress operations. This is a common implementation
  * usable by all Apple target platforms
  */
-class AppleCompression(algorithm: CompressionAlgorithms) {
-    val lib = Compression(algorithm)
+class AppleCompression(override val algorithm: CompressionAlgorithms)
+    :Compression
+{
+    var pageSize = 4096
+
     private val appleConst: Int = when (algorithm) {
         CompressionAlgorithms.None -> 0
         CompressionAlgorithms.Deflate -> 0x205
-        CompressionAlgorithms.Deflate64 -> 0x205
-        CompressionAlgorithms.LZ4 -> 0x100
+        CompressionAlgorithms.BZip2 -> 0x100
         CompressionAlgorithms.LZMA -> 0x306
-        CompressionAlgorithms.LZFSE -> 0x801
     }
 
-    fun compress(input: ByteBuffer): ByteBuffer {
-        return input
+    override suspend fun compress(input: suspend () -> ByteBuffer,
+                         output: suspend (buffer: ByteBuffer) -> Unit
+    ): ULong {
+        var count = 0UL
+
+        return count
     }
 
-    fun compress(input: ByteArray, startIndex: Int, length: Int): ByteArray {
-        return input
+    override suspend fun compressArray(input: suspend () -> ByteArray,
+                              output: suspend (buffer: ByteArray) -> Unit
+    ): ULong {
     }
 
-    fun decompress(input: ByteBuffer): ByteBuffer {
-        return input
+    override suspend fun decompress(
+        totalCompressedBytes: ULong,
+        bufferSize: UInt,
+        input: suspend (bytesToRead: Int) -> ByteBuffer,
+        output: suspend (buffer: ByteBuffer) -> Unit
+    ): ULong {
+
     }
 
-    fun decompress(input: ByteArray, startIndex: Int, length: Int): ByteArray {
-        return input
+
+    override suspend fun decompressArray(
+        totalCompressedBytes: ULong,
+        bufferSize: UInt,
+        input: suspend (bytesToRead: Int) -> ByteArray,
+        output: suspend (buffer: ByteArray) -> Unit
+    ): ULong {
+
     }
 
-    fun reset() {
+    override fun reset() {
 
     }
 }

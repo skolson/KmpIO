@@ -34,6 +34,7 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual override val extension: String get() = super.extension
     actual override val path: String get() = super.path
     actual override val fullPath: String get() = super.fullPath
+    actual override val directoryPath: String get() = super.directoryPath
     actual override val isDirectory: Boolean get() = super.isDirectory
     actual override val listNames: List<String> get() = super.listNames
     actual override val listFiles: List<File> get() = super.listFiles
@@ -42,6 +43,10 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual override val isUri: Boolean get() = super.isUri
     actual override val isUriString: Boolean get() = super.isUriString
     actual override val size: ULong get() = super.size
+    actual override val lastModifiedEpoch: Long get() = super.lastModifiedEpoch
+    actual override val lastModified: LocalDateTime get() = super.lastModified
+    actual override val createdTime: LocalDateTime get() = super.createdTime
+    actual override val lastAccessTime: LocalDateTime get() = super.lastAccessTime
 
     actual override suspend fun delete(): Boolean {
         return super.delete()
@@ -63,13 +68,6 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual companion object {
         actual val pathSeparator = "/"
     }
-
-    actual val directoryPath: String
-        get() = TODO("Not yet implemented")
-    actual val createdTime: LocalDateTime
-        get() = TODO("Not yet implemented")
-    actual val lastAccessTime: LocalDateTime
-        get() = TODO("Not yet implemented")
 }
 
 actual suspend fun <T : Closeable?, R> T.use(body: suspend (T) -> R): R {
