@@ -17,6 +17,7 @@ enum class CompressionAlgorithms {
  */
 interface Compression {
     val algorithm: CompressionAlgorithms
+    val bufferSize: Int
 
     /**
      * Compress one or more blocks of data in ByteBuffer using an implementation-specific algorithm.
@@ -50,13 +51,9 @@ interface Compression {
      * constructor time.
      * If the selected algorithm fails during the operation, and IllegalArgumentException is thrown. There is no
      * attempt at dynamically determining the algorithm used to originally do the compression.
-     * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
-     * process.  Function will continue until this number of bytes are provided via the [input] function.
-     * @param bufferSize specifies max amount of bytes that will be passed in the bytesToRead argument
      * @param input will be invoked once for each input required.  Total size (sum of remainings) of
-     * all ByteBuffers provided must equal [totalCompressedBytes]. Note if input is remaining == 0
-     * indicating an empty buffer, decompress operation will cease. If total bytes provided
-     * exceeds [totalCompressedBytes], an exception is thrown.
+     * all ByteBuffers is content that will be decompressed. Note if input is remaining == 0
+     * indicating an empty buffer, decompress operation will cease.
      * @param output will be called repeatedly as decompressed bytes are produced. Buffer argument will
      * have position zero and limit set to however many bytes were uncompressed. This buffer has a
      * capacity equal to the input ByteBuffer, but the number of bytes it contains will be 0 < limit
@@ -66,9 +63,7 @@ interface Compression {
      * @return sum of all uncompressed bytes count passed via [output] function calls.
      */
     suspend fun decompress(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteBuffer,
+        input: suspend () -> ByteBuffer,
         output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong
 
@@ -77,12 +72,9 @@ interface Compression {
      * constructor time. This is a convenience wrapper for the above [decompress] using ByteBuffers.
      * There may be a little extra performance hit with this version as implementation uses
      * ByteBuffers
-     * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
-     * process.  Function will continue until this number of bytes are provided via the [input] function.
-     * @param bufferSize specifies max amount of bytes that will be passed in the bytesToRead argument
      * @param input will be invoked once for each input required.  Total size of
-     * all ByteArrays provided must equal [totalCompressedBytes]. Note if input is an empty
-     * ByteArray, decompress operation will cease/abort and crc check will likely throw an exception.
+     * all ByteArrays provided must contain the entire compressed payload. Indicate end of input with an empty
+     * ByteArray to cause function to complete.
      * @param output will be called repeatedly as decompressed bytes are produced. ByteArray argument will
      * contain however many bytes were uncompressed. The size is dictated by the Deflate algorithm,
      * as any one decompress can produce any non-zero number of bytes.
@@ -92,15 +84,7 @@ interface Compression {
      * @return count of total uncompressed bytes.
      */
     suspend fun decompressArray(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteArray,
+        input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong
-
-    /**
-     * Use this to reset state back to the same as initialization.  This allows reuse of this instance for additional
-     * operations
-     */
-    fun reset()
 }

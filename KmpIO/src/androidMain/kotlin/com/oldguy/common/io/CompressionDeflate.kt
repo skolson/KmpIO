@@ -2,7 +2,6 @@ package com.oldguy.common.io
 
 import java.util.zip.Deflater
 import java.util.zip.Inflater
-import kotlin.math.min
 
 /**
  * Uses Android Inflater/Deflater classes for implementation of the Deflate algorithm.
@@ -17,6 +16,7 @@ import kotlin.math.min
 actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression {
     actual enum class Strategy {Default, Filtered, Huffman}
     actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
+    override val bufferSize = 4096
 
     private val inflater = Inflater(noWrap)
     private var deflater = Deflater(Deflater.DEFAULT_STRATEGY, noWrap)
@@ -79,7 +79,6 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
                                               output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
         var count = 0UL
-        val bufferSize = 4096
         deflater.apply {
             reset()
             val out = ByteArray(bufferSize)
@@ -118,13 +117,8 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
      * constructor time.
      * If the selected algorithm fails during the operation, an Exception is thrown. There is no
      * attempt at dynamically determining the algorithm used to originally do the compression.
-     * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
-     * process.  Function will continue until this number of bytes are provided via the [input] function.
-     * @param bufferSize specifies max amount of bytes that will be passed in the bytesToRead argument
      * @param input will be invoked once for each time the process needs more compressed data.
-     * Total size (sum of remainings) of all ByteBuffers provided must equal [totalCompressedBytes].
-     * If total number of bytes passed to all input calls exceeds [totalCompressedBytes] an
-     * exception is thrown.
+     * Total size (sum of remainings) of all ByteBuffers provided must contain all of the compressed input.
      * @param output will be called repeatedly as decompressed bytes are produced. Buffer argument will
      * have position zero and limit set to however many bytes were uncompressed. This buffer has a
      * capacity equal to the first input ByteBuffer, but the number of bytes it contains will be 0 < limit
@@ -134,15 +128,11 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
      * @return sum of all uncompressed bytes count passed via [output] function calls.
      */
     actual override suspend fun decompress(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteBuffer,
+        input: suspend () -> ByteBuffer,
         output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        var remaining = totalCompressedBytes
         var outCount = 0UL
-        var inBuf = input(min(bufferSize.toULong(), remaining).toInt())
-        remaining -= inBuf.remaining.toULong()
+        var inBuf = input()
         val outBuf = ByteArray(inBuf.capacity)
         inflater.apply {
             reset()
@@ -156,10 +146,9 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
                     outCount += count.toULong()
                 }
                 if (!finished() && needsInput()) {
-                    inBuf = input(min(bufferSize.toULong(), remaining).toInt())
-                    remaining -= inBuf.remaining.toULong()
-                    if (remaining < 0UL)
-                        throw IllegalStateException("totalCompressedBytes expected: $totalCompressedBytes. Excess bytes provided: ${remaining.toLong() *-1L}")
+                    inBuf = input()
+                    if (!inBuf.hasRemaining)
+                        throw IllegalStateException("More compressed bytes expected, input buffer empty")
                     setInput(inBuf.getBytes())
                 }
             }
@@ -170,13 +159,8 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     /**
      * Call this with one or more blocks of data to de-compress any amount of data using the algorithm specified at
      * constructor time.
-     * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
-     * process.  Function will continue until this number of bytes are provided via the [input] function.
-     * @param bufferSize specifies max amount of bytes that will be passed in the bytesToRead argument
      * @param input will be invoked once for each time the process needs more compressed data.
-     * Total size (sum of remainings) of all ByteBuffers provided must equal [totalCompressedBytes].
-     * If total number of bytes passed to all input calls exceeds [totalCompressedBytes] an
-     * exception is thrown.
+     * Total size (sum of remainings) of all ByteBuffers provided must contain entire compressed payload.
      * @param output will be called repeatedly as decompressed bytes are produced. Buffer argument will
      * have position zero and limit set to however many bytes were uncompressed. This buffer has a
      * capacity equal to the first input ByteBuffer, but the number of bytes it contains will be 0 < limit
@@ -186,21 +170,13 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
      * @return sum of all uncompressed bytes count passed via [output] function calls.
      */
     actual override suspend fun decompressArray(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteArray,
+        input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
-        TODO("Not yet implemented")
-
-    }
-
-    /**
-     * Use this to reset state back to the same as initialization.  This allows reuse of this instance for additional
-     * operations
-     */
-    actual override fun reset() {
-        inflater.reset()
-        deflater.reset()
+        return decompress(
+            input = { ByteBuffer(input()) }
+        ) {
+            output(it.getBytes())
+        }
     }
 }

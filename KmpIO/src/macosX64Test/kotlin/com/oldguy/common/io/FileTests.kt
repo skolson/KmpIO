@@ -1,8 +1,10 @@
 package com.oldguy.common.io
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import platform.Foundation.NSTemporaryDirectory
 import kotlin.test.Test
 
+@ExperimentalCoroutinesApi
 class FileTestSuite {
     val path = NSTemporaryDirectory()
     val tests = FileTests(path)

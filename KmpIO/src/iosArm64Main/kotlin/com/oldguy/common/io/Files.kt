@@ -82,7 +82,7 @@ actual class RawFile actual constructor(
     fileArg: File,
     mode: FileMode,
     source: FileSource
-): Closeable, AppleRawFile(fileArg, mode, source)
+): Closeable, AppleRawFile(fileArg, mode)
 {
     actual override suspend fun close() {
         super.close()
@@ -165,7 +165,7 @@ actual class TextFile actual constructor(
     actual override val charset: Charset,
     mode: FileMode,
     source: FileSource
-) : Closeable, AppleTextFile(file, charset, mode, source) {
+) : Closeable, AppleTextFile(file, charset, mode) {
     actual constructor(
         filePath: String,
         charset: Charset,

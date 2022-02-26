@@ -28,7 +28,7 @@ open class AppleCharset(val set: Charsets) {
 
     open fun encode(inString: String): ByteArray {
         val err = IllegalArgumentException("String could not be encoded with $set")
-        @Suppress("UNCHECKED_CAST")
+        @Suppress("CAST_NEVER_SUCCEEDS")
         (inString as NSString).dataUsingEncoding(nsEnc)?.let {
             return it.bytes?.readBytes(it.length.toInt())
                 ?: throw err
@@ -82,7 +82,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
             else
                 name.substring(index)
         }
-    open val fullPath: String = path
+    open val fullPath: String = pathArg.trimEnd(pathSeparator[0])
     open val directoryPath: String get() = if (isDirectory) path else path.replace(name, "").trimEnd(pathSeparator[0])
 
     open val size: ULong get() {
@@ -96,10 +96,12 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
 
     open val lastModifiedEpoch: Long get() {
         var epoch = 0L
-        throwError {
-            (fm.attributesOfItemAtPath(path, it) as NSDictionary)
-                .fileModificationDate()?.let {
-                    epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
+        throwError { error ->
+            (fm.attributesOfItemAtPath(path, error) as NSDictionary?)
+                ?.let { dict ->
+                    dict.fileModificationDate()?.let {
+                        epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
+                    }
                 }
         }
         return epoch
@@ -111,9 +113,11 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     open val createdTime: LocalDateTime get() {
         var epoch = 0L
         throwError {
-            (fm.attributesOfItemAtPath(path, it) as NSDictionary)
-                .fileCreationDate()?.let {
-                    epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
+            (fm.attributesOfItemAtPath(path, it) as NSDictionary?)
+                ?.let { dict ->
+                    dict.fileCreationDate()?.let {
+                        epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
+                    }
                 }
         }
         return Instant
@@ -175,7 +179,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         memScoped {
             val result = alloc<ObjCObjectVar<String?>>()
             val matches = alloc<ObjCObjectVar<List<*>?>>()
-            @Suppress("UNCHECKED_CAST")
+            @Suppress("CAST_NEVER_SUCCEEDS")
             val count = (path as NSString).completePathIntoString(
                 result.ptr,
                 true,
@@ -224,7 +228,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
 
     /**
      * Determine if subdirectory exists. If not create it.
-     * @param subdirectory of current filePath
+     * @param directoryName subdirectory of current filePath
      * @return File with path of new subdirectory
      */
     open suspend fun resolve(directoryName: String): File {
@@ -304,15 +308,14 @@ private class AppleFileHandle(val file: File, mode: FileMode)
             }
         } ?: throw IllegalArgumentException("Path ${path} mode $mode could not be opened")
 
-    suspend fun close() {
+    fun close() {
         handle.closeFile()
     }
 }
 
 open class AppleRawFile(
     fileArg: File,
-    val mode: FileMode,
-    source: FileSource
+    val mode: FileMode
 ) : Closeable {
     private val apple = AppleFileHandle(fileArg, mode)
     private val handle = apple.handle
@@ -357,10 +360,8 @@ open class AppleRawFile(
     open var blockSize: UInt = 4096u
 
     /**
-     * Read bytes from a file, staring at the specified position.
+     * Read bytes from a file, at the current position. Position is changed vy number of bytes read.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param position zero-relative position of file to start reading,
-     * or if default of -1, the current file position
      * @return number of bytes actually read
      */
     open suspend fun read(buf: ByteBuffer): UInt {
@@ -379,7 +380,7 @@ open class AppleRawFile(
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param position zero-relative position of file to start reading,
+     * @param newPos zero-relative position of file to start reading,
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
@@ -420,7 +421,7 @@ open class AppleRawFile(
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param position zero-relative position of file to start reading,
+     * @param newPos zero-relative position of file to start reading,
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
@@ -459,7 +460,7 @@ open class AppleRawFile(
     /**
      * Write bytes to a file, staring at the specified position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
-     * @param position zero-relative position of file to start writing,
+     * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
@@ -496,7 +497,7 @@ open class AppleRawFile(
     /**
      * Write bytes to a file, staring at the specified position.
      * @param buf write buf.remaining bytes into byte buffer starting at the buffer's current position.
-     * @param position zero-relative position of file to start writing,
+     * @param newPos zero-relative position of file to start writing,
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
@@ -627,7 +628,7 @@ open class AppleRawFile(
         while (rd > 0u) {
             srcBuf.rewind()
             bytesCount += rd
-            write(srcBuf, startIndex.toULong())
+            write(srcBuf, startIndex)
             srcBuf.rewind()
             if (length - rd < blockSize)
                 srcBuf = ByteBuffer((length - rd).toInt())
@@ -653,8 +654,7 @@ open class AppleRawFile(
 open class AppleTextFile(
     file: File,
     open val charset: Charset,
-    val mode: FileMode,
-    source: FileSource
+    val mode: FileMode
 ) : Closeable {
     private val apple = AppleFileHandle(file, mode)
     private var blockSize = 2048
@@ -707,7 +707,7 @@ open class AppleTextFile(
      * returned subsequent calls will always be an empty string.
      */
     open suspend fun readLine(): String {
-        var lin: String
+        val lin: String
         while (!endOfFile && lineEndIndex == -1)
             nextBlockLineState()
         if (endOfFile && lineEndIndex == -1) {

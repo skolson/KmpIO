@@ -2,13 +2,15 @@ package com.oldguy.common.io
 
 actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression {
     actual enum class Strategy {Default, Filtered, Huffman}
-    actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
+    actual override val algorithm = CompressionAlgorithms.Deflate
+    override val bufferSize = 4096
+    private val apple = AppleCompression(algorithm)
 
     actual suspend fun compress(strategy: Strategy,
                                 input: suspend () -> ByteBuffer,
                                 output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        TODO("Not yet implemented")
+        return apple.compress(input, output)
     }
 
     /**
@@ -23,14 +25,14 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual override suspend fun compress(input: suspend () -> ByteBuffer,
                                          output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        TODO("Not yet implemented")
+        return apple.compress(input, output)
     }
 
     actual suspend fun compressArray(strategy: Strategy,
                                      input: suspend () -> ByteArray,
                                      output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
-        TODO("Not yet implemented")
+        return apple.compressArray(input, output)
     }
 
     /**
@@ -44,7 +46,7 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual override suspend fun compressArray(input: suspend () -> ByteArray,
                                               output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
-        TODO("Not yet implemented")
+        return apple.compressArray(input, output)
     }
 
     /**
@@ -52,12 +54,8 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
      * constructor time.
      * If the selected algorithm fails during the operation, an Exception is thrown. There is no
      * attempt at dynamically determining the algorithm used to originally do the compression.
-     * @param totalCompressedBytes Compressed data byte count. This is the number of input bytes to
-     * process.  Function will continue until this number of bytes are provided via the [input] function.
      * @param input will be invoked once for each time the process needs more compressed data.
-     * Total size (sum of remainings) of all ByteBuffers provided must equal [totalCompressedBytes].
-     * If total number of bytes passed to all input calls exceeds [totalCompressedBytes] an
-     * exception is thrown.
+     * Total size (sum of remainings) of all ByteBuffers provided must contain entrie compressed payload.
      * @param output will be called repeatedly as decompressed bytes are produced. Buffer argument will
      * have position zero and limit set to however many bytes were uncompressed. This buffer has a
      * capacity equal to the first input ByteBuffer, but the number of bytes it contains will be 0 < limit
@@ -67,37 +65,23 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
      * @return sum of all uncompressed bytes count passed via [output] function calls.
      */
     actual override suspend fun decompress(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteBuffer,
+        input: suspend () -> ByteBuffer,
         output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        TODO("Not yet implemented")
+        return apple.decompress(input, output)
     }
+
     /**
      * De-compress any amount of data.
-     * @param totalCompressedBytes total number of bytes that will be provided by all calls to [input]
      * @param input Invoked for each block of Uncompressed data. Entire ByteArray will be processed.
-     * Pass an empty ByteArray to signal premature end of data. Also processing will stop once
-     * calls to [input] have returned exactly [totalCompressedBytes]. If more than [totalCompressedBytes]
-     * is returned by all calls to [input], an exception is thrown.
+     * Pass an empty ByteArray to signal premature end of data.
      * @param output Invoked once for each chunk of compressed data produced,
      * @return Count of total compressed bytes.
      */
     actual override suspend fun decompressArray(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteArray,
+        input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
-        TODO("Not yet implemented")
-    }
-
-    /**
-     * Use this to reset state back to the same as initialization.  This allows reuse of this instance for additional
-     * operations
-     */
-    actual override fun reset() {
-        TODO("Not yet implemented")
+        return apple.decompressArray(input, output)
     }
 }

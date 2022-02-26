@@ -30,18 +30,12 @@ expect class CompressionDeflate constructor(noWrap: Boolean): Compression {
                               output: suspend (buffer: ByteArray) -> Unit
     ): ULong
     override suspend fun decompress(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteBuffer,
+        input: suspend () -> ByteBuffer,
         output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong
 
     override suspend fun decompressArray(
-        totalCompressedBytes: ULong,
-        bufferSize: UInt,
-        input: suspend (bytesToRead: Int) -> ByteArray,
+        input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong
-
-    override fun reset()
 }

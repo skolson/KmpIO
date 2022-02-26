@@ -3,26 +3,41 @@ package com.oldguy.common.io
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.ExperimentalTime
 
+@ExperimentalTime
 @ExperimentalCoroutinesApi
 class ZipFileTests {
+    private val tz = TimeZone.currentSystemDefault()
     private val readme = "readme.txt"
     private val readmeExcerpt: String = "MaterialDesignIcons.com"
     private val testImageFileName = "ic_help_grey600_48dp.png"
     private val binaryFile = "drawable-xxxhdpi/$testImageFileName"
-    private val testDirectory = File("..\\TestFiles")
-    private val testFile = File(testDirectory, "SmallTextAndBinary.zip")
-    private val testFileTime = LocalDateTime(2017, 6, 23, 18, 46, 2)
+    private val testFileTime = LocalDateTime(2017, 6, 23, 19, 46, 2)
+    private val testFileTime2 = testFileTime.toInstant(tz).plus((-1).hours).toLocalDateTime(tz)
 
-    private suspend fun workDirectory() = testDirectory.resolve("Work")
+    private suspend fun testDirectory(): File {
+        val up = File("..")
+        assertTrue(up.exists)
+        return up.resolve("TestFiles")
+    }
+
+    private suspend fun workDirectory() = testDirectory().resolve("Work")
+    private suspend fun testFile() = File(testDirectory(), "SmallTextAndBinary.zip")
 
     @Test
     fun zipFileRead() {
-        val imgFile = File(testDirectory, "ic_help_grey600_48dp.png")
         runTest {
+            val imgFile = File(testDirectory(), "ic_help_grey600_48dp.png")
+            assertTrue(imgFile.exists)
+            val testFile = testFile()
             ZipFile(testFile).use { zip ->
                 assertEquals(81519UL, testFile.size)
                 zip.entries.apply {
@@ -44,7 +59,7 @@ class ZipFileTests {
                     assertTrue(s.contains(readmeExcerpt))
                     assertEquals(148u, count)
                     assertEquals(148, s.length)
-                    assertEquals(testFileTime, entry.timeModified)
+                    assertEquals(testFileTime2, entry.timeModified)
                 }
                 val imgBuf = ByteBuffer(4096)
                 val fileSize = RawFile(imgFile).read(imgBuf).toInt()
@@ -55,7 +70,7 @@ class ZipFileTests {
                     assertEquals(3650, count.toInt())
                     assertEquals(3650, content.size)
                     assertTrue(imgBuf.getBytes(imgBuf.remaining).contentEquals(content))
-                    assertEquals(testFileTime, entry.timeModified)
+                    assertEquals(testFileTime2, entry.timeModified)
                 }
             }
         }
@@ -66,8 +81,8 @@ class ZipFileTests {
      */
     @Test
     fun zip64LargeFileRead() {
-        val file = File(testDirectory, "ZerosZip64.zip")
         runTest {
+            val file = File(testDirectory(), "ZerosZip64.zip")
             ZipFile(file).use {
                 (it.map["0000"]
                     ?: throw IllegalStateException("0000 file not found")).apply {
@@ -101,7 +116,7 @@ class ZipFileTests {
     fun unzipToDirectoryTest() {
         runTest {
             val dir = workDirectory().resolve("SmallTextAndBinaryTest")
-            ZipFile(testFile).apply {
+            ZipFile(testFile()).apply {
                 extractToDirectory(dir)
             }
             val list = dir.listFiles
@@ -142,18 +157,13 @@ class ZipFileTests {
         val out2 = ByteBuffer(test.length)
         runTest {
             CompressionDeflate(true).apply {
-                val compressed = this.compress(
-                    input = { buf }
-                ) {
+                val compressed = this.compress( input = { buf }) {
                     out.expand(it)
                 }
                 out.flip()
+                assertEquals(28u, compressed)
                 val uncompressed = decompress(
-                    compressed,
-                    2048u,
-                    input = {
-                        ByteBuffer(out.getBytes(it))
-                    }
+                    input = { out }
                 ) {
                     out2.expand(it)
                 }
@@ -179,12 +189,10 @@ class ZipFileTests {
         }
         assertEquals(d, z.zipTime)
 
-        val t2 = LocalDateTime(2017, 6, 23, 18, 46, 2)
-        val z1 = ZipTime(t2)
-        assertEquals(t2, z1.zipTime)
+        val z1 = ZipTime(testFileTime)
+        assertEquals(testFileTime, z1.zipTime)
 
-        val tFile = File(testDirectory, testImageFileName)
-        ZipEntry("Any", lastModTime = tFile.lastModified, ).apply {
+        ZipEntry("Any", lastModTime = d).apply {
             assertEquals(d.year, timeModified.year)
             assertEquals(d.month, timeModified.month)
             assertEquals(d.dayOfMonth, timeModified.dayOfMonth)
@@ -202,7 +210,7 @@ class ZipFileTests {
             val dir = workDirectory().resolve("SaveOne")
             val oneFileZip = File(dir, "saveOne.zip")
             oneFileZip.delete()
-            val entryFile = File(testDirectory, testImageFileName)
+            val entryFile = File(testDirectory(), testImageFileName)
             ZipFile(oneFileZip, FileMode.Write).use {
                 it.zipFile(entryFile)
                 it.zipFile(entryFile, "Copy${entryFile.name}")

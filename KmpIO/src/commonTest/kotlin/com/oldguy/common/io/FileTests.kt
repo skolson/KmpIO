@@ -1,9 +1,7 @@
 package com.oldguy.common.io
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.*
 import kotlin.test.*
 
@@ -75,15 +73,15 @@ class FileTests(testDirPath: String) {
             val createdDate = fil.createdTime
             val lastAccessDate = fil.lastAccessTime
             val nowTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-            assertEquals(nowTime.year, fil.lastModified.year)
-            assertEquals(nowTime.monthNumber, fil.lastModified.monthNumber)
-            assertEquals(nowTime.dayOfMonth, fil.lastModified.dayOfMonth)
-            assertEquals(nowTime.year, fil.lastAccessTime.year)
-            assertEquals(nowTime.monthNumber, fil.lastAccessTime.monthNumber)
-            assertEquals(nowTime.dayOfMonth, fil.lastAccessTime.dayOfMonth)
-            assertEquals(nowTime.year, fil.createdTime.year)
-            assertEquals(nowTime.monthNumber, fil.createdTime.monthNumber)
-            assertEquals(nowTime.dayOfMonth, fil.createdTime.dayOfMonth)
+            assertEquals(nowTime.year, lastModDate.year)
+            assertEquals(nowTime.monthNumber, lastModDate.monthNumber)
+            assertEquals(nowTime.dayOfMonth, lastModDate.dayOfMonth)
+            assertEquals(nowTime.year, lastAccessDate.year)
+            assertEquals(nowTime.monthNumber, lastAccessDate.monthNumber)
+            assertEquals(nowTime.dayOfMonth, lastAccessDate.dayOfMonth)
+            assertEquals(nowTime.year, createdDate.year)
+            assertEquals(nowTime.monthNumber, createdDate.monthNumber)
+            assertEquals(nowTime.dayOfMonth, createdDate.dayOfMonth)
 
             val textFileIn = TextFile(
                 fil,
@@ -159,7 +157,7 @@ class FileTests(testDirPath: String) {
     }
 
     companion object {
-        const val eol = "\n"
+        private const val eol = "\n"
         const val line1 = "Line1 ancvb568099jkhrwsiuoidsygoedyt03ohgnejbj  eo;iuwoiopww79lhzH;EndLine1"
         const val line2 = "Line2 ancvb568099jkhrwsiuoidsygoedyt03ohgnejbj  eo;iuwoiopww79lhzH;EndLine2"
         const val line3 = "Line3 ancvb568099jkhrwsiuoidsygoedytEndLine3"
@@ -177,8 +175,8 @@ class FileTests(testDirPath: String) {
 
 @ExperimentalCoroutinesApi
 class FileUnitTests {
-    val path = "d:\\temp"
-    val tests = FileTests(path)
+    private val path = "d:\\temp"
+    private val tests = FileTests(path)
 
     @Test
     fun textUtf8Basics() {

@@ -58,7 +58,7 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
 
     /**
      * Determine if subdirectory exists. If not create it.
-     * @param subdirectory of current filePath
+     * @param directoryName subdirectory of current filePath
      * @return File with path of new subdirectory
      */
     actual override suspend fun resolve(directoryName: String): File {
@@ -82,7 +82,7 @@ actual class RawFile actual constructor(
     fileArg: File,
     mode: FileMode,
     source: FileSource
-): Closeable, AppleRawFile(fileArg, mode, source)
+): Closeable, AppleRawFile(fileArg, mode)
 {
     actual override suspend fun close() {
         super.close()
@@ -165,7 +165,7 @@ actual class TextFile actual constructor(
     actual override val charset: Charset,
     mode: FileMode,
     source: FileSource
-) : Closeable, AppleTextFile(file, charset, mode, source) {
+) : Closeable, AppleTextFile(file, charset, mode) {
     actual constructor(
         filePath: String,
         charset: Charset,

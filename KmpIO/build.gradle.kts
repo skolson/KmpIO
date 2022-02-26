@@ -1,5 +1,4 @@
 import org.gradle.kotlin.dsl.signing
-import org.gradle.internal.os.OperatingSystem
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
@@ -11,7 +10,7 @@ plugins {
     id("maven-publish")
     id("signing")
     id("kotlinx-atomicfu")
-    id("org.jetbrains.dokka") version "1.6.0"
+    id("org.jetbrains.dokka") version "1.6.10"
     id("com.github.ben-manes.versions") version "0.39.0"
 }
 
@@ -36,7 +35,7 @@ val javadocTaskName = "javadocJar"
 
 android {
     compileSdk = androidTargetSdkVersion
-    buildToolsVersion = "32.0.0"
+    buildToolsVersion = "32.1.0-rc1"
 
     sourceSets {
         getByName("main") {

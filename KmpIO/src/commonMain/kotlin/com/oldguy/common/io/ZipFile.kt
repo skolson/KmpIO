@@ -581,20 +581,22 @@ class ZipFile(
         val crc = Crc32()
         entry.compression.apply {
             val buf = ByteBuffer(bufferSize)
+            var compressedCount = entry.entryDirectory.compressedSize
             uncompressedCount = decompress(
-                entry.entryDirectory.compressedSize,
-                bufferSize.toUInt(),
-                input = { bytesToRead ->
-                    buf.positionLimit(0, bytesToRead)
-                    val c = file.read(buf)
-                    buf.positionLimit(0, c.toInt())
-                    buf
-                }) {
-                val outCount = it.remaining.toUInt()
-                uncompressedCount += outCount
-                val uncompressedContent = it.getBytes(outCount.toInt())
+                input = {
+                    buf.apply {
+                        clear()
+                        if (compressedCount >= buf.capacity.toUInt())
+                            limit = compressedCount.toInt()
+                        compressedCount -= file.read(buf)
+                        flip()
+                    }
+                }
+            ) {
+                uncompressedCount += it.remaining.toUInt()
+                val uncompressedContent = it.getBytes()
                 crc.update(uncompressedContent)
-                block(entry, uncompressedContent, outCount)
+                block(entry, uncompressedContent, uncompressedContent.size.toUInt())
             }
         }
         entry.entryDirectory.apply {
