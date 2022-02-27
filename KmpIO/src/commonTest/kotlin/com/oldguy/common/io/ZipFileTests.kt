@@ -7,6 +7,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
@@ -125,7 +126,7 @@ class ZipFileTests {
             assertEquals(1, list.count { !it.isDirectory })
             assertEquals(readme, list.first { !it.isDirectory }.name)
             val tree = dir.listFilesTree
-            assertEquals(69, tree.size)
+            assertEquals(68, tree.size)
             dir.delete()
         }
     }
@@ -155,11 +156,59 @@ class ZipFileTests {
         val buf = ByteBuffer(bytes)
         val out = ByteBuffer(test.length)
         val out2 = ByteBuffer(test.length)
+
+        val zipDeflateNowrapResult = byteArrayOf(
+            0x1,
+            0x25,
+            0x0,
+            0xDA.toByte(),
+            0xFF.toByte(),
+            0x31,
+            0x32,
+            0x33,
+            0x34,
+            0x35,
+            0x36,
+            0x31,
+            0x32,
+            0x33,
+            0x34,
+            0x35,
+            0x36,
+            0x73,
+            0x64,
+            0x66,
+            0x67,
+            0x68,
+            0x6A,
+            0x6B,
+            0x6C,
+            0x7A,
+            0x78,
+            0x63,
+            0x76,
+            0x62,
+            0x78,
+            0x63,
+            0x76,
+            0x78,
+            0x63,
+            0x76,
+            0x62,
+            0x7A,
+            0x78,
+            0x63,
+            0x76,
+            0x62
+        )
+
         runTest {
             CompressionDeflate(true).apply {
                 val compressed = this.compress( input = { buf }) {
                     out.expand(it)
                 }
+                out.flip()
+                assertContentEquals(zipDeflateNowrapResult, out.getBytes())
                 out.flip()
                 assertEquals(28u, compressed)
                 val uncompressed = decompress(
@@ -216,7 +265,7 @@ class ZipFileTests {
                 it.zipFile(entryFile, "Copy${entryFile.name}")
             }
             ZipFile(oneFileZip).use { e ->
-                assertEquals(1, e.map.size)
+                assertEquals(2, e.map.size)
                 assertTrue(e.map.containsKey(testImageFileName))
                 val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
                 assertEquals(testImageFileName, t.name)

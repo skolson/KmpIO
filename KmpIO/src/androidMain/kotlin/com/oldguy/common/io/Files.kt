@@ -130,6 +130,9 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     }
 
     actual suspend fun resolve(directoryName: String): File {
+        if (!this.isDirectory)
+            throw IllegalArgumentException("Only invoke resolve on a directory")
+        if (directoryName.isBlank()) return this
         val directory = File(this, directoryName)
         if (!directory.javaFile.exists())
             directory.makeDirectory()
@@ -213,8 +216,13 @@ actual class RawFile actual constructor(
         val bytesRead = withContext(Dispatchers.IO) {
             javaFile.channel.read(javaBuf)
         }
-        buf.put(javaBuf.array())
-        return bytesRead.toUInt()
+        return if (bytesRead <= 0) {
+            buf.positionLimit(0, 0)
+            0u
+        } else {
+            buf.putBytes(javaBuf.array(), 0, bytesRead)
+            bytesRead.toUInt()
+        }
     }
 
     actual suspend fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong): UInt {

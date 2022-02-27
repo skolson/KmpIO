@@ -247,7 +247,9 @@ class ZipFile(
                     }
                 }
             ) {
+                println("PreWrite data: ${file.position}")
                 file.write(ByteBuffer(it))
+                println("PostWrite data: ${file.position}")
             }
             WriteResult(compressed, uncompressed, crc.result)
         }
@@ -261,17 +263,15 @@ class ZipFile(
             if (!isZip64 && uncompressed > Int.MAX_VALUE.toULong()) {
                 file.position = savePosition
                 throw ZipException("Zip64 is not enabled, but entry size: $uncompressed requires Zip64. Entry not saved")
-            } else {
-                pendingChanges = true
-                directoryPosition = file.position
-                entry.updateDirectory(
-                    isZip64,
-                    compressedSize = compressed,
-                    uncompressedSize = uncompressed,
-                    crc,
-                    savePosition
-                )
             }
+            pendingChanges = true
+            entry.updateDirectory(
+                isZip64,
+                compressedSize = compressed,
+                uncompressedSize = uncompressed,
+                crc,
+                savePosition
+            )
             if (entry.directory.generalPurpose.isDataDescriptor) {
                 ZipDataDescriptor(crc, compressed, uncompressed).apply {
                     allocateBuffer(isZip64).apply {
@@ -281,6 +281,7 @@ class ZipFile(
                     }
                 }
             }
+            directoryPosition = file.position
         }
     }
 
@@ -353,7 +354,6 @@ class ZipFile(
             entry.entryDirectory.update(this)
             entry.entryDirectory.apply {
                 decompress(entry, block)
-                println("Data descriptor read position: ${file.position}")
                 if (generalPurpose.isDataDescriptor) {
                     if (!hasDataDescriptor)
                         throw ZipException("Entry ${entry.name} general purpose bits specify Data Descriptor present after data, but local record content does not")
@@ -448,7 +448,7 @@ class ZipFile(
             ) {
                 buffer.apply {
                     positionLimit(0, bufferSize)
-                    rdr.read(this).toInt()
+                    rdr.read(this)
                     flip()
                 }.getBytes()
             }
@@ -466,7 +466,10 @@ class ZipFile(
             if (filter?.invoke(it) != false) {
                 val name = mapPath?.invoke(it) ?: it.name
                 val f = File(name)
-                val d = directory.resolve(f.directoryPath)
+                val d = if (f.directoryPath.isEmpty())
+                    directory
+                else
+                    directory.resolve(f.directoryPath)
                 val copy = RawFile(File(d, f.name), FileMode.Write)
                 readEntry(it) { _, bytes, _ ->
                     copy.write(ByteBuffer(bytes))
@@ -586,8 +589,7 @@ class ZipFile(
                 input = {
                     buf.apply {
                         clear()
-                        if (compressedCount >= buf.capacity.toUInt())
-                            limit = compressedCount.toInt()
+                        limit = min(compressedCount, buf.capacity.toULong()).toInt()
                         compressedCount -= file.read(buf)
                         flip()
                     }

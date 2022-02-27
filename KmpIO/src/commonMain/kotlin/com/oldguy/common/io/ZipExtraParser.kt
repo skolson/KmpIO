@@ -25,9 +25,7 @@ open class ZipExtraParser(
     fun decode(): List<ZipExtra> {
         val buffer = ByteBuffer(extraContent)
         val list = mutableListOf<ZipExtra>()
-        val start = buffer.position
-        var remaining = buffer.limit
-        while (remaining > 0) {
+        while (buffer.hasRemaining) {
             val sig = buffer.short
             val length = buffer.short
             when (sig) {
@@ -38,7 +36,6 @@ open class ZipExtraParser(
                 decode(buffer)
                 list.add(this)
             }
-            remaining = buffer.position - start
         }
         return list
     }
@@ -63,6 +60,17 @@ open class ZipExtraParser(
             }
             rewind()
             return getBytes(limit)
+        }
+    }
+
+    fun verifyZip64(directory: ZipDirectory) {
+        decode().first { it.signature == zip64Signature }.also {
+            (it as ZipExtraZip64).apply {
+                if (uncompressedSize >= 0 && uncompressedSize.toULong() != directory.uncompressedSize)
+                    throw ZipException("Directory uncompressedSize: ${directory.uncompressedSize} does not match local Zip64 uncompressedSize: $uncompressedSize")
+                if (compressedSize >= 0 && compressedSize.toULong() != directory.compressedSize)
+                    throw ZipException("Directory compressedSize: ${directory.compressedSize} does not match local Zip64 compressedSize: $compressedSize")
+            }
         }
     }
 

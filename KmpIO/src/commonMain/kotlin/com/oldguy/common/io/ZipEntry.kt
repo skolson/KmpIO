@@ -19,7 +19,7 @@ class ZipDirectory(
     val parser get() = parserFactory(directoryRecord)
     var localParser = parserFactory(ZipLocalRecord(directoryRecord))
 
-    private val directory = parser.directory as ZipDirectoryRecord
+    private val directory get() = parser.directory as ZipDirectoryRecord
     val localDirectory get() = localParser.directory
 
     val extras get() = parser.decode()
@@ -29,7 +29,7 @@ class ZipDirectory(
 
     val compressedSize: ULong
         get() = extraZip64?.let {
-            if (it.compressedSize > 0)
+            if (it.compressedSize >= 0)
                 it.compressedSize.toULong()
             else null
         } ?: if (directory.intCompressedSize > 0)
@@ -39,7 +39,7 @@ class ZipDirectory(
 
     val uncompressedSize: ULong
         get() = extraZip64?.let {
-            if (it.uncompressedSize > 0)
+            if (it.uncompressedSize >= 0)
                 it.uncompressedSize.toULong()
             else null
         } ?: if (directory.intUncompressedSize > 0)
@@ -49,7 +49,7 @@ class ZipDirectory(
 
     val localHeaderOffset: ULong
         get() = extraZip64?.let {
-            if (it.localHeaderOffset > 0)
+            if (it.localHeaderOffset >= 0)
                 it.localHeaderOffset.toULong()
             else null
         } ?: directory.intLocalHeaderOffset.toULong()
@@ -86,6 +86,9 @@ class ZipDirectory(
 
     fun update(localRecord: ZipLocalRecord) {
         localParser = parserFactory(localRecord)
+        if (directory.isZip64) {
+            localParser.verifyZip64(this)
+        }
     }
 
     fun update(directoryRecord: ZipDirectoryRecord) {

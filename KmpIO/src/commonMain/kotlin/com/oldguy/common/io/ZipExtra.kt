@@ -57,13 +57,13 @@ class ZipExtraGeneral(
  * @param directory either a [ZipDirectoryRecord] or a [ZipLocalRecord]
  */
 class ZipExtraZip64(
-    val isLocal: Boolean,
-    val directory: ZipDirectoryCommon
+    private val isLocal: Boolean,
+    private val directory: ZipDirectoryCommon
 ): ZipExtra(ZipExtraParser.zip64Signature,4) {
     var uncompressedSize = -1L
     var compressedSize = -1L
     var localHeaderOffset = -1L
-    var diskNumber = -1
+    private var diskNumber = -1
 
     /**
      * Use this to create a new instance using a ZipDirectoryRecord. Not for use by decode
@@ -121,14 +121,32 @@ class ZipExtraZip64(
         buffer.apply {
             when (directory) {
                 is ZipDirectoryRecord -> {
-                    if (directory.intUncompressedSize < 0) uncompressedSize = long
-                    if (directory.intCompressedSize < 0) compressedSize = long
-                    if (directory.intLocalHeaderOffset < 0) localHeaderOffset = long
-                    if (directory.diskNumber < 0) diskNumber = int
+                    uncompressedSize = if (directory.intUncompressedSize < 0)
+                        long
+                    else
+                        directory.intUncompressedSize.toLong()
+                    compressedSize = if (directory.intCompressedSize < 0)
+                        long
+                    else
+                        directory.intCompressedSize.toLong()
+                    localHeaderOffset = if (directory.intLocalHeaderOffset < 0)
+                        long
+                    else
+                        directory.intLocalHeaderOffset.toLong()
+                    diskNumber = if (directory.diskNumber < 0)
+                        int
+                    else
+                        directory.diskNumber.toInt()
                 }
                 is ZipLocalRecord -> {
-                    if (directory.intUncompressedSize < 0) uncompressedSize = long
-                    if (directory.intCompressedSize < 0) compressedSize = long
+                    uncompressedSize = if (directory.intUncompressedSize < 0)
+                        long
+                    else
+                        directory.intUncompressedSize.toLong()
+                    compressedSize = if (directory.intCompressedSize < 0)
+                        long
+                    else
+                        directory.intCompressedSize.toLong()
                 }
             }
         }
@@ -141,7 +159,7 @@ class ZipExtraNtfs(
     ZipExtraParser.ntfsSignature,
     length
 ) {
-    val tag: Short = 1.toShort()
+    private val tag: Short = 1.toShort()
     var lastModifiedEpoch = 0L
     var lastAccessEpoch = 0L
     var createdEpoch = 0L
@@ -196,7 +214,7 @@ class ZipExtraNtfs(
     }
 
     companion object {
-        val tagSize: Short = 16
-        val totalLength = (tagSize + 4).toShort()
+        const val tagSize: Short = 16
+        const val totalLength = (tagSize + 4).toShort()
     }
 }

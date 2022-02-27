@@ -47,13 +47,7 @@ class CompressionTest {
                 javaI.close()
 
                 ByteBuffer(test.length).apply {
-                    val uncompressed = decompress(
-                        compressed,
-                        2048u,
-                        input = {
-                            out
-                        }
-                    ) {
+                    val uncompressed = decompress(input = { out } ) {
                         expand(it)
                     }
                     flip()

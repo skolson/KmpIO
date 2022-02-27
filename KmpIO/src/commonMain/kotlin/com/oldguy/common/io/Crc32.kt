@@ -330,6 +330,71 @@ class Crc32() {
             0x5a05df1b,
             0x2d02ef8d
         )
+
+        private const val gf2Dim = 32
+        fun combine(crc1: Long, crc2: Long, len2: Long): Long {
+            var crc = crc1
+            var length = len2
+            var row: Long
+            val even = LongArray(gf2Dim)
+            val odd = LongArray(gf2Dim)
+
+            // degenerate case (also disallow negative lengths)
+            if (length <= 0) return crc
+
+            // put operator for one zero bit in odd
+            odd[0] = 0xedb88320L // CRC-32 polynomial
+            row = 1
+            for (n in 1 until gf2Dim) {
+                odd[n] = row
+                row = row shl 1
+            }
+
+            // put operator for two zero bits in even
+            gf2MatrixSquare(even, odd)
+
+            // put operator for four zero bits in odd
+            gf2MatrixSquare(odd, even)
+
+            // apply len2 zeros to crc1 (first square will put the operator for one
+            // zero byte, eight zero bits, in even)
+            do {
+                // apply zeros operator for this bit of len2
+                gf2MatrixSquare(even, odd)
+                if (length and 1 != 0L) crc = gf2MatrixTimes(even, crc)
+                length = length shr 1
+
+                // if no more bits set, then done
+                if (length == 0L) break
+
+                // another iteration of the loop with odd and even swapped
+                gf2MatrixSquare(odd, even)
+                if (length and 1 != 0L) crc = gf2MatrixTimes(odd, crc)
+                length = length shr 1
+
+                // if no more bits set, then done
+            } while (length != 0L)
+
+            /* return combined crc */crc = crc xor crc2
+            return crc
+        }
+
+        private fun gf2MatrixTimes(mat: LongArray, vec: Long): Long {
+            var vector = vec
+            var sum: Long = 0
+            var index = 0
+            while (vector != 0L) {
+                if (vector and 1 != 0L) sum = sum xor mat[index]
+                vector = vector shr 1
+                index++
+            }
+            return sum
+        }
+
+        private fun gf2MatrixSquare(square: LongArray, mat: LongArray) {
+            for (n in 0 until gf2Dim) square[n] = gf2MatrixTimes(mat, mat[n])
+        }
+
     }
 }
 

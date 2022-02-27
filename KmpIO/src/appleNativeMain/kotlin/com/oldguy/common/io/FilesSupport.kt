@@ -232,7 +232,10 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
      * @return File with path of new subdirectory
      */
     open suspend fun resolve(directoryName: String): File {
-        if (directoryName.isEmpty() || directoryName.startsWith(pathSeparator))
+        if (!isDirectory)
+            throw IllegalArgumentException("Only invoke resolve on a directory")
+        if (directoryName.isBlank()) return File(path)
+        if (directoryName.startsWith(pathSeparator))
             throw IllegalArgumentException("resolve requires $directoryName to be not empty and cannot start with $pathSeparator")
         return File("$path/$directoryName", null).apply {
             makeDirectory()

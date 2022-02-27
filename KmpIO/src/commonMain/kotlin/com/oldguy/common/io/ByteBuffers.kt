@@ -205,8 +205,8 @@ class ByteBuffer(
     order: ByteOrder = ByteOrder.LittleEndian,
     isReadOnly: Boolean = false,
     override var buf: ByteArray = ByteArray(capacity)
-) :
-    ByteBufferBase<Byte, ByteArray>(capacity, order, isReadOnly) {
+): ByteBufferBase<Byte, ByteArray>(capacity, order, isReadOnly)
+{
 
     constructor(bytes: ByteArray, order: ByteOrder = ByteOrder.LittleEndian) :
             this(bytes.size, order, false, bytes)
@@ -508,8 +508,7 @@ class UByteBuffer(
     order: ByteOrder = ByteOrder.LittleEndian,
     isReadOnly: Boolean = false,
     override var buf: UByteArray = UByteArray(capacity)
-) :
-    ByteBufferBase<UByte, UByteArray>(capacity, order, isReadOnly) {
+): ByteBufferBase<UByte, UByteArray>(capacity, order, isReadOnly) {
 
     constructor(bytes: UByteArray, order: ByteOrder = ByteOrder.LittleEndian) :
             this(bytes.size, order, false, bytes)
