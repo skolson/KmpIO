@@ -1,6 +1,24 @@
 ## KmpIO
 
-This is a Kotlin multiplatform (KMP) library for basic Text file, Binary file, and zip/archive file IO. It was initially implemented with the android target, now implementations for Apple targets are being built. 
+This is a Kotlin multiplatform (KMP) library for basic Text file, Binary file, and zip/archive file IO. It was initially implemented with the android target, now also does Apple targets. Library should be considered alpha quality - unit tests pass on Android, MacOS, IOS Simulator.
+
+The implementation relies on two main sources of info:
+- [Wikipedia Zip File Format article](https://en.wikipedia.org/wiki/ZIP_(file_format))
+- [PKWare Zip Specification document](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT)
+
+Usage Note - The phrase "KMP only code" below indicates pure Kotlin code with no expect/actual usage. Expect/Actual usage was limited to these categories:
+
+- File create/delete/attributes, low-level File IO
+- Compression algorithms (used by ZipFile classes)
+
+Supported targets:
+
+- Android X64 and Arm64 ABIs
+- macosX64
+- iosX64
+- iosArm64
+
+A common source set "appleNativeMain" contains common across used by all three Apple targets. 
 
 ## Reason for Existence
 
@@ -11,10 +29,15 @@ Kotlin multiplatform code needing basic IO file support should not need platform
 - Binary file reading and writing, with random access by file position
 - Zip/archive file writing or reading, with Kotlin friendly syntax for handling zip entries.
   - Zip64 support
-  - initially Deflate compression only on Android. Apple adds LZMA, BZip.
-- Bitset class similar to java's Bitset, but KMP only.
+  - initially Deflate compression only on Android. Apple adds LZMA.
+  - Accessors for all Zip meta-data
+  - Customizable Zip extra data encoding/decoding
+  - KMP-only implementation except for compression
+    - Android uses Inflater/Deflater for DEFLATE
+    - Apple compression library (Objective C) for DEFLATE, LZMA
+- Bitset class similar to java's Bitset, but KMP only code.
 - Base64 encoding KMP only code
-- ByteBuffer support using KMP-only code, similar to Java's ByteBuffer, with endian support. Syntax is a little more Kotlin friendly. Both ByteBuffer and UByteBuffer are available for use.
+- ByteBuffer support using KMP-only code, similar to Java's ByteBuffer, with little endian and big endian support selectable at constructor time. Syntax is more Kotlin friendly. Both ByteBuffer and UByteBuffer are available for use.
 - Basic Charset encode/decode for a limited number of charsets 
 
 Supported platforms (KMM targets) all 64 bit only:
@@ -287,7 +310,59 @@ Example of creating a text file with ISO-8859-1 encoding, then reading. Same bas
 
 ## ZipFiles
 
-Zip file entries can be directories only with no data, or with data of any size.  Content sizes > Int.MAX_VALUE require setting `isZip64 = true`.
+Zip file entries can be directories only with no data, or with data of any size.  Content sizes > Int.MAX_VALUE require setting `isZip64 = true`. Properties are available for accessing all zip metadata; directory records, local directory records, Zip64 metadata. Support for custom extra data encoding/decoding.
+
+### Class Structure
+
+**ZipFile** read-only, or read/write/create
+
+- Owns zero or more **ZipEntry** instances accessible via map keyed by name, or by list
+- Zip64 support
+- convenience methods for merging a zip file into an existing zip, zipping directory trees, extract all to files, etc
+- comment: String any length allowed by the Zip specification. encode/decode using UTF-8 Charset. Zip64 allows a comment to be HUGE, library imposes an arbitrary limit of 2MB to defend against excessive memory usage.
+
+**ZipEntry** represents one entry in a ZipFile
+
+- ZipDirectory instance contains all metadata about the ZipEntry per the Zip specification 
+- name: String - any length allowed by the Zip specification. encode/decode using UTF-8 Charset
+- comment: String - any length allowed by the Zip specification. encode/decode using UTF-8 Charset
+- CompressionAlgorithms enum instance. Currently limited to None and Deflate
+
+**ZipDirectory**
+
+- ZipExtraParser associated with a ZipDirectoryRecord contains all the metadata for the directory entry per the Zip Specification. ZipExtraParser is typically defaulted, used for decoding/encoding extra data when needed conforming to the Zip spec.
+- ZipExtraParser associated with a ZipLocalDirectory contains all the metadata for the local directory entry per the Zip Specification, typically a subset of the directory record. ZipExtra instances used by the parser can exnoce/decode extra data differently for the local record. ZipExtraZip64 is an example. 
+
+  - Parser classes decode extra data to a List<ZipExtra> instances, encode a List<ZipExtra> to extra data per Zip specification.
+  - ZipExtra subclasses; ZipExtraZip64, ZipExtraNtfs, ZipExtraGeneral
+
+- ZipTime instances convert to/from kotlinx.datetime.LocalDateTime and Zip MSDOS encoded times.
+  - lastModificationTime. Also lastAccessTime, createdTime when available, when a ZipExtraNtfs instance is present.
+- Properties for compressedSize, uncompressedSize, and localHeaderOffset independent of Zip64 support
+
+**ZipDirectoryRecord** subclass of ZipDirectoryCommon
+
+- Holds low-level metadata per the Zip Specification.
+- ByteBuffer instances used for encode/decode, zip spec requires little-endian encoding for numbers, UTF-8 encoding for strings (no null terminations).
+- ZipVersion for version and minimum version per zip spec.
+
+**ZipLocalRecord** subclass of ZipDirectoryCommon is typically a subset or partial copy of the ZipDirectoryRecord. See the Zip specification.
+
+- Holds low-level metadata per the Zip Specification.
+- ByteBuffer instances used for encode/decode, zip spec requires little-endian encoding for numbers, UTF-8 encoding for strings (no null terminations).
+- ZipVersion for version and minimum version per zip spec.
+
+**ZipDirectoryCommon** abstract base class of fields shared by ZipDirectoryRecord and ZipLocalRecord.
+
+#### Supporting classes
+
+**ZipGeneralPurpose** ZipDirectoryCommon owns a two-byte Bitset that is a mask of various feature flags.
+
+- Boolean properties for the various common usages supported by the class, not comprehensive.
+
+**ZipVersion** Simple encode/decode of the version number scheme used by the Zip spec.
+
+**ZipTime** Simple conversions to/from the MSDOS date/time used by the Zip spec and koltinx.dataetime.LocalDateTime instances. These use the default system time zone of the host running the code, as the zip spec has no support for time zone encoding.
 
 ### Create a zip file
 
