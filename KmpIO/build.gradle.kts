@@ -26,7 +26,7 @@ group = "com.oldguy"
 version = "0.1.0"
 
 val androidMinSdk = 26
-val androidTargetSdkVersion = 31
+val androidTargetSdkVersion = 32
 val iosMinSdk = "14"
 val kmpPackageName = "com.oldguy.common.io"
 
@@ -35,7 +35,7 @@ val javadocTaskName = "javadocJar"
 
 android {
     compileSdk = androidTargetSdkVersion
-    buildToolsVersion = "32.1.0-rc1"
+    buildToolsVersion = "33.0.0-rc1"
 
     sourceSets {
         getByName("main") {
@@ -77,7 +77,7 @@ android {
 }
 
 tasks {
-    dokkaGfm {
+    dokkaHtml {
         moduleName.set("Kotlin Multiplatform Common IO Library")
         dokkaSourceSets {
             named("commonMain") {
@@ -87,9 +87,9 @@ tasks {
         }
     }
     create<Jar>(javadocTaskName) {
-        dependsOn(dokkaGfm)
+        dependsOn(dokkaHtml)
         archiveClassifier.set("javadoc")
-        from(dokkaGfm.get().outputDirectory)
+        from(dokkaHtml.get().outputDirectory)
     }
 }
 

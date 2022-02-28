@@ -28,7 +28,7 @@ interface ZipFileBase: Closeable {
     suspend fun addEntry(entry: ZipEntry)
     /**
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
-     * directory structures are rewritten after each add. Use the lambda for adding content for this entry.
+     * directory structures are not written until [finish] or [close]. Use the lambda for adding content for this entry.
      * @param entry to be added. If name matches existing entry, exception is thrown.
      * @param inputBlock function called repeatedly until content argument is empty array. Implementation
      * should return a full ByteArray containing bytes to be compressed. All of array will be compressed
@@ -38,6 +38,20 @@ interface ZipFileBase: Closeable {
         entry: ZipEntry,
         inputBlock: suspend () -> ByteArray
     )
+
+    /**
+     * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
+     * directory structures are not written until [finish] or [close]. Use the lambda for adding content for this entry.
+     * @param entry to be added. If name matches existing entry, exception is thrown.
+     * @param inputBlock function called repeatedly until content argument is ByteBuffer with hasRemaining == false. Data
+     * will be read from buffer's position for remaining bytes. Zero remaining indicates end of input. Data will be
+     * compressed using the compression algorithm specified by the [ZipEntry].
+     */
+    suspend fun addEntryBuffered(
+        entry: ZipEntry,
+        inputBlock: suspend () -> ByteBuffer
+    )
+
     /**
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
      * directory structures are rewritten after each add. Content is encoded using the provided Charset before any
@@ -232,6 +246,13 @@ class ZipFile(
         val uncompressed: ULong,
         val crc: Int
     )
+
+    override suspend fun addEntryBuffered(entry: ZipEntry,
+                                  inputBlock: suspend () -> ByteBuffer) {
+        addEntry(entry) {
+            inputBlock().getBytes()
+        }
+    }
 
     override suspend fun addEntry(entry: ZipEntry,
                                   inputBlock: suspend () -> ByteArray) {

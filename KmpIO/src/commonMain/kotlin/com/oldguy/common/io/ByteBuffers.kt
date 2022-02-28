@@ -155,6 +155,10 @@ abstract class ByteBufferBase<Element, Array> constructor(
         position += length
     }
 
+    override fun flip(): Buffer<Element, Array> {
+        return super.flip()
+    }
+
     /**
      * <p> This method transfers the bytes remaining in the given source
      * buffer into this buffer.  If there are more bytes remaining in the
@@ -210,6 +214,11 @@ class ByteBuffer(
 
     constructor(bytes: ByteArray, order: ByteOrder = ByteOrder.LittleEndian) :
             this(bytes.size, order, false, bytes)
+
+    override fun flip(): ByteBuffer {
+        super.flip()
+        return this
+    }
 
     /**
      * Convert from a [ByteBuffer] to a [UByteBuffer], retaining the same capacity, position, limit
@@ -512,6 +521,11 @@ class UByteBuffer(
 
     constructor(bytes: UByteArray, order: ByteOrder = ByteOrder.LittleEndian) :
             this(bytes.size, order, false, bytes)
+
+    override fun flip(): UByteBuffer {
+        super.flip()
+        return this
+    }
 
     /**
      * Convert from a [UByteBuffer] to a [ByteBuffer], retaining the same capacity, position, limit

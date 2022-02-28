@@ -346,10 +346,11 @@ abstract class Buffer<Element, Array> internal constructor(
      *
      * @return This buffer
      */
-    open fun flip() {
+    open fun flip(): Buffer<Element, Array> {
         limit = position
         position = 0
         mark = noMark
+        return this
     }
 
     /**

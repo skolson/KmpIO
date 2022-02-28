@@ -110,11 +110,11 @@ Again this was built before more robust libraries like OKIO existed. It is a sim
 
 ## RawFile
 
-Similar to file but for random access by byte position, and no help for encoding. Typical usage is for reading/writing ByteBuffers (blocks) of data at a specified position and doing manual encoding/decoding.
+For random access reading/writing by byte position, with no help for encoding. Typical usage is for reading/writing ByteBuffers (blocks) of data either sequentially or at a specified position. RawFile supports granular control over read/write using Buffers.  It also has convenience wrappers using basic buffered source/sink design. Read/Source content is supplied by one or more buffers of any size.  Write/Sink content is written using one or more buffers of any size. A Stream-based implementation was purposely not done to keep designs simpler.
 
 ## TextFile
 
-Help for reading/decoding and/or writing/encoding files using a specified Charset and standard line separators.  Platform-specific implementations using expect/actual setup are used to provide basic text processing with kotlin-friendly syntax.
+Similar to RawFile, with support for reading/decoding and/or writing/encoding text-only files using a specified Charset and standard line separators.  Platform-specific implementations using expect/actual setup are used to provide basic text processing with kotlin-friendly syntax.
 
 ## ZipFile
 
@@ -133,6 +133,15 @@ Used for reading or writing Zip/archive files using Kotlin-friendly, platform-in
     - End of Central Directory record
     - Zip64 End of Central Directory record and locator record
     - others
+
+## Compression
+
+Compress/de-compress content using selected Algorithms. This support is using expect/actual setup. Design is similar to File support in that all compression algorithms are implemented using the same basic buffered source/sink design. Input/Source content is supplied by one or more buffers of any size.  Output/Sink content is produced using one or more buffers of any size, until Source input is complete.
+
+- java/Android using Inflater/Deflater classes for Zip specification DEFLATE support
+- Apple using built in Objective-C compression wrapper over zLib for Zip specification DEFLATE support
+  - Apple also supports LZMA
+  
 
 ## Extensions
 

@@ -49,7 +49,7 @@ actual class TimeZones {
     }
 }
 
-actual class File actual constructor(filePath: String, platformFd: FileDescriptor?) {
+actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
             this(parentDirectory + name, null)
 

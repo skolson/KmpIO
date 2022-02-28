@@ -7,7 +7,7 @@ Pod::Spec.new do |spec|
     spec.license                  = 'Apache 2.0'
     spec.summary                  = 'Kotlin Multiplatform API for basic File I/O'
 
-    spec.vendored_frameworks      = "build\cocoapods\framework/KmpIO.framework"
+    spec.vendored_frameworks      = "build/cocoapods/framework/KmpIO.framework"
     spec.libraries                = "c++"
     spec.module_name              = "#{spec.name}_umbrella"
 
@@ -32,7 +32,7 @@ Pod::Spec.new do |spec|
                 fi
                 set -ev
                 REPO_ROOT="$PODS_TARGET_SRCROOT"
-                "$REPO_ROOT/..\gradlew" -p "$REPO_ROOT" $KOTLIN_PROJECT_PATH:syncFramework \
+                "$REPO_ROOT/../gradlew" -p "$REPO_ROOT" $KOTLIN_PROJECT_PATH:syncFramework \
                     -Pkotlin.native.cocoapods.platform=$PLATFORM_NAME \
                     -Pkotlin.native.cocoapods.archs="$ARCHS" \
                     -Pkotlin.native.cocoapods.configuration=$CONFIGURATION

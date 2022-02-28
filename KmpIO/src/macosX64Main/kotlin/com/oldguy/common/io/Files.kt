@@ -25,7 +25,7 @@ actual class TimeZones {
     }
 }
 
-actual class File actual constructor(filePath: String, platformFd: FileDescriptor?)
+actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
     : AppleFile(filePath, platformFd){
 
     actual constructor(parentDirectory: String, name: String) : this(makePath(parentDirectory, name), null)
