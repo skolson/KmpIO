@@ -186,7 +186,6 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
                 matches.ptr,
                 null
             )
-            println("path count: $count")
             return when (count.toInt()) {
                 0 -> emptyList()
                 1 -> listOf(result.value ?: "")

@@ -264,11 +264,10 @@ class ZipFile(
         }
 
     override suspend fun addEntry(entry: ZipEntry) {
-        checkWriteMode()
-        if (map.containsKey(entry.name))
-            throw IllegalArgumentException("Entry with name ${entry.name} already added")
-        map[entry.name] = entry
-        pendingChanges = true
+        insertEntry(entry)
+        writeEntry(entry) {
+            WriteResult(0UL, 0UL, 0)
+        }
     }
 
     private data class WriteResult(
@@ -286,7 +285,7 @@ class ZipFile(
 
     override suspend fun addEntry(entry: ZipEntry,
                                   inputBlock: suspend () -> ByteArray) {
-        addEntry(entry)
+        insertEntry(entry)
         writeEntry(entry) {
             var uncompressed = 0UL
             val crc = Crc32()
@@ -302,6 +301,14 @@ class ZipFile(
             }
             WriteResult(compressed, uncompressed, crc.result)
         }
+    }
+
+    private fun insertEntry(entry: ZipEntry) {
+        checkWriteMode()
+        if (map.containsKey(entry.name))
+            throw IllegalArgumentException("Entry with name ${entry.name} already added")
+        map[entry.name] = entry
+        pendingChanges = true
     }
 
     private suspend fun writeEntry(entry: ZipEntry, content: suspend (entry: ZipEntry) -> WriteResult) {

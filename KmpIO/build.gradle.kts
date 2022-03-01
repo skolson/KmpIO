@@ -211,11 +211,13 @@ kotlin {
         all {
             if (this.name.endsWith("Test")) {
                 languageSettings {
+                    optIn("kotlin.ExperimentalUnsignedTypes")
                     optIn("kotlin.ExperimentalCoroutinesApi")
                 }
-            }
-            languageSettings {
-                optIn("kotlin.ExperimentalUnsignedTypes")
+            } else {
+                languageSettings {
+                    optIn("kotlin.ExperimentalUnsignedTypes")
+                }
             }
         }
     }

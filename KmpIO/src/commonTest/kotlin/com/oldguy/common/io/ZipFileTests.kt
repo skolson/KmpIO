@@ -317,4 +317,31 @@ class ZipFileTests {
             }
         }
     }
+
+    @Test
+    fun saveDirAndFile() {
+        runTest {
+            val dir = workDirectory()
+            val oneFileZip = File(dir, "saveDirAndOne.zip")
+            oneFileZip.delete()
+            val entryFile = File(testDirectory(), testImageFileName)
+            ZipFile(oneFileZip, FileMode.Write).use {
+                it.addEntry(ZipEntry("anydirName"))
+                it.zipFile(entryFile)
+            }
+            ZipFile(oneFileZip).use { e ->
+                assertEquals(2, e.map.size)
+                assertTrue(e.map.containsKey(testImageFileName))
+                assertTrue(e.map.containsKey("anydirName"))
+                val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
+                assertEquals(testImageFileName, t.name)
+                assertEquals(3650UL, t.entryDirectory.uncompressedSize)
+                e.map["anydirName"]?.let {
+                    assertEquals(0UL, it.entryDirectory.uncompressedSize)
+                    assertEquals(0UL, it.entryDirectory.compressedSize)
+                }
+            }
+            println("Path: ${oneFileZip.fullPath}")
+        }
+    }
 }

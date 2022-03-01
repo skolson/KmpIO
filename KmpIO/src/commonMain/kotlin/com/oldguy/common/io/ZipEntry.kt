@@ -32,7 +32,7 @@ class ZipDirectory(
             if (it.compressedSize >= 0)
                 it.compressedSize.toULong()
             else null
-        } ?: if (directory.intCompressedSize > 0)
+        } ?: if (directory.intCompressedSize >= 0)
             directory.intCompressedSize.toULong()
         else
             throw IllegalStateException("Bug: using compressedSize property when negative")
@@ -42,7 +42,7 @@ class ZipDirectory(
             if (it.uncompressedSize >= 0)
                 it.uncompressedSize.toULong()
             else null
-        } ?: if (directory.intUncompressedSize > 0)
+        } ?: if (directory.intUncompressedSize >= 0)
             directory.intUncompressedSize.toULong()
         else
             throw IllegalStateException("Bug: using uncompressedSize property when negative")
