@@ -413,14 +413,6 @@ Each ZipEntry returned has properties that can be used to see all the data in th
       ZipFile(File("anything.zip").use { zip ->
           // zip.map is a map keyed by name of all ZipEntry instances
           // zip.entries is the map values as a List
-          zip.bufferSize = 8096 // default is 4K, used during reading entry content
-          /*
-           override defaults in the ZipFile here, like:
-              isZip64 = true
-              comment = "Whatever text you want stored at the end of the ZipFile as a File level comment. See the Zip spec."
-              parser = { it -> ZipExtraParser(it) }   // Can pass a subclass of default ZipExtraParser if desired, argument is a 
-                                                      // ZipDirectoryCommon instance which is either a ZipDirectoryRecord or a ZipLocalRecord 
-           */ 
           zip.entries
             .filter { it.name.contains(".txt"}
             .apply {
