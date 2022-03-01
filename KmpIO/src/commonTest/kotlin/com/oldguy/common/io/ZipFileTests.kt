@@ -286,4 +286,35 @@ class ZipFileTests {
             }
         }
     }
+
+    @Test
+    fun twoPlusMergeTest() {
+        runTest {
+            val dir = workDirectory()
+            val mergedZip = File(dir, "merged.zip")
+            mergedZip.delete()
+            val entryFile = File(testDirectory(), testImageFileName)
+            ZipFile(mergedZip, FileMode.Write).use {
+                it.zipFile(entryFile)
+                it.zipFile(entryFile, "Copy${entryFile.name}")
+                it.merge(ZipFile(testFile()))
+            }
+            ZipFile(mergedZip).use { zip ->
+                zip.entries.apply {
+                    assertEquals(64, size)
+                    assertTrue(zip.map.containsKey(readme))
+                    assertTrue { zip.map.containsKey(testImageFileName) }
+                    assertTrue { zip.map.containsKey("Copy$testImageFileName") }
+                    assertEquals(61, count { it.name.startsWith("drawable") })
+                    assertEquals(1, count { it.name.startsWith("drawable/") })
+                    assertEquals(1, count { it.name == "drawable/help.xml" })
+                    assertEquals(12, count { it.name.startsWith("drawable-hdpi") })
+                    assertEquals(12, count { it.name.startsWith("drawable-mdpi") })
+                    assertEquals(12, count { it.name.startsWith("drawable-xhdpi") })
+                    assertEquals(12, count { it.name.startsWith("drawable-xxhdpi") })
+                    assertEquals(12, count { it.name.startsWith("drawable-xxxhdpi") })
+                }
+            }
+        }
+    }
 }

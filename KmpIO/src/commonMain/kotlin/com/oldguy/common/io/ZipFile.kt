@@ -1,5 +1,10 @@
 package com.oldguy.common.io
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.launch
 import kotlin.math.min
 
 /**
@@ -18,6 +23,10 @@ interface ZipFileBase: Closeable {
     var isZip64: Boolean
     var comment: String
     var textEndOfLine: String
+
+    suspend fun exists(): Boolean {
+        return file.file.exists
+    }
 
     /**
      * Add one entry to a FileMode.Write file.  The entry is added after any existing entries in the zip file, and the
@@ -82,7 +91,7 @@ interface ZipFileBase: Closeable {
      * entry is added to the end of this one. Directory is re-written after all entries have been copied.
      * @param zipFiles one or more ZipFile instances
      */
-    fun merge(vararg zipFiles: ZipFile): List<ZipEntry>
+    suspend fun merge(vararg zipFiles: ZipFile): List<ZipEntry>
 
     /**
      * Opens a Zip file. For FileMode Read, and for FileMode.Write where there is an existing file, all directory entries
@@ -268,9 +277,7 @@ class ZipFile(
                     }
                 }
             ) {
-                println("PreWrite data: ${file.position}")
                 file.write(ByteBuffer(it))
-                println("PostWrite data: ${file.position}")
             }
             WriteResult(compressed, uncompressed, crc.result)
         }
@@ -297,7 +304,6 @@ class ZipFile(
                 ZipDataDescriptor(crc, compressed, uncompressed).apply {
                     allocateBuffer(isZip64).apply {
                         encode(this, isZip64)
-                        println("Data descriptor write position: ${file.position}")
                         file.write(this)
                     }
                 }
@@ -333,8 +339,33 @@ class ZipFile(
         pendingChanges = false
     }
 
-    override fun merge(vararg zipFiles: ZipFile): List<ZipEntry> {
-        TODO("Not yet implemented")
+    override suspend fun merge(vararg zipFiles: ZipFile): List<ZipEntry> {
+        checkWriteMode()
+        val list = mutableListOf<ZipEntry>()
+        zipFiles.forEach { inZip ->
+            if (inZip.exists()) {
+                inZip.use {
+                    it.entries.forEach {
+                        val ch = Channel<ByteArray>(5)
+                        CoroutineScope(Dispatchers.Default).launch {
+                            inZip.readEntry(it) { _, content, count ->
+                                ch.send(content.sliceArray(0 until count.toInt()))
+                            }
+                            ch.close()
+                        }
+                        val newEntry = ZipEntry(it.name, extraArg = it.entryDirectory.extras)
+                        addEntry(newEntry) {
+                            try { ch.receive()}
+                            catch (e: ClosedReceiveChannelException) {
+                                ByteArray(0)
+                            }
+                        }
+                        list.add(newEntry)
+                    }
+                }
+            }
+        }
+        return list
     }
 
     override suspend fun open() {

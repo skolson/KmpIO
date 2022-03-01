@@ -5,13 +5,7 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
     private val apple = AppleCompression(algorithm)
     override val bufferSize = 4096
-
-    actual suspend fun compress(strategy: Strategy,
-                                input: suspend () -> ByteBuffer,
-                                output: suspend (buffer: ByteBuffer) -> Unit
-    ): ULong {
-        return apple.compress(input, output)
-    }
+    actual var strategy = Strategy.Default
 
     /**
      * Call this with one or more blocks of data to compress any amount of data using the algorithm specified at
@@ -25,14 +19,7 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual override suspend fun compress(input: suspend () -> ByteBuffer,
                                          output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        return compress(Strategy.Default, input, output)
-    }
-
-    actual suspend fun compressArray(strategy: Strategy,
-                                     input: suspend () -> ByteArray,
-                                     output: suspend (buffer: ByteArray) -> Unit
-    ): ULong {
-        return apple.compressArray(input, output)
+        return apple.compress(input, output)
     }
 
     /**

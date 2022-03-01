@@ -13,30 +13,11 @@ import java.util.zip.Inflater
  * a deflater and inflater that do not use the same nowrap option.
  * Nowrap = true adds a header and CRC to the payload on deflate, and expects these on inflate
  */
-actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression {
+actual class CompressionDeflate actual constructor(val noWrap: Boolean): Compression {
     actual enum class Strategy {Default, Filtered, Huffman}
     actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
     override val bufferSize = 4096
-
-    private val inflater = Inflater(noWrap)
-    private var deflater = Deflater(Deflater.DEFAULT_STRATEGY, noWrap)
-
-    private fun setDeflater(strategy: Strategy) {
-        deflater = Deflater(when (strategy) {
-            Strategy.Default -> Deflater.DEFAULT_STRATEGY
-            Strategy.Filtered -> Deflater.FILTERED
-            Strategy.Huffman -> Deflater.HUFFMAN_ONLY
-        }, true)
-    }
-
-    actual suspend fun compress(strategy: Strategy,
-                        input: suspend () -> ByteBuffer,
-                        output: suspend (buffer: ByteBuffer) -> Unit
-    ): ULong {
-        setDeflater(strategy)
-        return compress(input, output)
-    }
-
+    actual var strategy = Strategy.Default
 
     /**
      * Call this with one or more blocks of data to compress any amount of data using the algorithm specified at
@@ -59,14 +40,6 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
         }
     }
 
-    actual suspend fun compressArray(strategy: Strategy,
-                                     input: suspend () -> ByteArray,
-                                     output: suspend (buffer: ByteArray) -> Unit
-    ): ULong {
-        setDeflater(strategy)
-        return compressArray(input, output)
-    }
-
     /**
      * Call this with one or more blocks of data to compress any amount of data using the algorithm specified at
      * constructor time.
@@ -79,35 +52,45 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
                                               output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
         var count = 0UL
-        deflater.apply {
-            reset()
-            val out = ByteArray(bufferSize)
-            var run = true
-            while (run) {
-                input().also {
-                    if (it.isEmpty()) {
-                        finish()
-                        while (!finished()) {
-                            val opCount = deflate(out)
-                            if (opCount > 0) {
-                                output(out.sliceArray(0 until opCount))
-                                count += opCount.toUInt()
+        Deflater(
+            when (strategy) {
+                Strategy.Default -> Deflater.DEFAULT_STRATEGY
+                Strategy.Filtered -> Deflater.FILTERED
+                Strategy.Huffman -> Deflater.HUFFMAN_ONLY
+            }
+            , noWrap
+        ).apply {
+            try {
+                reset()
+                val out = ByteArray(bufferSize)
+                var run = true
+                while (run) {
+                    input().also {
+                        if (it.isEmpty()) {
+                            finish()
+                            while (!finished()) {
+                                val opCount = deflate(out)
+                                if (opCount > 0) {
+                                    output(out.sliceArray(0 until opCount))
+                                    count += opCount.toUInt()
+                                }
                             }
-                        }
-                        run = false
-                    } else {
-                        setInput(it)
-                        while (!needsInput()) {
-                            val opCount = deflate(out)
-                            if (opCount > 0) {
-                                output(out.sliceArray(0 until opCount))
-                                count += opCount.toUInt()
+                            run = false
+                        } else {
+                            setInput(it)
+                            while (!needsInput()) {
+                                val opCount = deflate(out)
+                                if (opCount > 0) {
+                                    output(out.sliceArray(0 until opCount))
+                                    count += opCount.toUInt()
+                                }
                             }
                         }
                     }
                 }
+            } finally {
+                end()
             }
-            end()
         }
         return count
     }
@@ -134,25 +117,28 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
         var outCount = 0UL
         var inBuf = input()
         val outBuf = ByteArray(inBuf.capacity)
-        inflater.apply {
-            reset()
-            val b = inBuf.getBytes()
-            setInput(b)
-            var count: Int
-            while (!finished()) {
-                count = inflate(outBuf)
-                if (count > 0) {
-                    output(ByteBuffer(outBuf.sliceArray(0 until count)))
-                    outCount += count.toULong()
+        Inflater(noWrap).apply {
+            try {
+                reset()
+                val b = inBuf.getBytes()
+                setInput(b)
+                var count: Int
+                while (!finished()) {
+                    count = inflate(outBuf)
+                    if (count > 0) {
+                        output(ByteBuffer(outBuf.sliceArray(0 until count)))
+                        outCount += count.toULong()
+                    }
+                    if (!finished() && needsInput()) {
+                        inBuf = input()
+                        if (!inBuf.hasRemaining)
+                            throw IllegalStateException("More compressed bytes expected, input buffer empty")
+                        setInput(inBuf.getBytes())
+                    }
                 }
-                if (!finished() && needsInput()) {
-                    inBuf = input()
-                    if (!inBuf.hasRemaining)
-                        throw IllegalStateException("More compressed bytes expected, input buffer empty")
-                    setInput(inBuf.getBytes())
-                }
+            } finally {
+                end()
             }
-            end()
         }
         return outCount
     }

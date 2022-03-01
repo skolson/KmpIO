@@ -11,23 +11,13 @@ package com.oldguy.common.io
 expect class CompressionDeflate constructor(noWrap: Boolean): Compression {
     enum class Strategy {Default, Filtered, Huffman}
     override val algorithm: CompressionAlgorithms
+    var strategy: Strategy
 
-    /**
-     * Use this to invoke the [compress] operation using a specified Strategy.
-     */
-    suspend fun compress(strategy: Strategy,
-                         input: suspend () -> ByteBuffer,
-                         output: suspend (buffer: ByteBuffer) -> Unit
-    ): ULong
     override suspend fun compress(input: suspend () -> ByteBuffer,
                                   output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong
     override suspend fun compressArray(input: suspend () -> ByteArray,
                                        output: suspend (buffer: ByteArray) -> Unit
-    ): ULong
-    suspend fun compressArray(strategy: Strategy,
-                              input: suspend () -> ByteArray,
-                              output: suspend (buffer: ByteArray) -> Unit
     ): ULong
     override suspend fun decompress(
         input: suspend () -> ByteBuffer,

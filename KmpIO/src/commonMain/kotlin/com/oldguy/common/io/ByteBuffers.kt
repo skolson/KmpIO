@@ -204,6 +204,15 @@ abstract class ByteBufferBase<Element, Array> constructor(
     }
 }
 
+/**
+ * Enhance byte array implementing the Buffer interface which provides position/limit/remaining/capacity tracking, and
+ * support for either little endian or big endian encoding of basic numeric types. See [ByteBufferBase] and [Buffer] for
+ * more details.
+ * @param capacity starting size of buffer in bytes
+ * @param order defaults to little endian encoding of numeric types
+ * @param isReadOnly true if for some reason opeations that change content should throw an exception
+ * @param buf defaults to a ByteArray of specified [capacity]
+ */
 class ByteBuffer(
     capacity: Int,
     order: ByteOrder = ByteOrder.LittleEndian,
@@ -212,6 +221,12 @@ class ByteBuffer(
 ): ByteBufferBase<Byte, ByteArray>(capacity, order, isReadOnly)
 {
 
+    /**
+     * Construct a ByteBuffer from an existing ByteArray
+     * @param bytes becomes the buffer content (not a copy). capacity is set to the ByteArray size, position is set to
+     * zero
+     * @param order defaults to little endian encoding of numeric types
+     */
     constructor(bytes: ByteArray, order: ByteOrder = ByteOrder.LittleEndian) :
             this(bytes.size, order, false, bytes)
 

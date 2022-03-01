@@ -23,7 +23,7 @@ class Adler32 {
         val ff = 0xff.toByte()
         var len = length
         if (len == 1) {
-            s1 += (buf[index++] and ff).toLong()
+            s1 += (buf[index] and ff).toLong()
             s2 += s1
             s1 %= BASE.toLong()
             s2 %= BASE.toLong()
