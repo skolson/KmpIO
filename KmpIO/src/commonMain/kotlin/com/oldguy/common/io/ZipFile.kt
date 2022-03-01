@@ -79,7 +79,19 @@ interface ZipFileBase: Closeable {
     )
 
     /**
-     * Call this on FileMode.Write files after one or more addEntry operations to save the
+     * Copy one entry from the source Zip to this one.
+     * @param sourceZip source file, treated as read-only
+     * @param sourceEntry must be one of the valid entries in sourceZip
+     * @param newEntry will be saved into this zip, with a copy of the data from [sourceEntry]
+     */
+    suspend fun copyEntry(
+        sourceZip:ZipFile,
+        sourceEntry: ZipEntry,
+        newEntry: ZipEntry
+    )
+
+    /**
+     * Call this on FileMode.Write files after one or more add/merge operations to save the
      * updated directory structure.  If not called explicitly, will be called on close. After the
      * first addEntry, readEntry calls will cause exceptions. finish() must be called before readEntry
      * calls are usable again.
@@ -89,9 +101,18 @@ interface ZipFileBase: Closeable {
     /**
      * Merges the specified Zip files into this one. Input zipfile entries with matching paths are ignored. Each new
      * entry is added to the end of this one. Directory is re-written after all entries have been copied.
-     * @param zipFiles one or more ZipFile instances
+     * @param zipFile ZipFile instance whose entries are merged into the current Zip. File is opened read-only.
+     * @param filter invoked once for each entry found in the zip file being merged, Arguments are:
+     * original: entry from the file being merged.
+     * new: the ZipEntry copied from the original
+     * IF function provided, must return true to have entry merged, false to skip. Function can make changes to the new
+     * instance since this is invoked before actual writing of the entry and its data.
+     * @return list of entries added/merged
      */
-    suspend fun merge(vararg zipFiles: ZipFile): List<ZipEntry>
+    suspend fun merge(
+        zipFile: ZipFile,
+        filter: ((original: ZipEntry, new: ZipEntry) -> Boolean)? = null
+    ): List<ZipEntry>
 
     /**
      * Opens a Zip file. For FileMode Read, and for FileMode.Write where there is an existing file, all directory entries
@@ -339,33 +360,47 @@ class ZipFile(
         pendingChanges = false
     }
 
-    override suspend fun merge(vararg zipFiles: ZipFile): List<ZipEntry> {
+    override suspend fun merge(
+        zipFile: ZipFile,
+        filter: ((original: ZipEntry, new: ZipEntry) -> Boolean)?
+    ): List<ZipEntry> {
         checkWriteMode()
         val list = mutableListOf<ZipEntry>()
-        zipFiles.forEach { inZip ->
-            if (inZip.exists()) {
-                inZip.use {
-                    it.entries.forEach {
-                        val ch = Channel<ByteArray>(5)
-                        CoroutineScope(Dispatchers.Default).launch {
-                            inZip.readEntry(it) { _, content, count ->
-                                ch.send(content.sliceArray(0 until count.toInt()))
-                            }
-                            ch.close()
-                        }
-                        val newEntry = ZipEntry(it.name, extraArg = it.entryDirectory.extras)
-                        addEntry(newEntry) {
-                            try { ch.receive()}
-                            catch (e: ClosedReceiveChannelException) {
-                                ByteArray(0)
-                            }
-                        }
+        if (zipFile.exists()) {
+            zipFile.use { merge ->
+                merge.entries.forEach {
+                    val newEntry = ZipEntry(
+                        it.name,
+                        isZip64,
+                        it.comment,
+                        extraArg = it.entryDirectory.extras,
+                        lastModTime = it.zipTime.zipTime
+                    )
+                    if (filter?.invoke(it, newEntry) != false) {
+                        copyEntry(zipFile, it, newEntry)
                         list.add(newEntry)
                     }
                 }
             }
         }
         return list
+    }
+
+    override suspend fun copyEntry(sourceZip: ZipFile, sourceEntry: ZipEntry, newEntry: ZipEntry) {
+        val ch = Channel<ByteArray>(5)
+        CoroutineScope(Dispatchers.Default).launch {
+            sourceZip.readEntry(sourceEntry) { _, content, count ->
+                ch.send(content.sliceArray(0 until count.toInt()))
+            }
+            ch.close()
+        }
+        addEntry(newEntry) {
+            try {
+                ch.receive()
+            } catch (e: ClosedReceiveChannelException) {
+                ByteArray(0)
+            }
+        }
     }
 
     override suspend fun open() {

@@ -134,7 +134,7 @@ kotlin {
             framework {
                 appleXcf.add(this)
                 isStatic = true
-                freeCompilerArgs += listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
+                freeCompilerArgs = freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
             }
         }
     }
@@ -144,11 +144,12 @@ kotlin {
                 appleXcf.add(this)
                 isStatic = true
                 embedBitcode("bitcode")
-                freeCompilerArgs += listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
+                freeCompilerArgs = freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
             }
         }
     }
 
+    @Suppress("UNUSED_VARIABLE")
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -208,9 +209,13 @@ kotlin {
             dependsOn(appleNativeTest)
         }
         all {
+            if (this.name.endsWith("Test")) {
+                languageSettings {
+                    optIn("kotlin.ExperimentalCoroutinesApi")
+                }
+            }
             languageSettings {
                 optIn("kotlin.ExperimentalUnsignedTypes")
-                optIn("kotlin.ExperimentalCoroutinesApi")
             }
         }
     }
