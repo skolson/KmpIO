@@ -116,6 +116,7 @@ actual class CompressionDeflate actual constructor(val noWrap: Boolean): Compres
     ): ULong {
         var outCount = 0UL
         var inBuf = input()
+        if (!inBuf.hasRemaining) return outCount
         val outBuf = ByteArray(inBuf.capacity)
         Inflater(noWrap).apply {
             try {
