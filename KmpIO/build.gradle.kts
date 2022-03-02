@@ -11,7 +11,7 @@ plugins {
     id("signing")
     id("kotlinx-atomicfu")
     id("org.jetbrains.dokka") version "1.6.10"
-    id("com.github.ben-manes.versions") version "0.39.0"
+    id("com.github.ben-manes.versions") version "0.42.0"
 }
 
 repositories {
@@ -32,6 +32,7 @@ val kmpPackageName = "com.oldguy.common.io"
 
 val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
 val javadocTaskName = "javadocJar"
+val kotlinCoroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0"
 
 android {
     compileSdk = androidTargetSdkVersion
@@ -161,7 +162,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0")
+                implementation(kotlinCoroutinesTest)
             }
         }
         val androidMain by getting {
@@ -190,7 +191,7 @@ kotlin {
             dependsOn(commonTest)
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0")
+                implementation(kotlinCoroutinesTest)
             }
         }
         val iosX64Main by getting {

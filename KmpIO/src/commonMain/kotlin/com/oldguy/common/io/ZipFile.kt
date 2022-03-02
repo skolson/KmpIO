@@ -456,13 +456,13 @@ class ZipFile(
                             throw ZipException("Uncompressing file $name, data descriptor compressed: ${it.compressedSize}, expected: $compressedSize")
                         if (it.uncompressedSize != uncompressedSize)
                             throw ZipException("Uncompressing file $name, data descriptor uncompressed: ${it.uncompressedSize}, expected: $uncompressedSize")
-                        if (it.crc32 != crc32)
+                        if (it.crc32 != entry.directory.crc32)
                             throw ZipException(
                                 "Reading file $name, data descriptor crc: ${
                                     it.crc32.toString(
                                         16
                                     )
-                                }, expected: ${crc32.toString(16)}"
+                                }, expected: ${entry.directory.crc32.toString(16)}"
                             )
                     }
                 }
