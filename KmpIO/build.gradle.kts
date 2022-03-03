@@ -23,7 +23,7 @@ repositories {
 val mavenArtifactId = "kmp-io"
 val appleFrameworkName = "KmpIO"
 group = "com.oldguy"
-version = "0.1.0"
+version = "0.1.1"
 
 val androidMinSdk = 26
 val androidTargetSdkVersion = 32

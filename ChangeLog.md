@@ -1,5 +1,11 @@
 # Change Log
 
+### 0.1.1 (2022-03)
+
+- Fix CRC check when data descriptor is present
+- add last: Boolean argument to various readEntry methods to indicate last call - all data for entry is read. 
+- renamed ZipEntry property "entryDirectory" to "directories" 
+
 ### 0.1.0 (2022-02)
 
 - Existing full Android support

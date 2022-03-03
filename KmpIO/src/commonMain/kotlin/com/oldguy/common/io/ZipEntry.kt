@@ -111,10 +111,10 @@ class ZipEntry(
     directoryRecordArg:ZipDirectoryRecord,
     parserFactory: ExtraParserFactory
 ) {
-    val entryDirectory = ZipDirectory(directoryRecordArg, parserFactory)
-    val extraParser get() = entryDirectory.parser
-    val localExtraParser get() = entryDirectory.localParser
-    val directory get() = entryDirectory.directoryRecord
+    val directories = ZipDirectory(directoryRecordArg, parserFactory)
+    val extraParser get() = directories.parser
+    val localExtraParser get() = directories.localParser
+    val directory get() = directories.directoryRecord
     val name get() = directory.name
     val comment get() = directory.comment
 
@@ -186,7 +186,7 @@ class ZipEntry(
     }
 
     fun addOrReplace(extra: ZipExtra) {
-        entryDirectory.addOrReplace(extra)
+        directories.addOrReplace(extra)
     }
 
     fun updateDirectory(
@@ -196,7 +196,7 @@ class ZipEntry(
         crc: Int,
         localFileOffset: ULong
     ) {
-        entryDirectory.update(ZipDirectoryRecord(
+        directories.update(ZipDirectoryRecord(
             directory.version,
             directory.versionMinimum,
             ZipGeneralPurpose.defaultValue.shortValue,
@@ -223,7 +223,7 @@ class ZipEntry(
      * This is a copy constructor of the current directory using updated values from the entry.
      */
     private fun updateDirectory() {
-        entryDirectory.update(ZipDirectoryRecord(
+        directories.update(ZipDirectoryRecord(
             directory.version,
             directory.versionMinimum,
             ZipGeneralPurpose.defaultValue.shortValue,

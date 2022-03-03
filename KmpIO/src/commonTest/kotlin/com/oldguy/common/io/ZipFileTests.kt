@@ -53,7 +53,7 @@ class ZipFileTests {
                     assertEquals(12, count { it.name.startsWith("drawable-xxhdpi") })
                     assertEquals(12, count { it.name.startsWith("drawable-xxxhdpi") })
                 }
-                zip.readEntry(readme) { entry, content, count ->
+                zip.readEntry(readme) { entry, content, count, last ->
                     assertEquals(readme, entry.name)
                     assertEquals("", entry.comment)
                     val s = ZipRecord.zipCharset.decode(content)
@@ -61,17 +61,19 @@ class ZipFileTests {
                     assertEquals(148u, count)
                     assertEquals(148, s.length)
                     assertEquals(testFileTime2, entry.timeModified)
+                    assertEquals(true, last)
                 }
                 val imgBuf = ByteBuffer(4096)
                 val fileSize = RawFile(imgFile).read(imgBuf).toInt()
                 imgBuf.positionLimit(0, fileSize)
                 assertEquals(3650, fileSize)
-                zip.readEntry(binaryFile) { entry, content, count ->
+                zip.readEntry(binaryFile) { entry, content, count, last ->
                     assertEquals(binaryFile, entry.name)
                     assertEquals(3650, count.toInt())
                     assertEquals(3650, content.size)
                     assertTrue(imgBuf.getBytes(imgBuf.remaining).contentEquals(content))
                     assertEquals(testFileTime2, entry.timeModified)
+                    assertEquals(true, last)
                 }
             }
         }
@@ -88,20 +90,24 @@ class ZipFileTests {
                 (it.map["0000"]
                     ?: throw IllegalStateException("0000 file not found")).apply {
                     val uSize = 5242880UL * 1024UL
-                    entryDirectory.apply {
+                    directories.apply {
                         assertEquals(5611526UL, compressedSize)
                         assertEquals(uSize, uncompressedSize)
                         assertEquals(0UL, localHeaderOffset)
                     }
                     var uncompressedCount = 0UL
                     var gb = 1UL
-                    it.readEntry(name) { entry, content, count ->
+                    it.readEntry(name) { entry, content, count, last ->
                         assertEquals(count, content.size.toUInt())
                         assertEquals("0000", entry.name)
                         uncompressedCount += count
                         if (uncompressedCount > gb * 1000000000UL) {
                             println("Decompressed ${gb++}GB")
                         }
+                        if (uncompressedCount == entry.directories.uncompressedSize)
+                            assertEquals(true, last)
+                        else
+                            assertEquals(false, last)
                     }
                     assertEquals(uSize, uncompressedCount)
                 }
@@ -269,18 +275,18 @@ class ZipFileTests {
                 assertTrue(e.map.containsKey(testImageFileName))
                 val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
                 assertEquals(testImageFileName, t.name)
-                assertEquals(3650UL, t.entryDirectory.uncompressedSize)
+                assertEquals(3650UL, t.directories.uncompressedSize)
                 val copy = File(workDirectory(), "Copy$testImageFileName")
                 copy.delete()
                 RawFile(copy, FileMode.Write).use {
-                    (e.readEntry(testImageFileName) { _, bytes, count ->
+                    (e.readEntry(testImageFileName) { _, bytes, count, _ ->
                         assertEquals(3650, bytes.size)
                         assertEquals(3650u, count)
                         it.write(ByteBuffer(bytes))
                     }).apply {
                         assertEquals(testImageFileName, name)
-                        assertEquals(3655UL, entryDirectory.compressedSize)
-                        assertEquals(3650UL, entryDirectory.uncompressedSize)
+                        assertEquals(3655UL, directories.compressedSize)
+                        assertEquals(3650UL, directories.uncompressedSize)
                     }
                 }
             }
@@ -335,10 +341,10 @@ class ZipFileTests {
                 assertTrue(e.map.containsKey("anydirName"))
                 val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
                 assertEquals(testImageFileName, t.name)
-                assertEquals(3650UL, t.entryDirectory.uncompressedSize)
+                assertEquals(3650UL, t.directories.uncompressedSize)
                 e.map["anydirName"]?.let {
-                    assertEquals(0UL, it.entryDirectory.uncompressedSize)
-                    assertEquals(0UL, it.entryDirectory.compressedSize)
+                    assertEquals(0UL, it.directories.uncompressedSize)
+                    assertEquals(0UL, it.directories.compressedSize)
                 }
             }
             println("Path: ${oneFileZip.fullPath}")

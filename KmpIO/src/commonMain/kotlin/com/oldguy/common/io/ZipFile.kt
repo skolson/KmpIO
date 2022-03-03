@@ -128,16 +128,27 @@ interface ZipFileBase: Closeable {
      * entry - ZipEntry found with the specified name,
      * content - containing uncompressed data
      * count - number of uncompressed bytes, starting at index 0, in content
+     * last - true on last call, all bytes read. false otherwise
      * @return ZipEntry found, after all content retrieved.
      */
     suspend fun readEntry(
         entryName: String,
-        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
+        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt, last: Boolean) -> Unit
     ): ZipEntry
 
+    /**
+     * Reads the content from one entry.
+     * @param entry if no matching name found in directory, exception is thrown
+     * @param block is invoked repeatedly with uncompressed content. Arguments are;
+     * entry - ZipEntry found with the specified name,
+     * content - containing uncompressed data
+     * count - number of uncompressed bytes, starting at index 0, in content
+     * last - true on last call, all bytes read. false otherwise
+     * @return ZipEntry found, after all content retrieved.
+     */
     suspend fun readEntry(
         entry: ZipEntry,
-        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
+        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt, last: Boolean) -> Unit
     )
 
     /**
@@ -146,15 +157,14 @@ interface ZipFileBase: Closeable {
      * @param entryName if no matching name found in directory, exception is thrown
      * @param charset to be used when decoding uncompressed data to a String.
      * @param block is invoked repeatedly with uncompressed content in blocks of [bufferSize] bytes. Arguments are;
-     * entry - ZipEntry found with the specified name,
-     * content - containing uncompressed string decoded from the byte content using the Charset
-     * count - number of uncompressed bytes, starting at index 0, in content
+     * text - containing uncompressed string decoded from the byte content using the Charset
+     * last - true on last call, all bytes read. false otherwise
      * @return ZipEntry found, after all content retrieved.
      */
     suspend fun readTextEntry(
         entryName: String,
         charset: Charset = Charset(Charsets.Utf8),
-        block: suspend (text: String) -> Unit
+        block: suspend (text: String, last: Boolean) -> Unit
     ): ZipEntry
 
     /**
@@ -380,7 +390,7 @@ class ZipFile(
                         it.name,
                         isZip64,
                         it.comment,
-                        extraArg = it.entryDirectory.extras,
+                        extraArg = it.directories.extras,
                         lastModTime = it.zipTime.zipTime
                     )
                     if (filter?.invoke(it, newEntry) != false) {
@@ -396,7 +406,7 @@ class ZipFile(
     override suspend fun copyEntry(sourceZip: ZipFile, sourceEntry: ZipEntry, newEntry: ZipEntry) {
         val ch = Channel<ByteArray>(5)
         CoroutineScope(Dispatchers.Default).launch {
-            sourceZip.readEntry(sourceEntry) { _, content, count ->
+            sourceZip.readEntry(sourceEntry) { _, content, count, _ ->
                 ch.send(content.sliceArray(0 until count.toInt()))
             }
             ch.close()
@@ -429,7 +439,7 @@ class ZipFile(
 
     override suspend fun readEntry(
         entryName: String,
-        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
+        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt, last: Boolean) -> Unit
     ): ZipEntry {
         if (pendingChanges)
             throw ZipException("Pending changes not saved to directory. Call close() or finish()")
@@ -442,11 +452,11 @@ class ZipFile(
 
     override suspend fun readEntry(
         entry: ZipEntry,
-        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt) -> Unit
+        block: suspend (entry:ZipEntry, content: ByteArray, count: UInt, last: Boolean) -> Unit
     ) {
-        ZipLocalRecord.decode(file, entry.entryDirectory.localHeaderOffset).apply {
-            entry.entryDirectory.update(this)
-            entry.entryDirectory.apply {
+        ZipLocalRecord.decode(file, entry.directories.localHeaderOffset).apply {
+            entry.directories.update(this)
+            entry.directories.apply {
                 decompress(entry, block)
                 if (generalPurpose.isDataDescriptor) {
                     if (!hasDataDescriptor)
@@ -473,12 +483,12 @@ class ZipFile(
     override suspend fun readTextEntry(
         entryName: String,
         charset: Charset,
-        block: suspend (text: String) -> Unit
+        block: suspend (text: String, last: Boolean) -> Unit
     ): ZipEntry {
         map[entryName]?.let {
-            readEntry(it) {_, content, count ->
+            readEntry(it) {_, content, count, last ->
                 if (count > 0u && content.isNotEmpty()) {
-                    block(charset.decode(content))
+                    block(charset.decode(content), last)
                 }
             }
             return it
@@ -565,7 +575,7 @@ class ZipFile(
                 else
                     directory.resolve(f.directoryPath)
                 val copy = RawFile(File(d, f.name), FileMode.Write)
-                readEntry(it) { _, bytes, _ ->
+                readEntry(it) { _, bytes, _, _ ->
                     copy.write(ByteBuffer(bytes))
                 }
                 copy.close()
@@ -672,13 +682,13 @@ class ZipFile(
      */
     private suspend fun decompress(
         entry: ZipEntry,
-        block: suspend (entry: ZipEntry, content: ByteArray, bytes: UInt) -> Unit)
+        block: suspend (entry: ZipEntry, content: ByteArray, bytes: UInt, last:Boolean) -> Unit)
     {
         var uncompressedCount = 0UL
         val crc = Crc32()
         entry.compression.apply {
             val buf = ByteBuffer(bufferSize)
-            var compressedCount = entry.entryDirectory.compressedSize
+            var compressedCount = entry.directories.compressedSize
             uncompressedCount = decompress(
                 input = {
                     buf.apply {
@@ -692,10 +702,11 @@ class ZipFile(
                 uncompressedCount += it.remaining.toUInt()
                 val uncompressedContent = it.getBytes()
                 crc.update(uncompressedContent)
-                block(entry, uncompressedContent, uncompressedContent.size.toUInt())
+                val last = uncompressedCount == entry.directories.uncompressedSize
+                block(entry, uncompressedContent, uncompressedContent.size.toUInt(), last)
             }
         }
-        entry.entryDirectory.apply {
+        entry.directories.apply {
             if (uncompressedCount != uncompressedSize) {
                 throw ZipException("Uncompressing file ${entry.name}, expected uncompressed: $uncompressedSize, found: $uncompressedCount")
             }
@@ -732,7 +743,7 @@ class ZipFile(
      * File must be positioned at local header start position.
      */
     private suspend fun saveLocal(entry: ZipEntry) {
-        entry.entryDirectory.localDirectory.apply {
+        entry.directories.localDirectory.apply {
             allocateBuffer().apply {
                 encode(this)
                 file.write(this)
@@ -757,7 +768,7 @@ class ZipFile(
         }
         val eocd64Position = file.position
         entries.forEach {
-            it.entryDirectory.apply {
+            it.directories.apply {
                 file.position = localHeaderOffset
                 localDirectory.allocateBuffer().apply {
                     localDirectory.encode(this)
