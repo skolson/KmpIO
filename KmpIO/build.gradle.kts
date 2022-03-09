@@ -149,6 +149,7 @@ kotlin {
             }
         }
     }
+    jvm()
 
     @Suppress("UNUSED_VARIABLE")
     sourceSets {
@@ -168,8 +169,7 @@ kotlin {
         val androidMain by getting {
             dependsOn(commonMain)
         }
-
-        named("androidTest") {
+        val androidTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("junit:junit:4.13.2")
@@ -208,6 +208,15 @@ kotlin {
         }
         val macosX64Test by getting {
             dependsOn(appleNativeTest)
+        }
+        val jvmMain by getting {
+            dependsOn(commonMain)
+        }
+        val jvmTest by getting {
+            dependencies {
+                implementation(kotlin("test-junit"))
+                implementation("junit:junit:4.13.2")
+            }
         }
         all {
             if (this.name.endsWith("Test")) {

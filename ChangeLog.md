@@ -1,5 +1,9 @@
 # Change Log
 
+### 0.1.2
+
+- Added jvm platform support
+
 ### 0.1.1 (2022-03)
 
 - Fix CRC check when data descriptor is present
