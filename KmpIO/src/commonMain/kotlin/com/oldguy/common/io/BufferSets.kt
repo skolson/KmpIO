@@ -3,13 +3,14 @@ package com.oldguy.common.io
 import kotlin.math.min
 
 /**
- * Stream-like read operations across any number of buffers, for any source of individual buffers of any size.
+ * Stream-like read operations across any number of buffers, for any source of individual buffers of
+ * any size.
  *
  * Sequentially reads any number of incoming Buffers as if they were a conventional stream. Provides full control
  * over bytes read count. Can have any number of incoming buffers of any size.
  * @param nextBuffer called each time a new chunk of content is required, at least once. End of content indicated by
  * returning a ByteBuffer with hasRemaining = false (remaining == 0).
- * any Buffer passed in is read starting at current [position] for [remaining] bytes.
+ * any Buffer passed in is read starting at current [position] for remaining bytes.
  */
 class BufferReader(
     val nextBuffer: suspend () -> ByteBuffer

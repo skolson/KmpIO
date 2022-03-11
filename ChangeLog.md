@@ -3,6 +3,9 @@
 ### 0.1.2
 
 - Added jvm platform support
+- fix UByeBuffer slice bad endIndex
+- Gradle 7.4.1, AGP 7.2.0-beta04
+- Unit test for BufferReader
 
 ### 0.1.1 (2022-03)
 

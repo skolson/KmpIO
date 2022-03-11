@@ -24,19 +24,13 @@ class ZipFileTests {
     private val testFileTime = LocalDateTime(2017, 6, 23, 19, 46, 2)
     private val testFileTime2 = testFileTime.toInstant(tz).plus((-1).hours).toLocalDateTime(tz)
 
-    private suspend fun testDirectory(): File {
-        val up = File("..")
-        assertTrue(up.exists)
-        return up.resolve("TestFiles")
-    }
-
-    private suspend fun workDirectory() = testDirectory().resolve("Work")
-    private suspend fun testFile() = File(testDirectory(), "SmallTextAndBinary.zip")
+    private suspend fun workDirectory() = FileTests.testDirectory().resolve("Work")
+    private suspend fun testFile() = File(FileTests.testDirectory(), "SmallTextAndBinary.zip")
 
     @Test
     fun zipFileRead() {
         runTest {
-            val imgFile = File(testDirectory(), "ic_help_grey600_48dp.png")
+            val imgFile = File(FileTests.testDirectory(), "ic_help_grey600_48dp.png")
             assertTrue(imgFile.exists)
             val testFile = testFile()
             ZipFile(testFile).use { zip ->
@@ -85,7 +79,7 @@ class ZipFileTests {
     @Test
     fun zip64LargeFileRead() {
         runTest {
-            val file = File(testDirectory(), "ZerosZip64.zip")
+            val file = File(FileTests.testDirectory(), "ZerosZip64.zip")
             ZipFile(file).use {
                 (it.map["0000"]
                     ?: throw IllegalStateException("0000 file not found")).apply {
@@ -265,7 +259,7 @@ class ZipFileTests {
             val dir = workDirectory().resolve("SaveOne")
             val oneFileZip = File(dir, "saveOne.zip")
             oneFileZip.delete()
-            val entryFile = File(testDirectory(), testImageFileName)
+            val entryFile = File(FileTests.testDirectory(), testImageFileName)
             ZipFile(oneFileZip, FileMode.Write).use {
                 it.zipFile(entryFile)
                 it.zipFile(entryFile, "Copy${entryFile.name}")
@@ -299,7 +293,7 @@ class ZipFileTests {
             val dir = workDirectory()
             val mergedZip = File(dir, "merged.zip")
             mergedZip.delete()
-            val entryFile = File(testDirectory(), testImageFileName)
+            val entryFile = File(FileTests.testDirectory(), testImageFileName)
             ZipFile(mergedZip, FileMode.Write).use {
                 it.zipFile(entryFile)
                 it.zipFile(entryFile, "Copy${entryFile.name}")
@@ -330,7 +324,7 @@ class ZipFileTests {
             val dir = workDirectory()
             val oneFileZip = File(dir, "saveDirAndOne.zip")
             oneFileZip.delete()
-            val entryFile = File(testDirectory(), testImageFileName)
+            val entryFile = File(FileTests.testDirectory(), testImageFileName)
             ZipFile(oneFileZip, FileMode.Write).use {
                 it.addEntry(ZipEntry("anydirName"))
                 it.zipFile(entryFile)

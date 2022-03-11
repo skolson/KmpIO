@@ -4,19 +4,6 @@ import kotlinx.cinterop.*
 import kotlinx.datetime.LocalDateTime
 import platform.Foundation.*
 
-actual class Charset actual constructor(set: Charsets)
-    : AppleCharset(set){
-    actual val charset:Charsets = set
-
-    actual override fun decode(bytes: ByteArray): String {
-        return super.decode(bytes)
-    }
-
-    actual override fun encode(inString: String): ByteArray {
-        return super.encode(inString)
-    }
-}
-
 actual class TimeZones {
     actual companion object {
         actual fun getDefaultId(): String {
@@ -64,7 +51,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     /**
      * Determine if subdirectory exists. If not create it.
-     * @param subdirectory of current filePath
+     * @param directoryName name of a subdirectory
      * @return File with path of new subdirectory
      */
     actual override suspend fun resolve(directoryName: String): File {

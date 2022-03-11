@@ -170,6 +170,12 @@ class FileTests(testDirPath: String) {
             Line6
             """.trimIndent() + eol
         val hexContent = Charset(Charsets.Utf16le).encode(textContent)
+
+        suspend fun testDirectory(): File {
+            val up = File("..")
+            assertTrue(up.exists)
+            return up.resolve("TestFiles")
+        }
     }
 }
 

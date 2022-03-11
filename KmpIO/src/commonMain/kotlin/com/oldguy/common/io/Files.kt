@@ -2,32 +2,6 @@ package com.oldguy.common.io
 
 import kotlinx.datetime.LocalDateTime
 
-enum class Charsets(val charsetName: String, val bytesPerChar: Int = 1) {
-    Utf8("UTF-8"),
-    Utf16le("UTF-16LE", 2),
-    Utf16be("UTF-16BE", 2),
-    Iso8859_1("ISO8859-1"),
-    UsAscii("US-ASCII");
-
-    companion object {
-        /**
-         * Converts a charset name to a Charsets enum value, throws an exception if no match
-         */
-        fun fromName(name: String): Charsets {
-            return values().first { it.charsetName == name }
-        }
-    }
-}
-
-
-expect class Charset(set: Charsets) {
-    val charset: Charsets
-
-    fun decode(bytes: ByteArray): String
-    fun encode(inString: String): ByteArray
-
-}
-
 expect class TimeZones {
     companion object {
         fun getDefaultId(): String

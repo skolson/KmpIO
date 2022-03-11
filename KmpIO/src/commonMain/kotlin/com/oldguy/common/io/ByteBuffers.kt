@@ -767,7 +767,7 @@ class UByteBuffer(
      */
     override fun slice(length: Int): UByteBuffer {
         val bytes = UByteArray(length)
-        buf.copyInto(bytes, 0, position, length)
+        buf.copyInto(bytes, 0, position, position + length)
         return UByteBuffer(bytes, this.order)
     }
 
