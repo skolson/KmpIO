@@ -467,6 +467,14 @@ class ByteBuffer(
         return ByteBuffer(bytes, this.order)
     }
 
+    override fun toString(): String {
+        return buildString {
+            append("Position: $position, limit: $limit, remaining: $remaining. Content: 0x")
+            for (i in position until limit) {
+                append("${contentBytes[i].toString(16).padStart(2, '0')} ")
+            }
+        }
+    }
     /**
      * Tells whether or not this buffer is equal to another object.
      *
@@ -717,7 +725,7 @@ class UByteBuffer(
     /**
      * Copies specified bytes from source to this buffer, starting at position, for the
      * specified length. Position is incremented by the length. Any bounds violation throws
-     * and IllegalArgumentException
+     * an IllegalArgumentException
      *
      * @param source byte array to write from, will be unchanged
      * @param sourceOffset starting offset in source, defaults to 0
@@ -769,6 +777,15 @@ class UByteBuffer(
         val bytes = UByteArray(length)
         buf.copyInto(bytes, 0, position, position + length)
         return UByteBuffer(bytes, this.order)
+    }
+
+    override fun toString(): String {
+        return buildString {
+            append("Position: $position, limit: $limit, remaining: $remaining. Content: 0x")
+            for (i in position until limit) {
+                append("${contentBytes[i].toString(16).padStart(2, '0')} ")
+            }
+        }
     }
 
     /**
