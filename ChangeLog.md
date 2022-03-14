@@ -6,6 +6,7 @@
 - fix UByeBuffer slice bad endIndex
 - Gradle 7.4.1, AGP 7.2.0-beta04
 - Unit test for BufferReader
+- Additional RawFile read methods, optional buffer reuse assistance on existing reads
 
 ### 0.1.1 (2022-03)
 

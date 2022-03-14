@@ -38,11 +38,11 @@ class FileTests(testDirPath: String) {
         runTest {
             textFile.forEachLine { count, it ->
                 when ((count - 1) % 6) {
-                    0 -> assertEquals(line1, it)
-                    1 -> assertEquals(line2, it)
-                    2 -> assertEquals(line3, it)
-                    3, 4 -> assertTrue(it.isEmpty())
-                    5 -> assertEquals("Line6", it)
+                    0 -> assertEquals(line1 + eol, it)
+                    1 -> assertEquals(line2 + eol, it)
+                    2 -> assertEquals(line3 + eol, it)
+                    3, 4 -> assertEquals(eol, it)
+                    5 -> assertEquals("Line6" + eol, it)
                     else -> fail("Unexpected line $count, content:\"$it\", file ${textFile.file.name}, charset: ${textFile.charset}.")
                 }
                 lines = count

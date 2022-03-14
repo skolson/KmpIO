@@ -90,18 +90,104 @@ actual class RawFile actual constructor(
     actual override val size: ULong get() = super.size
     actual override var blockSize: UInt = super.blockSize
 
-    actual override suspend fun read(buf: ByteBuffer, newPos: ULong): UInt {
-        return super.read(buf, newPos)
+    /**
+     * Read bytes from a file, from the current file position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
+    actual override suspend fun read(buf: ByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
+        return super.read(buf, newPos, reuseBuffer)
     }
-    actual override suspend fun read(buf: ByteBuffer): UInt {
-        return super.read(buf)
+
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param newPos zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
+    actual override suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean): UInt {
+        return super.read(buf, reuseBuffer)
     }
-    actual override suspend fun read(buf: UByteBuffer, newPos: ULong): UInt {
-        return super.read(buf, newPos)
+
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
+    actual override suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
+        return super.read(buf, newPos, reuseBuffer)
     }
-    actual override suspend fun read(buf: UByteBuffer): UInt {
-        return super.read(buf)
+
+    /**
+     * Read bytes from a file, starting at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param newPos zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
+    actual override suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean): UInt {
+        return super.read(buf, reuseBuffer)
     }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual override suspend fun readBuffer(length: UInt): ByteBuffer {
+        return super.readBuffer(length)
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual override suspend fun readBuffer(
+        length: UInt,
+        newPos: ULong
+    ): ByteBuffer {
+        return super.readBuffer(length, newPos)
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual override suspend fun readUBuffer(length: UInt): UByteBuffer {
+        return super.readUBuffer(length)
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual override suspend fun readUBuffer(
+        length: UInt,
+        newPos: ULong
+    ): UByteBuffer {
+        return super.readUBuffer(length, newPos)
+    }
+
     actual override suspend fun write(buf: ByteBuffer, newPos: ULong) {
         super.write(buf, newPos)
     }

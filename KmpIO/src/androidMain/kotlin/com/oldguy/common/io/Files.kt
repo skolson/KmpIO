@@ -1,8 +1,6 @@
 package com.oldguy.common.io
 
 import android.net.Uri
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
@@ -153,6 +151,7 @@ actual suspend fun <T : Closeable?, R> T.use(body: suspend (T) -> R): R {
  * Use this to access a file at the bytes level. Random access by byte position is required, with
  * first byte of file as position 0. No translation of data is performed
  */
+@Suppress("BlockingMethodInNonBlockingContext")
 actual class RawFile actual constructor(
     fileArg: File,
     val mode: FileMode,
@@ -181,97 +180,146 @@ actual class RawFile actual constructor(
     actual var blockSize = 4096u
 
     actual override suspend fun close() {
-        withContext(Dispatchers.IO) {
-            javaFile.channel.close()
-        }
+        javaFile.channel.close()
     }
 
-    actual suspend fun read(buf: com.oldguy.common.io.ByteBuffer): UInt {
-        val javaBuf = makeJavaBuffer(buf)
-        val bytesRead = withContext(Dispatchers.IO) {
-            javaFile.channel.read(javaBuf)
-        }
+    private fun acceptRead(buf: com.oldguy.common.io.ByteBuffer,
+                           bytesRead: Int,
+                           javaBuf: ByteBuffer,
+                           reuseBuffer: Boolean
+    ): UInt {
         return if (bytesRead <= 0) {
             buf.positionLimit(0, 0)
             0u
         } else {
+            if (reuseBuffer) buf.clear()
             buf.putBytes(javaBuf.array(), 0, bytesRead)
+            if (reuseBuffer) buf.flip()
             bytesRead.toUInt()
         }
     }
 
-    actual suspend fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong): UInt {
+    actual suspend fun read(buf: com.oldguy.common.io.ByteBuffer, reuseBuffer: Boolean): UInt {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesRead: Int
-        withContext(Dispatchers.IO) {
-            bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
-            javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
-        }
-        buf.put(javaBuf.array())
-        return bytesRead.toUInt()
+        val bytesRead = javaFile.channel.read(javaBuf)
+        return acceptRead(buf, bytesRead, javaBuf, reuseBuffer)
     }
 
-    actual suspend fun read(buf: UByteBuffer): UInt {
+    actual suspend fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesRead = withContext(Dispatchers.IO) {
-            javaFile.channel.read(javaBuf)
-        }
-        buf.put(javaBuf.array().toUByteArray())
-        return bytesRead.toUInt()
+        val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
+        return acceptRead(buf, bytesRead, javaBuf, reuseBuffer)
     }
 
-    actual suspend fun read(buf: UByteBuffer, newPos: ULong): UInt {
-        val javaBuf = makeJavaBuffer(buf)
-        val bytesRead: Int
-        withContext(Dispatchers.IO) {
-            bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
-            javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
+    private fun acceptRead(buf: UByteBuffer,
+                           bytesRead: Int,
+                           javaBuf: ByteBuffer,
+                           reuseBuffer: Boolean
+    ): UInt {
+        return if (bytesRead <= 0) {
+            buf.positionLimit(0, 0)
+            0u
+        } else {
+            if (reuseBuffer) buf.clear()
+            buf.putBytes(javaBuf.array().toUByteArray(), 0, bytesRead)
+            if (reuseBuffer) buf.flip()
+            bytesRead.toUInt()
         }
-        buf.put(javaBuf.array().toUByteArray())
-        return bytesRead.toUInt()
+    }
+
+    actual suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean): UInt {
+        val javaBuf = makeJavaBuffer(buf)
+        val bytesRead = javaFile.channel.read(javaBuf)
+        return acceptRead(buf, bytesRead, javaBuf, reuseBuffer)
+    }
+
+    actual suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
+        val javaBuf = makeJavaBuffer(buf)
+        val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
+        return acceptRead(buf, bytesRead, javaBuf, reuseBuffer)
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual suspend fun readBuffer(length: UInt): com.oldguy.common.io.ByteBuffer {
+        return ByteBuffer(length.toInt()).apply {
+            read(this, true)
+        }
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual suspend fun readBuffer(
+        length: UInt,
+        newPos: ULong
+    ): com.oldguy.common.io.ByteBuffer {
+        return ByteBuffer(length.toInt()).apply {
+            read(this, newPos,true)
+        }
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual suspend fun readUBuffer(length: UInt): UByteBuffer {
+        return UByteBuffer(length.toInt()).apply {
+            read(this, true)
+        }
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    actual suspend fun readUBuffer(
+        length: UInt,
+        newPos: ULong
+    ): UByteBuffer {
+        return UByteBuffer(length.toInt()).apply {
+            read(this, newPos,true)
+        }
     }
 
     actual suspend fun setLength(length: ULong) {
         if (mode != FileMode.Write)
             throw IllegalStateException("setLength only usable with FileMode.Write")
-        withContext(Dispatchers.IO) {
-            javaFile.setLength(length.toLong())
-        }
+        javaFile.setLength(length.toLong())
     }
 
     actual suspend fun write(buf: com.oldguy.common.io.ByteBuffer) {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesWritten = withContext(Dispatchers.IO) {
-            javaFile.channel.write(javaBuf)
-        }
+        val bytesWritten = javaFile.channel.write(javaBuf)
         buf.position += bytesWritten
     }
 
     actual suspend fun write(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong) {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesWritten: Int
-        withContext(Dispatchers.IO) {
-            bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
-            javaFile.channel.position((newPos + bytesWritten.toULong()).toLong())
-        }
+        val bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesWritten.toULong()).toLong())
         buf.position += bytesWritten
     }
 
     actual suspend fun write(buf: UByteBuffer) {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesWritten = withContext(Dispatchers.IO) {
-            javaFile.channel.write(javaBuf)
-        }
+        val bytesWritten = javaFile.channel.write(javaBuf)
         buf.position += bytesWritten
     }
 
     actual suspend fun write(buf: UByteBuffer, newPos: ULong) {
         val javaBuf = makeJavaBuffer(buf)
-        val bytesWritten: Int
-        withContext(Dispatchers.IO) {
-            bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
-            javaFile.channel.position((newPos + bytesWritten.toULong()).toLong())
-        }
+        val bytesWritten = javaFile.channel.write(javaBuf, newPos.toLong())
+        javaFile.channel.position((newPos + bytesWritten.toULong()).toLong())
         buf.position += bytesWritten
     }
 
@@ -283,14 +331,12 @@ actual class RawFile actual constructor(
         if (transform == null) {
             val channel = javaFile.channel
             val sourceSize = this.size
-            withContext(Dispatchers.IO) {
-                while (bytesRead < sourceSize) {
-                    bytesRead += channel.transferTo(
-                        bytesRead.toLong(),
-                        channel.size(),
-                        destination.javaFile.channel
-                    ).toULong()
-                }
+            while (bytesRead < sourceSize) {
+                bytesRead += channel.transferTo(
+                    bytesRead.toLong(),
+                    channel.size(),
+                    destination.javaFile.channel
+                ).toULong()
             }
             destination.close()
         } else {
@@ -325,14 +371,12 @@ actual class RawFile actual constructor(
         if (transform == null) {
             val channel = javaFile.channel
             val sourceSize = this.size
-            withContext(Dispatchers.IO) {
-                while (bytesRead < sourceSize) {
-                    bytesRead += channel.transferTo(
-                        bytesRead.toLong(),
-                        channel.size(),
-                        destination.javaFile.channel
-                    ).toULong()
-                }
+            while (bytesRead < sourceSize) {
+                bytesRead += channel.transferTo(
+                    bytesRead.toLong(),
+                    channel.size(),
+                    destination.javaFile.channel
+                ).toULong()
             }
             destination.close()
         } else {
@@ -363,19 +407,15 @@ actual class RawFile actual constructor(
         startIndex: ULong,
         length: ULong
     ): ULong {
-        return withContext(Dispatchers.IO) {
-            javaFile.channel.transferFrom(
+        return javaFile.channel.transferFrom(
                 source.javaFile.channel,
                 startIndex.toLong(),
                 length.toLong()
-            )
-        }.toULong()
+            ).toULong()
     }
 
     actual suspend fun truncate(size: ULong) {
-        withContext(Dispatchers.IO) {
-            javaFile.channel.truncate(size.toLong())
-        }
+        javaFile.channel.truncate(size.toLong())
     }
 
     private fun makeJavaBuffer(buf: com.oldguy.common.io.ByteBuffer): ByteBuffer {
@@ -390,6 +430,7 @@ actual class RawFile actual constructor(
 /**
  * Read a text file, and provide both character set translation as well as line-based processing
  */
+@Suppress("BlockingMethodInNonBlockingContext")
 actual class TextFile actual constructor(
     actual val file: File,
     actual val charset: Charset,
@@ -449,33 +490,25 @@ actual class TextFile actual constructor(
     ) : this(File(filePath, null), charset, mode, source)
 
     actual override suspend fun close() {
-        withContext(Dispatchers.IO) {
-            javaReader?.close()
-            javaWriter?.close()
-        }
+        javaReader?.close()
+        javaWriter?.close()
     }
 
     actual suspend fun readLine(): String {
         if (mode == FileMode.Write)
             throw IllegalStateException("Mode is write, cannot read")
-        return withContext(Dispatchers.IO) {
-            javaReader?.readLine() ?: ""
-        }
+        return javaReader?.readLine() ?: ""
     }
 
     actual suspend fun write(text: String) {
         if (mode == FileMode.Read)
             throw IllegalStateException("Mode is read, cannot write")
-        withContext(Dispatchers.IO) {
-            javaWriter!!.write(text)
-        }
+        javaWriter!!.write(text)
     }
 
     actual suspend fun writeLine(text: String) {
         write(text)
-        withContext(Dispatchers.IO) {
-            javaWriter!!.newLine()
-        }
+        javaWriter!!.newLine()
     }
 
     actual suspend fun forEachLine(action: (count: Int, line: String) -> Boolean) {
@@ -494,13 +527,11 @@ actual class TextFile actual constructor(
             throw IllegalStateException("Mode is write, cannot read")
         val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
         val chars = CharArray(maxSizeBytes)
-        withContext(Dispatchers.IO) {
-            var count = rdr.read(chars)
-            while (count > 0) {
-                if (!action(String(chars, 0, count)))
-                    break
-                count = rdr.read(chars)
-            }
+        var count = rdr.read(chars)
+        while (count > 0) {
+            if (!action(String(chars, 0, count)))
+                break
+            count = rdr.read(chars)
         }
     }
 
@@ -509,9 +540,7 @@ actual class TextFile actual constructor(
             throw IllegalStateException("Mode is write, cannot read")
         val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
         val chars = CharArray(maxSizeBytes)
-        val count = withContext(Dispatchers.IO) {
-            rdr.read(chars)
-        }
+        val count = rdr.read(chars)
         return if (count > 0)
             String(chars, 0, count)
         else

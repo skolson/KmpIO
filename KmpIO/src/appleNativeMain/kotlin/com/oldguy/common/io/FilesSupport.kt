@@ -366,15 +366,17 @@ open class AppleRawFile(
      * @param buf read buf.remaining bytes into byte buffer.
      * @return number of bytes actually read
      */
-    open suspend fun read(buf: ByteBuffer): UInt {
+    open suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean): UInt {
         var len = 0u
         AppleFile.throwError {
+            if (reuseBuffer) buf.clear()
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
                 }
                 buf.position += len.toInt()
+                if (reuseBuffer) buf.flip()
             }
         }
         return len
@@ -386,9 +388,10 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open suspend fun read(buf: ByteBuffer, newPos: ULong): UInt {
+    open suspend fun read(buf: ByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
         var len = 0u
         AppleFile.throwError {
+            if (reuseBuffer) buf.clear()
             position = newPos
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
@@ -396,6 +399,7 @@ open class AppleRawFile(
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
                 }
                 buf.position += len.toInt()
+                if (reuseBuffer) buf.flip()
             }
         }
         return len
@@ -406,18 +410,70 @@ open class AppleRawFile(
      * @param buf read buf.remaining bytes into byte buffer.
      * @return number of bytes actually read
      */
-    open suspend fun read(buf: UByteBuffer): UInt {
+    open suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean): UInt {
         var len = 0u
         AppleFile.throwError {
+            if (reuseBuffer) buf.clear()
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
                 }
                 buf.position += len.toInt()
+                if (reuseBuffer) buf.flip()
             }
         }
         return len
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    open suspend fun readBuffer(length: UInt): ByteBuffer {
+        return ByteBuffer(length.toInt()).apply {
+            read(this, true)
+        }
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    open suspend fun readBuffer(
+        length: UInt,
+        newPos: ULong
+    ): ByteBuffer {
+        return ByteBuffer(length.toInt()).apply {
+            read(this, newPos,true)
+        }
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    open suspend fun readUBuffer(length: UInt): UByteBuffer {
+        return UByteBuffer(length.toInt()).apply {
+            read(this, true)
+        }
+    }
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    open suspend fun readUBuffer(
+        length: UInt,
+        newPos: ULong
+    ): UByteBuffer {
+        return UByteBuffer(length.toInt()).apply {
+            read(this, newPos,true)
+        }
     }
 
     /**
@@ -427,9 +483,10 @@ open class AppleRawFile(
      * or if default of -1, the current file position
      * @return number of bytes actually read
      */
-    open suspend fun read(buf: UByteBuffer, newPos: ULong): UInt {
+    open suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
         var len = 0u
         AppleFile.throwError {
+            if (reuseBuffer) buf.clear()
             position = newPos
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
@@ -437,6 +494,7 @@ open class AppleRawFile(
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
                 }
                 buf.position += len.toInt()
+                if (reuseBuffer) buf.flip()
             }
         }
         return len
@@ -546,19 +604,17 @@ open class AppleRawFile(
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
             val buffer = ByteBuffer(blkSize.toInt(), isReadOnly = true)
-            var readCount = read(buffer)
+            var readCount = read(buffer, true)
             var bytesWritten = 0L
             val fileSize = size
             while (readCount > 0u) {
                 bytesRead += readCount
-                buffer.position = 0
-                buffer.limit = readCount.toInt()
                 val lastBlock = position >= fileSize
                 val outBuffer = transform(buffer, lastBlock)
                 val count = outBuffer.remaining
                 destination.write(outBuffer)
                 bytesWritten += count
-                readCount = if (lastBlock) 0u else read(buffer)
+                readCount = if (lastBlock) 0u else read(buffer, true)
             }
         }
         close()
@@ -596,19 +652,17 @@ open class AppleRawFile(
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
             val buffer = UByteBuffer(blkSize.toInt(), isReadOnly = true)
-            var readCount = read(buffer)
+            var readCount = read(buffer, true)
             var bytesWritten = 0L
             val fileSize = size
             while (readCount > 0u) {
                 bytesRead += readCount
-                buffer.position = 0
-                buffer.limit = readCount.toInt()
                 val lastBlock = position >= fileSize
                 val outBuffer = transform(buffer, lastBlock)
                 val count = outBuffer.remaining
                 destination.write(outBuffer)
                 bytesWritten += count
-                readCount = if (lastBlock) 0u else read(buffer)
+                readCount = if (lastBlock) 0u else read(buffer, true)
             }
         }
         close()

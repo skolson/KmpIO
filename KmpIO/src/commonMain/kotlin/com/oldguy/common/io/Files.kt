@@ -108,34 +108,78 @@ expect class RawFile(
     /**
      * Read bytes from a file, from the current file position.
      * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: ByteBuffer): UInt
+    suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean = true): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
      * @param newPos zero-relative position of file to start reading,
      * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: ByteBuffer, newPos: ULong): UInt
+    suspend fun read(buf: ByteBuffer, newPos: ULong, reuseBuffer: Boolean = true): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: UByteBuffer): UInt
+    suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean = true): UInt
 
     /**
-     * Read bytes from a file, staring at the specified position.
+     * Read bytes from a file, starting at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
      * @param newPos zero-relative position of file to start reading,
      * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: UByteBuffer, newPos: ULong): UInt
+    suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean = true): UInt
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    suspend fun readBuffer(length: UInt): ByteBuffer
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    suspend fun readBuffer(length: UInt, newPos: ULong): ByteBuffer
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at current position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    suspend fun readUBuffer(length: UInt): UByteBuffer
+
+    /**
+     * Allocates a new buffer of length specified. Reads bytes at specified position.
+     * @param length maximum number of bytes to read
+     * @return buffer: capacity == length, position = 0, limit = number of bytes read, remaining = limit.
+     */
+    suspend fun readUBuffer(length: UInt, newPos: ULong): UByteBuffer
 
     /**
      * Sets the length of the file in bytes. Ony usable during FileMode.Write.
