@@ -362,8 +362,12 @@ open class AppleRawFile(
     open var blockSize: UInt = 4096u
 
     /**
-     * Read bytes from a file, at the current position. Position is changed vy number of bytes read.
+     * Read bytes from a file, from the current file position.
      * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
     open suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean): UInt {
@@ -381,11 +385,16 @@ open class AppleRawFile(
         }
         return len
     }
+
     /**
      * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
      * @param newPos zero-relative position of file to start reading,
      * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
     open suspend fun read(buf: ByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
@@ -406,14 +415,46 @@ open class AppleRawFile(
     }
 
     /**
-     * Read bytes from a file, staring at the current file position.
+     * Read bytes from a file, staring at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
     open suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean): UInt {
         var len = 0u
         AppleFile.throwError {
             if (reuseBuffer) buf.clear()
+            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
+                len = min(buf.limit.toUInt(), bytes.length.convert())
+                buf.buf.usePinned {
+                    memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
+                }
+                buf.position += len.toInt()
+                if (reuseBuffer) buf.flip()
+            }
+        }
+        return len
+    }
+
+    /**
+     * Read bytes from a file, starting at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param newPos zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
+    open suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
+        var len = 0u
+        AppleFile.throwError {
+            if (reuseBuffer) buf.clear()
+            position = newPos
             handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
@@ -474,30 +515,6 @@ open class AppleRawFile(
         return UByteBuffer(length.toInt()).apply {
             read(this, newPos,true)
         }
-    }
-
-    /**
-     * Read bytes from a file, staring at the specified position.
-     * @param buf read buf.remaining bytes into byte buffer.
-     * @param newPos zero-relative position of file to start reading,
-     * or if default of -1, the current file position
-     * @return number of bytes actually read
-     */
-    open suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
-        var len = 0u
-        AppleFile.throwError {
-            if (reuseBuffer) buf.clear()
-            position = newPos
-            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
-                len = min(buf.limit.toUInt(), bytes.length.convert())
-                buf.buf.usePinned {
-                    memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
-                }
-                buf.position += len.toInt()
-                if (reuseBuffer) buf.flip()
-            }
-        }
-        return len
     }
 
     /**

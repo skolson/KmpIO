@@ -192,20 +192,41 @@ actual class RawFile actual constructor(
             buf.positionLimit(0, 0)
             0u
         } else {
-            if (reuseBuffer) buf.clear()
             buf.putBytes(javaBuf.array(), 0, bytesRead)
             if (reuseBuffer) buf.flip()
             bytesRead.toUInt()
         }
     }
 
+    /**
+     * Read bytes from a file, from the current file position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
     actual suspend fun read(buf: com.oldguy.common.io.ByteBuffer, reuseBuffer: Boolean): UInt {
+        if (reuseBuffer) buf.clear()
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = javaFile.channel.read(javaBuf)
         return acceptRead(buf, bytesRead, javaBuf, reuseBuffer)
     }
 
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param newPos zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
     actual suspend fun read(buf: com.oldguy.common.io.ByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
+        if (reuseBuffer) buf.clear()
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
         javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
@@ -221,20 +242,41 @@ actual class RawFile actual constructor(
             buf.positionLimit(0, 0)
             0u
         } else {
-            if (reuseBuffer) buf.clear()
             buf.putBytes(javaBuf.array().toUByteArray(), 0, bytesRead)
             if (reuseBuffer) buf.flip()
             bytesRead.toUInt()
         }
     }
 
+    /**
+     * Read bytes from a file, staring at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
     actual suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean): UInt {
+        if (reuseBuffer) buf.clear()
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = javaFile.channel.read(javaBuf)
         return acceptRead(buf, bytesRead, javaBuf, reuseBuffer)
     }
 
+    /**
+     * Read bytes from a file, starting at the specified position.
+     * @param buf read buf.remaining bytes into byte buffer.
+     * @param newPos zero-relative position of file to start reading,
+     * or if default of -1, the current file position
+     * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
+     * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
+     * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
+     * remaining are both number of bytes read, and capacity remains unchanged.
+     * @return number of bytes actually read
+     */
     actual suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
+        if (reuseBuffer) buf.clear()
         val javaBuf = makeJavaBuffer(buf)
         val bytesRead = javaFile.channel.read(javaBuf, newPos.toLong())
         javaFile.channel.position((newPos + bytesRead.toULong()).toLong())
