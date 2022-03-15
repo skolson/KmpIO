@@ -547,11 +547,15 @@ abstract class Buffer<Element, Array> internal constructor(
      * Convenience method Sets the limit at position + length, then sets the position
      */
     fun positionLimit(position: Int, length: Int) {
+        if (length < 0 || position < 0 || position + length > capacity)
+            throw IllegalArgumentException("Position: $position + length: $length = ${position + length} must be between 0 and $capacity")
         limit = position + length
         this.position = position
     }
 
     fun positionLimit(position: Short, length: Short) {
+        if (length < 0 || position < 0 || position + length > capacity)
+            throw IllegalArgumentException("Position: $position + length: $length = ${position + length} must be between 0 and $capacity")
         limit = position + length
         this.position = position.toInt()
     }

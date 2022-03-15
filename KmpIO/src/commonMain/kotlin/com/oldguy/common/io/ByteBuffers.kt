@@ -241,7 +241,7 @@ class ByteBuffer(
      */
     fun toUByteBuffer(): UByteBuffer {
         val uBuf = UByteBuffer(capacity, order, isReadOnly, contentBytes.toUByteArray())
-        uBuf.positionLimit(position, limit)
+        uBuf.positionLimit(position, remaining)
         return uBuf
     }
 
@@ -556,7 +556,7 @@ class UByteBuffer(
      */
     fun toByteBuffer(): ByteBuffer {
         val uBuf = ByteBuffer(capacity, order, isReadOnly, contentBytes.toByteArray())
-        uBuf.positionLimit(position, limit)
+        uBuf.positionLimit(position, remaining)
         return uBuf
     }
 
