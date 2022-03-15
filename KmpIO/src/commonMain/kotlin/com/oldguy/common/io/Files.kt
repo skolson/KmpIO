@@ -114,7 +114,7 @@ expect class RawFile(
      * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean = true): UInt
+    suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean = false): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
@@ -127,7 +127,7 @@ expect class RawFile(
      * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: ByteBuffer, newPos: ULong, reuseBuffer: Boolean = true): UInt
+    suspend fun read(buf: ByteBuffer, newPos: ULong, reuseBuffer: Boolean = false): UInt
 
     /**
      * Read bytes from a file, staring at the specified position.
@@ -138,7 +138,7 @@ expect class RawFile(
      * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean = true): UInt
+    suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean = false): UInt
 
     /**
      * Read bytes from a file, starting at the specified position.
@@ -151,7 +151,7 @@ expect class RawFile(
      * remaining are both number of bytes read, and capacity remains unchanged.
      * @return number of bytes actually read
      */
-    suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean = true): UInt
+    suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean = false): UInt
 
     /**
      * Allocates a new buffer of length specified. Reads bytes at current position.
