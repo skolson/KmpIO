@@ -36,7 +36,7 @@ val kotlinCoroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0"
 
 android {
     compileSdk = androidTargetSdkVersion
-    buildToolsVersion = "33.0.0-rc1"
+    buildToolsVersion = "33.0.0-rc2"
 
     sourceSets {
         getByName("main") {
