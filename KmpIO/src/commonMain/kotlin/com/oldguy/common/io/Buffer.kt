@@ -236,70 +236,6 @@ abstract class Buffer<Element, Array> internal constructor(
     }
 
     /**
-     * given the specified index into the backing array, return the current Element. Do not change position
-     */
-    abstract fun getElementAt(index: Int): Element
-    abstract fun setElementAt(index: Int, element: Element)
-    abstract fun getElementAsInt(index: Int): Int
-    abstract fun getElementAsUInt(index: Int): UInt
-    abstract fun getElementAsLong(index: Int): Long
-    abstract fun getElementAsULong(index: Int): ULong
-    fun get(index: Int): Element {
-        return getElementAt(index)
-    }
-
-    /**
-     * This is used by many of the accessor properties of the various types. It must return
-     * a ByteArray of length bytes, containing the bytes at the current position for the
-     * specified length.  The position will be incremented by the length.
-     *
-     * @param length must be > 0 and <= remaining(). Defaults to remaining
-     *
-     * @throws IllegalArgumentException if the length is invalid
-     */
-    abstract fun getBytes(length: Int = remaining): Array
-
-    /**
-     * Starting at the current position, copy bytes.size from the buffer into the provided array.
-     * If the size of the array is greater than [remaining], only [remaining] bytes are copied.
-     * Position is increased by the number of bytes copied.
-     */
-    abstract fun getBytes(bytes: Array)
-
-    /**
-     * This is used by many of the accessor properties of the various types. It must copy the
-     * content of bytes into the ByteBuffer at the current position.
-     * The position will be incremented by the length of the array.
-     *
-     * @param bytes size of the array must be > 0 and <= remaining()
-     *
-     * @throws IllegalArgumentException if the size is invalid
-     */
-    abstract fun put(bytes: Array)
-
-    fun resetMark() {
-        mark = noMark
-    }
-
-    /**
-     * Resets this buffer's position to the previously-marked position.
-     *
-     *
-     *  Invoking this method neither changes nor discards the mark's
-     * value.
-     *
-     * @return This buffer
-     *
-     * @throws IllegalStateException
-     * If the mark has not been set
-     */
-    open fun reset() {
-        val m = mark
-        if (m < 0) throw IllegalStateException("Mark:$m must be non-negative")
-        position = m
-    }
-
-    /**
      * Clears this buffer.  The position is set to zero, the limit is set to
      * the capacity, and the mark is discarded.
      *
@@ -323,6 +259,13 @@ abstract class Buffer<Element, Array> internal constructor(
         limit = capacity
         mark = noMark
     }
+
+    /**
+     * Increase size of buffer. Capacity and content are increased. Position is unchanged. if limit
+     * currently set to capacity, it will be set to the new capacity
+     * @param addCapacity bytes to add. Unsigned as can't be used to shrink.
+     */
+    abstract fun expand(addCapacity: UInt)
 
     /**
      * Flips this buffer.  The limit is set to the current position and then
@@ -354,6 +297,91 @@ abstract class Buffer<Element, Array> internal constructor(
     }
 
     /**
+     * given the specified index into the backing array, return the current Element. Do not change position
+     */
+    fun get(index: Int): Element {
+        return getElementAt(index)
+    }
+
+    /**
+     * This is used by many of the accessor properties of the various types. It must return
+     * a ByteArray of length bytes, containing the bytes at the current position for the
+     * specified length.  The position will be incremented by the length.
+     *
+     * @param length must be > 0 and <= remaining(). Defaults to remaining
+     *
+     * @throws IllegalArgumentException if the length is invalid
+     */
+    abstract fun getBytes(length: Int = remaining): Array
+
+    /**
+     * Starting at the current position, copy bytes.size from the buffer into the provided array.
+     * If the size of the array is greater than [remaining], only [remaining] bytes are copied.
+     * Position is increased by the number of bytes copied.
+     */
+    abstract fun getBytes(bytes: Array)
+
+    /**
+     * given the specified index into the backing array, return the current Element. Do not change position
+     */
+    abstract fun getElementAt(index: Int): Element
+    abstract fun setElementAt(index: Int, element: Element)
+    abstract fun getElementAsInt(index: Int): Int
+    abstract fun getElementAsUInt(index: Int): UInt
+    abstract fun getElementAsLong(index: Int): Long
+    abstract fun getElementAsULong(index: Int): ULong
+
+    /**
+     * Convenience method Sets the limit at position + length, then sets the position
+     */
+    fun positionLimit(position: Int, length: Int) {
+        if (length < 0 || position < 0 || position + length > capacity)
+            throw IllegalArgumentException("Position: $position + length: $length = ${position + length} must be between 0 and $capacity")
+        limit = position + length
+        this.position = position
+    }
+
+    fun positionLimit(position: Short, length: Short) {
+        if (length < 0 || position < 0 || position + length > capacity)
+            throw IllegalArgumentException("Position: $position + length: $length = ${position + length} must be between 0 and $capacity")
+        limit = position + length
+        this.position = position.toInt()
+    }
+
+    /**
+     * This is used by many of the accessor properties of the various types. It must copy the
+     * content of bytes into the ByteBuffer at the current position.
+     * The position will be incremented by the length of the array.
+     *
+     * @param bytes size of the array must be > 0 and <= remaining()
+     *
+     * @throws IllegalArgumentException if the size is invalid
+     */
+    abstract fun put(bytes: Array)
+
+    /**
+     * Resets this buffer's position to the previously-marked position.
+     *
+     *
+     *  Invoking this method neither changes nor discards the mark's
+     * value.
+     *
+     * @return This buffer
+     *
+     * @throws IllegalStateException
+     * If the mark has not been set
+     */
+    open fun reset() {
+        val m = mark
+        if (m < 0) throw IllegalStateException("Mark:$m must be non-negative")
+        position = m
+    }
+
+    fun resetMark() {
+        mark = noMark
+    }
+
+    /**
      * Rewinds this buffer.  The position is set to zero and the mark is
      * discarded.
      *
@@ -373,6 +401,13 @@ abstract class Buffer<Element, Array> internal constructor(
         position = 0
         mark = -1
     }
+
+    /**
+     * Make a new ByteBuffer containing the [remaining bytes] of this one. Length can be overrdiden to
+     * a shorter value than the default [remaining]. Position is unaffected
+     * @param length defaults to [remaining]. can be between 1 and [remaining]
+     */
+    abstract fun slice(length: Int = remaining): ByteBufferBase<Element, Array>
 
     // -- Package-private methods for bounds checking, etc. --
     /**
@@ -448,16 +483,9 @@ abstract class Buffer<Element, Array> internal constructor(
         capacity = 0
     }
 
-    fun discardMark() { // package-private
+    internal fun discardMark() { // package-private
         mark = -1
     }
-
-    /**
-     * Make a new ByteBuffer containing the [remaining bytes] of this one. Length can be overrdiden to
-     * a shorter value than the default [remaining]. Position is unaffected
-     * @param length defaults to [remaining]. can be between 1 and [remaining]
-     */
-    abstract fun slice(length: Int = remaining): ByteBufferBase<Element, Array>
 
     private fun getShortValue(index: Int): Short {
         return when (order) {
@@ -541,23 +569,6 @@ abstract class Buffer<Element, Array> internal constructor(
                     or (getElementAsULong(index + 6) shl 8)
                     or getElementAsULong(index + 7))
         }
-    }
-
-    /**
-     * Convenience method Sets the limit at position + length, then sets the position
-     */
-    fun positionLimit(position: Int, length: Int) {
-        if (length < 0 || position < 0 || position + length > capacity)
-            throw IllegalArgumentException("Position: $position + length: $length = ${position + length} must be between 0 and $capacity")
-        limit = position + length
-        this.position = position
-    }
-
-    fun positionLimit(position: Short, length: Short) {
-        if (length < 0 || position < 0 || position + length > capacity)
-            throw IllegalArgumentException("Position: $position + length: $length = ${position + length} must be between 0 and $capacity")
-        limit = position + length
-        this.position = position.toInt()
     }
 
     /**

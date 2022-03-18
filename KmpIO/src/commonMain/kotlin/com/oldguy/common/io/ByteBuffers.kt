@@ -15,8 +15,7 @@ abstract class ByteBufferBase<Element, Array> constructor(
     capacity: Int,
     order: ByteOrder = ByteOrder.LittleEndian,
     override val isReadOnly: Boolean = false
-) :
-    Buffer<Element, Array>(-1, 0, capacity, capacity, order),
+) :Buffer<Element, Array>(-1, 0, capacity, capacity, order),
     Comparable<ByteBufferBase<Element, Array>> {
 
     abstract var buf: Array
@@ -25,20 +24,6 @@ abstract class ByteBufferBase<Element, Array> constructor(
     private var offset = 0
     val contentBytes get() = buf
 
-    /**
-     * Similar to [ByteArray] copyInto
-     * @param destination Array to receive copy
-     * @param destinationOffset index into destination where copy will start
-     * @param startIndex index in source array where copy will start
-     * @param endIndex index in source that copy will end, exclusive. [endIndex - startIndex] will
-     * be number of bytes copied.
-     */
-    abstract fun copyInto(
-        destination: Array,
-        destinationOffset: Int = 0,
-        startIndex: Int = 0,
-        endIndex: Int
-    )
     /**
      * The following properties offer simple encode/decode operations as indicated by the ByteOrder
      * currently in effect. Properties are defined for many basic types
@@ -132,6 +117,33 @@ abstract class ByteBufferBase<Element, Array> constructor(
     abstract fun compareElement(element: Element, other: Element): Int
 
     /**
+     * The contents of the current buffer are replaced with the contents of the source.  Position,
+     * limit, capacity, order, and mark will all be set to same as the source.
+     */
+    fun copy(source: ByteBufferBase<Element, Array>) {
+        buf = source.buf
+        position = source.position
+        limit = source.limit
+        mark = source.mark
+        order = source.order
+    }
+
+    /**
+     * Similar to [ByteArray] copyInto
+     * @param destination Array to receive copy
+     * @param destinationOffset index into destination where copy will start
+     * @param startIndex index in source array where copy will start
+     * @param endIndex index in source that copy will end, exclusive. [endIndex - startIndex] will
+     * be number of bytes copied.
+     */
+    abstract fun copyInto(
+        destination: Array,
+        destinationOffset: Int = 0,
+        startIndex: Int = 0,
+        endIndex: Int
+    )
+
+    /**
      * Starting at the current position, copy bytes into the specified destination array. Increment
      * position by the number of bytes retrieved.
      *
@@ -153,10 +165,6 @@ abstract class ByteBufferBase<Element, Array> constructor(
             throw IllegalStateException("Copying length:$length is more than remaining:$remaining")
         copyInto(destination, destinationOffset, position, position + length)
         position += length
-    }
-
-    override fun flip(): Buffer<Element, Array> {
-        return super.flip()
     }
 
     /**
@@ -190,18 +198,6 @@ abstract class ByteBufferBase<Element, Array> constructor(
         if (position + forLength > limit)
             throw IllegalStateException()
     }
-
-    /**
-     * The contents of the current buffer are replaced with the contents of the source.  Position,
-     * limit, capacity, order, and mark will all be set to same as the source.
-     */
-    fun copy(source: ByteBufferBase<Element, Array>) {
-        buf = source.buf
-        position = source.position
-        limit = source.limit
-        mark = source.mark
-        order = source.order
-    }
 }
 
 /**
@@ -233,16 +229,6 @@ class ByteBuffer(
     override fun flip(): ByteBuffer {
         super.flip()
         return this
-    }
-
-    /**
-     * Convert from a [ByteBuffer] to a [UByteBuffer], retaining the same capacity, position, limit
-     * and contents
-     */
-    fun toUByteBuffer(): UByteBuffer {
-        val uBuf = UByteBuffer(capacity, order, isReadOnly, contentBytes.toUByteArray())
-        uBuf.positionLimit(position, remaining)
-        return uBuf
     }
 
     override fun getElementAt(index: Int): Byte {
@@ -399,31 +385,19 @@ class ByteBuffer(
         return element.compareTo(other)
     }
 
-    fun get(
-        destination: ByteArray,
-        destinationOffset: Int = 0,
-        size: Int = destination.size
-    ) {
-        super.fillArray(destination, destinationOffset, size)
-    }
-
     /**
-     * Copies specified bytes from source to this buffer, starting at position, for the
-     * specified length. Position is incremented by the length. Any bounds violation throws
-     * and IllegalArgumentException
-     *
-     * @param source byte array to write from, will be unchanged
-     * @param sourceOffset starting offset in source, defaults to 0
-     * @param length number of bytes to copy, defaults to size of source
-     * @return this
-     * @throws IllegalArgumentException on bounds violation
+     * Increase size of buffer. Capacity and content are increased. Position is unchanged. if limit
+     * currently set to capacity, it will be set to the new capacity. All data is retained from
+     * previous buffer, including bytes between old limit and capacity.
+     * @param addCapacity bytes to add. Unsigned as can't be used to shrink.
      */
-    fun putBytes(source: ByteArray, sourceOffset: Int = 0, length: Int = source.size) {
-        checkBounds(sourceOffset, length, length)
-        if (length > remaining)
-            throw IllegalArgumentException("Length:$length exceeds remaining:$remaining")
-        source.copyInto(buf, position, sourceOffset, length)
-        position += length
+    override fun expand(addCapacity: UInt) {
+        val changeLimit = limit == capacity
+        capacity += addCapacity.toInt()
+        val newBuf = ByteArray(capacity)
+        buf.copyInto(newBuf, 0, 0)
+        buf = newBuf
+        if (changeLimit) limit = capacity
     }
 
     /**
@@ -452,6 +426,33 @@ class ByteBuffer(
         position = limit
     }
 
+    fun get(
+        destination: ByteArray,
+        destinationOffset: Int = 0,
+        size: Int = destination.size
+    ) {
+        super.fillArray(destination, destinationOffset, size)
+    }
+
+    /**
+     * Copies specified bytes from source to this buffer, starting at position, for the
+     * specified length. Position is incremented by the length. Any bounds violation throws
+     * and IllegalArgumentException
+     *
+     * @param source byte array to write from, will be unchanged
+     * @param sourceOffset starting offset in source, defaults to 0
+     * @param length number of bytes to copy, defaults to size of source
+     * @return this
+     * @throws IllegalArgumentException on bounds violation
+     */
+    fun putBytes(source: ByteArray, sourceOffset: Int = 0, length: Int = source.size) {
+        checkBounds(sourceOffset, length, length)
+        if (length > remaining)
+            throw IllegalArgumentException("Length:$length exceeds remaining:$remaining")
+        source.copyInto(buf, position, sourceOffset, length)
+        position += length
+    }
+
     /**
      * Make a new ByteBuffer containing the [remaining bytes] of this one. Length can be overridden to
      * a shorter value than the default [remaining]. If length is > [remaining], [remaining] is used.
@@ -465,6 +466,16 @@ class ByteBuffer(
         val bytes = ByteArray(l)
         buf.copyInto(bytes, 0, position, position + l)
         return ByteBuffer(bytes, this.order)
+    }
+
+    /**
+     * Convert from a [ByteBuffer] to a [UByteBuffer], retaining the same capacity, position, limit
+     * and contents
+     */
+    fun toUByteBuffer(): UByteBuffer {
+        val uBuf = UByteBuffer(capacity, order, isReadOnly, contentBytes.toUByteArray())
+        uBuf.positionLimit(position, remaining)
+        return uBuf
     }
 
     override fun toString(): String {
@@ -545,27 +556,75 @@ class UByteBuffer(
     constructor(bytes: UByteArray, order: ByteOrder = ByteOrder.LittleEndian) :
             this(bytes.size, order, false, bytes)
 
+    /**
+     * Similar to [ByteArray] copyInto
+     * @param destination Array to receive copy
+     * @param destinationOffset index into destination where copy will start
+     * @param startIndex index in source array where copy will start
+     * @param endIndex index in source that copy will end, exclusive. [endIndex - startIndex] will
+     * be number of bytes copied.
+     */
+    override fun copyInto(
+        destination: UByteArray,
+        destinationOffset: Int,
+        startIndex: Int,
+        endIndex: Int
+    ) {
+        buf.copyInto(destination, destinationOffset, startIndex, endIndex)
+    }
+
+    override fun compareElement(element: UByte, other: UByte): Int {
+        return element.compareTo(other)
+    }
+
+    /**
+     * Increase size of buffer. Capacity and content are increased. Position is unchanged. if limit
+     * currently set to capacity, it will be set to the new capacity. All data is retained from
+     * previous buffer, including bytes between old limit and capacity.
+     * @param addCapacity bytes to add. Unsigned as can't be used to shrink.
+     */
+    override fun expand(addCapacity: UInt) {
+        val changeLimit = limit == capacity
+        capacity += addCapacity.toInt()
+        val newBuf = UByteArray(capacity)
+        buf.copyInto(newBuf, 0, 0)
+        buf = newBuf
+        if (changeLimit) limit = capacity
+    }
+
+    /**
+     * Appends a buffer starting at its position, to the end of this buffer,
+     * starting at position of this buffer for appendBuffer remaining size. New position will
+     * be at new limit. If the contents must be expanded (usually is), then a new byteArray is allocated.
+     * position is moved to the new limit.
+     * @param appendBuffer buffer to be appended, starting at its poition for remaining bytes
+     * @return this
+     */
+    fun expand(appendBuffer: UByteBuffer) {
+        val newLimit = position + appendBuffer.remaining
+        if (newLimit > capacity) {
+            val oldBuf = buf
+            buf = UByteArray(newLimit)
+            oldBuf.copyInto(buf, 0, 0, position)
+        }
+        appendBuffer.contentBytes.copyInto(
+            buf,
+            position,
+            appendBuffer.position,
+            appendBuffer.remaining
+        )
+        capacity = newLimit
+        limit = newLimit
+        position = limit
+    }
+
     override fun flip(): UByteBuffer {
         super.flip()
         return this
     }
 
-    /**
-     * Convert from a [UByteBuffer] to a [ByteBuffer], retaining the same capacity, position, limit
-     * and contents
-     */
-    fun toByteBuffer(): ByteBuffer {
-        val uBuf = ByteBuffer(capacity, order, isReadOnly, contentBytes.toByteArray())
-        uBuf.positionLimit(position, remaining)
-        return uBuf
-    }
-
     override fun getElementAt(index: Int): UByte {
         return buf[index]
-    }
-
-    override fun setElementAt(index: Int, element: UByte) {
-        buf[index] = element
     }
 
     /**
@@ -636,11 +695,46 @@ class UByteBuffer(
         position += l
     }
 
+    /**
+     * Copies specified bytes from source to this buffer, starting at position, for the
+     * specified length. Position is incremented by the length. Any bounds violation throws
+     * an IllegalArgumentException
+     *
+     * @param source byte array to write from, will be unchanged
+     * @param sourceOffset starting offset in source, defaults to 0
+     * @param length number of bytes to copy, defaults to size of source
+     * @return this
+     * @throws IllegalArgumentException on bounds violation
+     */
+    fun putBytes(source: UByteArray, sourceOffset: Int = 0, length: Int = source.size) {
+        checkBounds(sourceOffset, length, length)
+        if (length > remaining)
+            throw IllegalArgumentException("Length:$length exceeds remaining:$remaining")
+        for (i in sourceOffset until sourceOffset + length) {
+            byte = source[i]
+        }
+    }
+
     override fun putEndian(bytes: UByteArray) {
         if (order == ByteOrder.LittleEndian) {
             bytes.reverse()
         }
         put(bytes)
+    }
+
+    override fun setElementAt(index: Int, element: UByte) {
+        buf[index] = element
+    }
+
+    /**
+     * Make a new ByteBuffer containing the [remaining bytes] of this one. Length can be overriden to
+     * a shorter value than the default [remaining]. Position is unaffected
+     * @param length defaults to [remaining]. can be between 1 and [remaining]
+     */
+    override fun slice(length: Int): UByteBuffer {
+        val bytes = UByteArray(length)
+        buf.copyInto(bytes, 0, position, position + length)
+        return UByteBuffer(bytes, this.order)
     }
 
     override fun shortToArray(short: Short): UByteArray {
@@ -702,81 +796,13 @@ class UByteBuffer(
     }
 
     /**
-     * Similar to [ByteArray] copyInto
-     * @param destination Array to receive copy
-     * @param destinationOffset index into destination where copy will start
-     * @param startIndex index in source array where copy will start
-     * @param endIndex index in source that copy will end, exclusive. [endIndex - startIndex] will
-     * be number of bytes copied.
+     * Convert from a [UByteBuffer] to a [ByteBuffer], retaining the same capacity, position, limit
+     * and contents
      */
-    override fun copyInto(
-        destination: UByteArray,
-        destinationOffset: Int,
-        startIndex: Int,
-        endIndex: Int
-    ) {
-        buf.copyInto(destination, destinationOffset, startIndex, endIndex)
-    }
-
-    override fun compareElement(element: UByte, other: UByte): Int {
-        return element.compareTo(other)
-    }
-
-    /**
-     * Copies specified bytes from source to this buffer, starting at position, for the
-     * specified length. Position is incremented by the length. Any bounds violation throws
-     * an IllegalArgumentException
-     *
-     * @param source byte array to write from, will be unchanged
-     * @param sourceOffset starting offset in source, defaults to 0
-     * @param length number of bytes to copy, defaults to size of source
-     * @return this
-     * @throws IllegalArgumentException on bounds violation
-     */
-    fun putBytes(source: UByteArray, sourceOffset: Int = 0, length: Int = source.size) {
-        checkBounds(sourceOffset, length, length)
-        if (length > remaining)
-            throw IllegalArgumentException("Length:$length exceeds remaining:$remaining")
-        for (i in sourceOffset until sourceOffset + length) {
-            byte = source[i]
-        }
-    }
-
-    /**
-     * Appends a buffer starting at its position, to the end of this buffer,
-     * starting at position of this buffer for appendBuffer remaining size. New position will
-     * be at new limit. If the contents must be expanded (usually is), then a new byteArray is allocated.
-     * position is moved to the new limit.
-     * @param appendBuffer buffer to be appended, starting at its poition for remaining bytes
-     * @return this
-     */
-    fun expand(appendBuffer: UByteBuffer) {
-        val newLimit = position + appendBuffer.remaining
-        if (newLimit > capacity) {
-            val oldBuf = buf
-            buf = UByteArray(newLimit)
-            oldBuf.copyInto(buf, 0, 0, position)
-        }
-        appendBuffer.contentBytes.copyInto(
-            buf,
-            position,
-            appendBuffer.position,
-            appendBuffer.remaining
-        )
-        capacity = newLimit
-        limit = newLimit
-        position = limit
-    }
-
-    /**
-     * Make a new ByteBuffer containing the [remaining bytes] of this one. Length can be overriden to
-     * a shorter value than the default [remaining]. Position is unaffected
-     * @param length defaults to [remaining]. can be between 1 and [remaining]
-     */
-    override fun slice(length: Int): UByteBuffer {
-        val bytes = UByteArray(length)
-        buf.copyInto(bytes, 0, position, position + length)
-        return UByteBuffer(bytes, this.order)
+    fun toByteBuffer(): ByteBuffer {
+        val uBuf = ByteBuffer(capacity, order, isReadOnly, contentBytes.toByteArray())
+        uBuf.positionLimit(position, remaining)
+        return uBuf
     }
 
     override fun toString(): String {
