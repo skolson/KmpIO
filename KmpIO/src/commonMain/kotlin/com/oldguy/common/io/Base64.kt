@@ -1,11 +1,49 @@
 package com.oldguy.common.io
 
+/**
+ * Base 64 encode/decode from/to UTF-8 bytes, or from/to String (decoded from UTF-8 bytes). No
+ * line separator options available. No options around padding, line handling. Decode ignores
+ * non-base64 characters
+ */
 object Base64 {
     private val charset = Charset(Charsets.Utf8)
-    fun encode(base64: String): ByteArray = encodeBase64(base64.encodeToByteArray())
-    fun encode(base64: ByteArray): ByteArray = encodeBase64(base64)
-    fun decode(base64: ByteArray): String = charset.decode(decodeBase64(base64))
-    fun decodeToBytes(base64: ByteArray): ByteArray = decodeBase64(base64)
+
+    /**
+     * Encode incoming string to UTF-8, then do Base64 encode to produce UTF-8 bytes.
+     * @param anyString
+     * @return ByteArray containing Base64 encoded result in UTF-8
+     */
+    fun encode(anyString: String): ByteArray = encodeBase64(anyString.encodeToByteArray())
+    /**
+     * Base64 encode to produce UTF-8 bytes.
+     * @param bytes any ByteArray
+     * @return ByteArray containing Base64 encoded result in UTF-8
+     */
+    fun encode(bytes: ByteArray): ByteArray = encodeBase64(bytes)
+    /**
+     * Base64 encode to produce String.
+     * @param bytes any ByteArray
+     * @return String containing Base64 result
+     */
+    fun encodeToString(bytes: ByteArray): String = charset.decode(encodeBase64(bytes))
+    /**
+     * Base64 decode to produce String. Will fail if decoded bytes are not valid UTF-8
+     * @param base64Bytes ByteArray containing Base64 UTF-8 encoded bytes
+     * @return String containing decoded result
+     */
+    fun decode(base64Bytes: ByteArray): String = charset.decode(decodeBase64(base64Bytes))
+    /**
+     * Base64 decode to produce String. Will fail if decoded bytes are not valid UTF-8
+     * @param base64 String containing Base64
+     * @return String containing decoded result
+     */
+    fun decode(base64: String): String = charset.decode(decodeBase64(charset.encode(base64)))
+    /**
+     * Base64 decode to produce UTF-8 Bytes. Will fail if decoded bytes are not valid UTF-8
+     * @param base64 string containing Base64 encoded payload that decodes to valid UTF-8 bytes
+     * @return ByteArray containing decoded result in UTF-8 bytes
+     */
+    fun decodeToBytes(base64: String): ByteArray = decodeBase64(charset.encode(base64))
 
     /**
      * changes UTF-8 to Base64 encoding
@@ -16,28 +54,28 @@ object Base64 {
             '9'
         ) + '+' + '/').toCharArray()
         val output = ByteBuffer(bytes.size * 2)
-        var padding = 0
+        var paddingCount = 0
         var position = 0
         while (position < bytes.size) {
             var b = bytes[position].toInt() and 0xFF shl 16 and 0xFFFFFF
             if (position + 1 < bytes.size) b =
-                b or (bytes[position + 1].toInt() and 0xFF shl 8) else padding++
+                b or (bytes[position + 1].toInt() and 0xFF shl 8) else paddingCount++
             if (position + 2 < bytes.size) b =
-                b or (bytes[position + 2].toInt() and 0xFF) else padding++
-            for (i in 0 until 4 - padding) {
+                b or (bytes[position + 2].toInt() and 0xFF) else paddingCount++
+            for (i in 0 until 4 - paddingCount) {
                 val c = b and 0xFC0000 shr 18
-                output.int = table[c].code
+                output.byte = table[c].code.toByte()
                 b = b shl 6
             }
             position += 3
         }
-        for (i in 0 until padding) {
-            output.int = '='.code
+        for (i in 0 until paddingCount) {
+            output.byte = '='.code.toByte()
         }
-        return output.contentBytes
+        return output.flip().getBytes()
     }
 
-    private fun decodeBase64(base64: ByteArray): ByteArray {
+    private fun decodeBase64(base64In: ByteArray): ByteArray {
         val table = intArrayOf(
             -1,
             -1,
@@ -296,6 +334,7 @@ object Base64 {
             -1
         )
 
+        val base64 = base64In.filter { table[it.toInt()] != -1 }
         val output = ByteBuffer(base64.size)
         var position = 0
         while (position < base64.size) {
@@ -321,15 +360,12 @@ object Base64 {
             }
             while (count > 0) {
                 val c = b and 0xFF0000 shr 16
-                output.int = c.toChar().code
+                output.byte = c.toChar().code.toByte()
                 b = b shl 8
                 count--
             }
             position += 4
         }
-        return ByteArray(output.limit).apply {
-            output.flip()
-            output.getBytes(this)
-        }
+        return output.flip().getBytes()
     }
 }

@@ -8,6 +8,7 @@
 - Unit test for BufferReader
 - Additional RawFile read methods, optional buffer reuse assistance on existing reads
 - Added Buffer expand(size:Int) 
+- Base64 repair, javadoc, Base64 unit tests
 
 ### 0.1.1 (2022-03)
 
