@@ -55,6 +55,10 @@ android {
         minSdk = androidMinSdk
         targetSdk = androidTargetSdkVersion
 
+        buildFeatures {
+            buildConfig = false
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("tools/proguard-rules.pro")
     }
