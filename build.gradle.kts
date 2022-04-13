@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
-    val kotlinVersion: String by extra("1.6.10")
+    val kotlinVersion: String by extra("1.6.20")
     repositories {
         gradlePluginPortal()
         google()

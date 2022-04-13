@@ -23,7 +23,7 @@ repositories {
 val mavenArtifactId = "kmp-io"
 val appleFrameworkName = "KmpIO"
 group = "com.oldguy"
-version = "0.1.2"
+version = "0.1.3"
 
 val androidMinSdk = 26
 val androidTargetSdkVersion = 32
@@ -160,7 +160,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1")
             }
         }
         val commonTest by getting {
