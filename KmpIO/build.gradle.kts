@@ -32,7 +32,7 @@ val kmpPackageName = "com.oldguy.common.io"
 
 val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
 val javadocTaskName = "javadocJar"
-val kotlinCoroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0"
+val kotlinCoroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.1"
 
 android {
     compileSdk = androidTargetSdkVersion
