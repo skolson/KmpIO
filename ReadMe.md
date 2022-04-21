@@ -52,8 +52,10 @@ Supported platforms (KMM targets) all 64 bit only:
 # Dependencies
 
 Kotlin only is used for the KMP code.
-- Kotlin 1.6.10
-- Kotlin atomicfu
+
+- atomicfu
+- Coroutines
+- datetime
 
 ## Usage
 
