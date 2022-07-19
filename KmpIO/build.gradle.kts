@@ -10,7 +10,7 @@ plugins {
     id("maven-publish")
     id("signing")
     id("kotlinx-atomicfu")
-    id("org.jetbrains.dokka") version "1.6.10"
+    id("org.jetbrains.dokka") version "1.7.10"
     id("com.github.ben-manes.versions") version "0.42.0"
 }
 
@@ -32,11 +32,13 @@ val kmpPackageName = "com.oldguy.common.io"
 
 val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
 val javadocTaskName = "javadocJar"
-val kotlinCoroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.1"
+val kotlinxCoroutinesVersion = "1.6.4"
+val kotlinCoroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion"
+val junitVersion = "4.13.2"
 
 android {
     compileSdk = androidTargetSdkVersion
-    buildToolsVersion = "33.0.0-rc2"
+    buildToolsVersion = "33.0.0"
 
     sourceSets {
         getByName("main") {
@@ -74,7 +76,7 @@ android {
     }
 
     dependencies {
-        testImplementation("junit:junit:4.13.2")
+        testImplementation("junit:junit:$junitVersion")
         androidTestImplementation("androidx.test:core:1.4.0")
         androidTestImplementation("androidx.test:runner:1.4.0")
         androidTestImplementation("androidx.test.ext:junit:1.1.3")
@@ -159,8 +161,8 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.2")
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
             }
         }
         val commonTest by getting {
@@ -176,14 +178,14 @@ kotlin {
         val androidTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation("junit:junit:4.13.2")
+                implementation("junit:junit:$junitVersion")
             }
         }
         val androidAndroidTest by getting {
             dependsOn(commonTest)
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation("junit:junit:4.13.2")
+                implementation("junit:junit:$junitVersion")
             }
         }
         val appleNativeMain by creating {
@@ -219,7 +221,7 @@ kotlin {
         val jvmTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation("junit:junit:4.13.2")
+                implementation("junit:junit:$junitVersion")
             }
         }
         all {

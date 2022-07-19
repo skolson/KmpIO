@@ -18,7 +18,7 @@ Supported targets:
 - iosX64
 - iosArm64
 
-A common source set "appleNativeMain" contains common across used by all three Apple targets. 
+A common source set "appleNativeMain" contains common source used by all three Apple targets. 
 
 ## Reason for Existence
 
@@ -69,7 +69,7 @@ Define the library as a gradle dependency (assumes mavenLocal is defined as a re
 
 ```
     dependencies {
-        implementation("com.oldguy.kmpsc:kmp-io:0.1.0")
+        implementation("com.oldguy.kmpsc:kmp-io:0.1.3")
     }  
 ```
 
