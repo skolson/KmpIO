@@ -1,10 +1,11 @@
 # Change Log
 
-### 0.1.3 (in progress)
+### 0.1.3
 
 - Kotlin 1.7.10
 - kotlinx coroutines 1.6.4
-- Gradle 7.5
+- Gradle 7.5.1
+- Build changes for maven/sonatype publishing
 
 ### 0.1.2
 

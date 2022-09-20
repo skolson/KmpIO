@@ -1,3 +1,5 @@
+import java.util.Properties
+import java.io.FileInputStream
 import org.gradle.kotlin.dsl.signing
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
@@ -18,6 +20,10 @@ repositories {
     gradlePluginPortal()
     google()
     mavenCentral()
+}
+
+val localProps = Properties().apply {
+    load(FileInputStream(project.rootProject.file("local.properties")))
 }
 
 val mavenArtifactId = "kmp-io"
@@ -239,12 +245,22 @@ kotlin {
     }
 
     publishing {
+        val server = localProps.getProperty("ossrhServer")
+        repositories {
+            maven {
+                url = uri("https://$server/service/local/staging/deploy/maven2/")
+                credentials {
+                    username = localProps.getProperty("ossrhUsername")
+                    password = localProps.getProperty("ossrhPassword")
+                }
+            }
+        }
         publications.withType(MavenPublication::class) {
             artifactId = artifactId.replace(project.name, mavenArtifactId)
             artifact(tasks.getByPath(javadocTaskName))
             pom {
                 name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
-                description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android IOS, Windows, Linux, MacOS")
+                description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android, IOS, Windows, Linux, MacOS")
                 url.set(githubUrl)
                 licenses {
                     license {
