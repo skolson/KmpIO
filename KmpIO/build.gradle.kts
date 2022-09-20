@@ -24,6 +24,9 @@ repositories {
 
 val localProps = Properties().apply {
     load(FileInputStream(project.rootProject.file("local.properties")))
+    project.extra["signing.keyId"] = get("signing.keyId")
+    project.extra["signing.password"] = get("signing.password")
+    project.extra["signing.secretKeyRingFile"] = get("signing.secretKeyRingFile")
 }
 
 val mavenArtifactId = "kmp-io"
@@ -295,6 +298,6 @@ tasks.withType<Test> {
 }
 
 signing {
-    isRequired = false
+    isRequired = true
     sign(publishing.publications)
 }
