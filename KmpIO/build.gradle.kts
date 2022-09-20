@@ -28,7 +28,7 @@ val localProps = Properties().apply {
 
 val mavenArtifactId = "kmp-io"
 val appleFrameworkName = "KmpIO"
-group = "com.oldguy"
+group = "io.github.skolson"
 version = "0.1.3"
 
 val androidMinSdk = 26
