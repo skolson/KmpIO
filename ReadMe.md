@@ -59,17 +59,11 @@ Kotlin only is used for the KMP code.
 
 ## Usage
 
-This library has been used extensively in one app, so has not so far been published to maven. It can be easily published to mavenLocal using the gradle "publishToMavenLocal" task.
-
-At some point the library may be published to the public Maven repository.
-
-Use the gradle Publish task 'publishToMavenLocal' to run a build and publish the artifacts produced to a local maven repository.
-
-Define the library as a gradle dependency (assumes mavenLocal is defined as a repo in your build.gradle scripts):
+Define the library as a gradle dependency (assumes mavenCentral() is defined as a repo in your build.gradle scripts):
 
 ```
     dependencies {
-        implementation("com.oldguy.kmpsc:kmp-io:0.1.3")
+        implementation("io.github.skolson:kmp-io:0.1.3")
     }  
 ```
 
