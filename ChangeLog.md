@@ -1,5 +1,10 @@
 # Change Log
 
+### 0.1.4 (in progress)
+
+- Kotlin 1.7.20
+- atomicfu 0.18.4
+
 ### 0.1.3
 
 - Kotlin 1.7.10

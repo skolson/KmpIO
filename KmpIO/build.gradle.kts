@@ -12,7 +12,7 @@ plugins {
     id("maven-publish")
     id("signing")
     id("kotlinx-atomicfu")
-    id("org.jetbrains.dokka") version "1.7.10"
+    id("org.jetbrains.dokka") version "1.7.20"
     id("com.github.ben-manes.versions") version "0.42.0"
 }
 
@@ -32,7 +32,7 @@ val localProps = Properties().apply {
 val mavenArtifactId = "kmp-io"
 val appleFrameworkName = "KmpIO"
 group = "io.github.skolson"
-version = "0.1.3"
+version = "0.1.4"
 
 val androidMinSdk = 26
 val androidTargetSdkVersion = 32
@@ -86,9 +86,9 @@ android {
 
     dependencies {
         testImplementation("junit:junit:$junitVersion")
-        androidTestImplementation("androidx.test:core:1.4.0")
-        androidTestImplementation("androidx.test:runner:1.4.0")
-        androidTestImplementation("androidx.test.ext:junit:1.1.3")
+        androidTestImplementation("androidx.test:core:1.5.0-beta01")
+        androidTestImplementation("androidx.test:runner:1.5.0-beta01")
+        androidTestImplementation("androidx.test.ext:junit:1.1.4-beta01")
     }
 }
 
