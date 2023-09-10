@@ -11,6 +11,7 @@
 - no functional changes
 - New native opt-in attributes added to some classes
 - Change android sourceset names for test and instrumented test to new conventions
+- javadoc name workaround for https://github.com/gradle/gradle/issues/26091
 
 ### 0.1.3
 

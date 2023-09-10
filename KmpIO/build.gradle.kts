@@ -95,11 +95,6 @@ tasks {
             }
         }
     }
-    create<Jar>(javadocTaskName) {
-        dependsOn(dokkaHtml)
-        archiveClassifier.set("javadoc")
-        from(dokkaHtml.get().outputDirectory)
-    }
 }
 
 kotlin {
@@ -264,7 +259,17 @@ kotlin {
         }
         publications.withType(MavenPublication::class) {
             artifactId = artifactId.replace(project.name, mavenArtifactId)
-            artifact(tasks.getByPath(javadocTaskName))
+
+            // workaround for https://github.com/gradle/gradle/issues/26091
+            val dokkaJar = tasks.register("${this.name}DokkaJar", Jar::class) {
+                group = JavaBasePlugin.DOCUMENTATION_GROUP
+                description = "Dokka builds javadoc jar"
+                archiveClassifier.set("javadoc")
+                from(tasks.named("dokkaHtml"))
+                archiveBaseName.set("${archiveBaseName.get()}-${this.name}")
+            }
+            artifact(dokkaJar)
+
             pom {
                 name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
                 description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android, IOS, Windows, Linux, MacOS")
