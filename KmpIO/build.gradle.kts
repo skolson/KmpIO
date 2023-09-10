@@ -11,9 +11,9 @@ plugins {
     kotlin("native.cocoapods")
     id("maven-publish")
     id("signing")
-    id("kotlinx-atomicfu")
-    id("org.jetbrains.dokka") version "1.7.20"
-    id("com.github.ben-manes.versions") version "0.42.0"
+    kotlin("plugin.atomicfu") version "1.9.10"
+    id("org.jetbrains.dokka") version "1.9.0"
+    id("com.github.ben-manes.versions") version "0.48.0"
 }
 
 repositories {
@@ -35,36 +35,29 @@ group = "io.github.skolson"
 version = "0.1.4"
 
 val androidMinSdk = 26
-val androidTargetSdkVersion = 32
+val androidCompileSdkVersion = 34
 val iosMinSdk = "14"
 val kmpPackageName = "com.oldguy.common.io"
 
 val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
 val javadocTaskName = "javadocJar"
-val kotlinxCoroutinesVersion = "1.6.4"
+val kotlinxCoroutinesVersion = "1.7.3"
 val kotlinCoroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion"
 val junitVersion = "4.13.2"
 
 android {
-    compileSdk = androidTargetSdkVersion
-    buildToolsVersion = "33.0.0"
+    compileSdk = androidCompileSdkVersion
+    buildToolsVersion = "34.0.0"
+    namespace = "com.oldguy.iocommon"
 
     sourceSets {
         getByName("main") {
-            java.srcDir(androidMainDirectory.resolve("kotlin"))
             manifest.srcFile(androidMainDirectory.resolve("AndroidManifest.xml"))
-        }
-        getByName("test") {
-            java.srcDir("src/androidTest/kotlin")
-        }
-        getByName("androidTest") {
-            java.srcDir("src/androidAndroidTest/kotlin")
         }
     }
 
     defaultConfig {
         minSdk = androidMinSdk
-        targetSdk = androidTargetSdkVersion
 
         buildFeatures {
             buildConfig = false
@@ -86,9 +79,9 @@ android {
 
     dependencies {
         testImplementation("junit:junit:$junitVersion")
-        androidTestImplementation("androidx.test:core:1.5.0-beta01")
-        androidTestImplementation("androidx.test:runner:1.5.0-beta01")
-        androidTestImplementation("androidx.test.ext:junit:1.1.4-beta01")
+        androidTestImplementation("androidx.test:core:1.5.0")
+        androidTestImplementation("androidx.test:runner:1.5.2")
+        androidTestImplementation("androidx.test.ext:junit:1.1.5")
     }
 }
 
@@ -110,7 +103,7 @@ tasks {
 }
 
 kotlin {
-    android {
+    androidTarget {
         publishLibraryVariants("release", "debug")
         mavenPublication {
             artifactId = artifactId.replace(project.name, mavenArtifactId)
@@ -166,11 +159,10 @@ kotlin {
     }
     jvm()
 
-    @Suppress("UNUSED_VARIABLE")
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
             }
         }
@@ -184,13 +176,13 @@ kotlin {
         val androidMain by getting {
             dependsOn(commonMain)
         }
-        val androidTest by getting {
+        val androidUnitTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation("junit:junit:$junitVersion")
             }
         }
-        val androidAndroidTest by getting {
+        val androidInstrumentedTest by getting {
             dependsOn(commonTest)
             dependencies {
                 implementation(kotlin("test-junit"))
@@ -234,15 +226,27 @@ kotlin {
             }
         }
         all {
-            if (this.name.endsWith("Test")) {
-                languageSettings {
-                    optIn("kotlin.ExperimentalUnsignedTypes")
-                    optIn("kotlin.ExperimentalCoroutinesApi")
-                }
-            } else {
-                languageSettings {
-                    optIn("kotlin.ExperimentalUnsignedTypes")
-                }
+            languageSettings {
+                optIn("kotlin.ExperimentalUnsignedTypes")
+            }
+        }
+    }
+
+    // workaround starting with Gradle 8 and kotlin 1.8.x, supposedly fixed in Kotlin 1.9.20 (KT-55751)
+    val workaroundAttribute = Attribute.of("com.oldguy.kiscmp", String::class.java)
+    afterEvaluate {
+        configurations {
+            named("debugFrameworkIosFat").configure {
+                attributes.attribute(workaroundAttribute, "iosFat")
+            }
+            named("podDebugFrameworkIosFat").configure {
+                attributes.attribute(workaroundAttribute, "podIosFat")
+            }
+            named("releaseFrameworkIosFat").configure {
+                attributes.attribute(workaroundAttribute, "iosFat")
+            }
+            named("podReleaseFrameworkIosFat").configure {
+                attributes.attribute(workaroundAttribute, "podIosFat")
             }
         }
     }
@@ -295,6 +299,10 @@ tasks.withType<Test> {
         showStandardStreams = true
         showStackTraces = true
     }
+}
+
+task("testClasses").doLast {
+    println("testClasses task Iguana workaround for KMP libraries")
 }
 
 signing {

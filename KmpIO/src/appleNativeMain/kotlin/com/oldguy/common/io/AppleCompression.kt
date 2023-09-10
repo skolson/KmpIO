@@ -51,12 +51,13 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
         )
     }
 
+    @OptIn(ExperimentalForeignApi::class)
     private suspend fun transform(
         encode: Boolean,
         input: suspend () -> ByteBuffer,
         output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        var compressedCount = 0UL
+        var outCount = 0UL
         memScoped {
             val cmp: CValuesRef<compression_stream> = alloc<compression_stream>().ptr
             val code = if (encode) COMPRESSION_STREAM_ENCODE else COMPRESSION_STREAM_DECODE
@@ -65,12 +66,15 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
                 code,
                 appleConst
             )
+            var count = 0
             if (status == COMPRESSION_STATUS_OK) {
                 val inPage = UByteArray(bufferSize)
+                var inCount = 0UL
                 inPage.usePinned { pinIn ->
                     val outPage = UByteArray(bufferSize)
                     outPage.usePinned { pinOut ->
                         var inBuf = input()
+                        inCount += inBuf.remaining.toULong()
                         var sourceLength = inBuf.remaining
                         inBuf.getBytes(sourceLength).toUByteArray().copyInto(inPage)
                         cmp.getPointer(this).pointed.apply {
@@ -79,27 +83,34 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
                             src_ptr = pinIn.addressOf(0)
                             src_size = sourceLength.toULong()
                             var needsFinal = false
+                            var flags = 0
                             while (sourceLength > 0) {
-                                val result = compression_stream_process(cmp, 0)
+                                val result = compression_stream_process(cmp, flags)
+                                count++
+                                //println("# $count - in: $inCount, out: $outCount, src: $src_size, dst: $dst_size, result: $result, flag: $flags")
                                 when (result) {
                                     COMPRESSION_STATUS_OK -> {
                                         if (src_size == 0UL) {
                                             if (encode) needsFinal = true
                                             inBuf = input()
-                                            src_ptr = pinIn.addressOf(0)
                                             sourceLength = inBuf.remaining
+                                            inCount += sourceLength.toUInt()
+                                            if (sourceLength == 0)
+                                                flags = COMPRESSION_STREAM_FINALIZE.toInt()
                                             inBuf.getBytes(sourceLength).toUByteArray().copyInto(inPage)
+                                            src_ptr = pinIn.addressOf(0)
+                                            src_size = sourceLength.toULong()
                                         }
                                         if (dst_size == 0UL) {
                                             output(ByteBuffer(outPage.toByteArray()))
-                                            compressedCount += outPage.size.toULong()
+                                            outCount += outPage.size.toULong()
                                             dst_ptr = pinOut.addressOf(0)
                                             dst_size = outPage.size.toULong()
                                         }
                                     }
                                     COMPRESSION_STATUS_END -> {
                                         if (encode) throw IllegalStateException("Compression error - unexpected STATUS_END during encode")
-                                        compressedCount += sink(outPage, dst_size, output)
+                                        outCount += sink(outPage, dst_size, output)
                                         break
                                     }
                                     COMPRESSION_STATUS_ERROR -> {
@@ -110,7 +121,7 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
                             if (needsFinal) {
                                 val result = compression_stream_process(cmp, COMPRESSION_STREAM_FINALIZE.toInt())
                                 if (result == COMPRESSION_STATUS_END) {
-                                    compressedCount += sink(outPage, dst_size, output)
+                                    outCount += sink(outPage, dst_size, output)
                                 } else
                                     throw IllegalStateException("Compression error. Result $result")
                             }
@@ -121,7 +132,7 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
                 throw IllegalStateException("Compression init failed")
             compression_stream_destroy(cmp)
         }
-        return compressedCount
+        return outCount
     }
 }
 

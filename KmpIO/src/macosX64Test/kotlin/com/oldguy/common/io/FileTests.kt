@@ -10,7 +10,7 @@ class FileTestSuite {
     val tests = FileTests(path)
 
     init {
-        println(path)
+        println("Path: $path")
     }
 
     @Test

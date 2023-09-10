@@ -8,6 +8,7 @@ import platform.Foundation.*
 import platform.posix.memcpy
 import kotlin.math.min
 
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 open class AppleCharset(val set: Charsets) {
     val nsEnc = when (set) {
         Charsets.Utf8 -> NSUTF8StringEncoding
@@ -55,6 +56,7 @@ class NSErrorException(val nsError: NSError): Exception(nsError.toString())
  * also provides help for allocating and translating an NSError required. If an error occurs,
  * a Kotlin NSErrorException is thrown.
  */
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     val fm = NSFileManager.defaultManager
     open val path = pathArg.trimEnd(pathSeparator[0])
@@ -112,8 +114,8 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
 
     open val createdTime: LocalDateTime get() {
         var epoch = 0L
-        throwError {
-            (fm.attributesOfItemAtPath(path, it) as NSDictionary?)
+        throwError { cPointer ->
+            (fm.attributesOfItemAtPath(path, cPointer) as NSDictionary?)
                 ?.let { dict ->
                     dict.fileCreationDate()?.let {
                         epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
@@ -308,13 +310,14 @@ private class AppleFileHandle(val file: File, mode: FileMode)
                         throw IllegalArgumentException("Create file failed: $path ")
                 }
             }
-        } ?: throw IllegalArgumentException("Path ${path} mode $mode could not be opened")
+        } ?: throw IllegalArgumentException("Path $path mode $mode could not be opened")
 
     fun close() {
         handle.closeFile()
     }
 }
 
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 open class AppleRawFile(
     fileArg: File,
     val mode: FileMode
@@ -343,10 +346,10 @@ open class AppleRawFile(
             }
         }
         set(value) {
-            AppleFile.throwError {
-                val result = handle.seekToOffset(value, it)
+            AppleFile.throwError { cPointer ->
+                val result = handle.seekToOffset(value, cPointer)
                 if (!result) {
-                    it.pointed.value?.let {
+                    cPointer.pointed.value?.let {
                         println("NSerror content: ${it.localizedDescription}")
                     }
                     throw IllegalArgumentException("Could not position file to $value")
@@ -372,9 +375,9 @@ open class AppleRawFile(
      */
     open suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean): UInt {
         var len = 0u
-        AppleFile.throwError {
+        AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
-            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
+            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -399,10 +402,10 @@ open class AppleRawFile(
      */
     open suspend fun read(buf: ByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
         var len = 0u
-        AppleFile.throwError {
+        AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
             position = newPos
-            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
+            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -425,9 +428,9 @@ open class AppleRawFile(
      */
     open suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean): UInt {
         var len = 0u
-        AppleFile.throwError {
+        AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
-            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
+            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -452,10 +455,10 @@ open class AppleRawFile(
      */
     open suspend fun read(buf: UByteBuffer, newPos: ULong, reuseBuffer: Boolean): UInt {
         var len = 0u
-        AppleFile.throwError {
+        AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
             position = newPos
-            handle.readDataUpToLength(buf.remaining.convert(), it)?.let { bytes ->
+            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -724,6 +727,7 @@ open class AppleRawFile(
     }
 }
 
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 open class AppleTextFile(
     file: File,
     open val charset: Charset,
@@ -744,8 +748,8 @@ open class AppleTextFile(
 
     private fun nextBlock(): String {
         if (endOfFile) return ""
-        AppleFile.throwError {
-            apple.handle.readDataUpToLength(blockSize.convert(), it)?.let { bytes ->
+        AppleFile.throwError { cPointer ->
+            apple.handle.readDataUpToLength(blockSize.convert(), cPointer)?.let { bytes ->
                 val len = min(blockSize.toUInt(), bytes.length.convert())
                 if (len < buf.size.toUInt()) {
                     buf = ByteArray(len.toInt())
@@ -765,7 +769,7 @@ open class AppleTextFile(
             if (endOfFile) return false
             str += nextBlock()
             index = 0
-            val x = str.indexOf(eol)
+            val x = str.indexOf(EOL)
             lineEndIndex = if (x >= 0) x + 1 else -1
             return true
         }
@@ -789,7 +793,7 @@ open class AppleTextFile(
         } else {
             lin = str.substring(index, lineEndIndex)
             index = lineEndIndex
-            val x = str.indexOf(eol, index)
+            val x = str.indexOf(EOL, index)
             lineEndIndex = if (x >= 0)
                 x + 1
             else {
@@ -855,10 +859,10 @@ open class AppleTextFile(
     }
 
     open suspend fun writeLine(text: String) {
-        write (text + eol)
+        write (text + EOL)
     }
 
     companion object {
-        const val eol = "\n"
+        const val EOL = "\n"
     }
 }

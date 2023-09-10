@@ -1,9 +1,16 @@
 # Change Log
 
-### 0.1.4 (in progress)
+### 0.1.4
 
-- Kotlin 1.7.20
-- atomicfu 0.18.4
+- Kotlin 1.9.10
+- atomicfu 0.22.0
+- coroutines 1.7.3
+- AGP 8.3.0-alpha03
+- Gradle 8.3
+- kotlinx.datetime 0.4.1
+- no functional changes
+- New native opt-in attributes added to some classes
+- Change android sourceset names for test and instrumented test to new conventions
 
 ### 0.1.3
 
