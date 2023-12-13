@@ -1,5 +1,18 @@
 # Change Log
 
+### 0.1.5
+
+- Kotlin 1.9.21
+- Gradle 8.5
+- Gradle version catalog used for build
+- AGP 8.3.0-alpha1
+- kotlinx.datetime 0.5.0
+- Some sourceset names changed to conform to Default Kotlin Hierarchy Template. 
+- New targets iosSimulatorArm64, macosArm64 added, but not tested
+- fixed bug with bad compress/uncompress support on Apple targets
+- no other functional changes
+
+
 ### 0.1.4
 
 - Kotlin 1.9.10

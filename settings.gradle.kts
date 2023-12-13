@@ -5,6 +5,7 @@ pluginManagement {
         mavenCentral()
     }
 }
+
 rootProject.name = "KmpIO"
 
 include(":KmpIO")
