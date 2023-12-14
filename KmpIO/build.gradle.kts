@@ -55,7 +55,7 @@ android {
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("tools/proguard-rules.pro")
+        consumerProguardFiles("proguard-rules.pro")
     }
 
     buildTypes {
@@ -162,7 +162,7 @@ kotlin {
         }
     }
     jvm()
-
+    applyDefaultHierarchyTemplate()
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -188,24 +188,6 @@ kotlin {
                 implementation(kotlin("test-junit"))
                 implementation(libs.junit)
             }
-        }
-        val appleMain by creating {
-            dependsOn(commonMain)
-        }
-        val iosArm64Main by getting {
-            dependsOn(appleMain)
-        }
-        val iosX64Main by getting {
-            dependsOn(appleMain)
-        }
-        val iosSimulatorArm64Main by getting {
-            dependsOn(appleMain)
-        }
-        val macosArm64Main by getting {
-            dependsOn(appleMain)
-        }
-        val macosX64Main by getting {
-            dependsOn(appleMain)
         }
         val jvmTest by getting {
             dependencies {

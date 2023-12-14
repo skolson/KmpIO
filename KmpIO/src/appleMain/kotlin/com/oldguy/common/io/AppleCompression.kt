@@ -2,6 +2,7 @@ package com.oldguy.common.io
 
 import kotlinx.cinterop.*
 import platform.darwin.*
+import kotlin.math.min
 
 /**
  * Apple support compression library used to implement compress/decompress operations. This is a common implementation
@@ -51,6 +52,10 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
         )
     }
 
+    /**
+     * Initializes an Apple compression stream, then consumes input buffers and produces output buffers. After the
+     * transform (either encode/compress or decode/decompress) is complete, the stream is closed
+     */
     @OptIn(ExperimentalForeignApi::class)
     private suspend fun transform(
         encode: Boolean,
@@ -66,71 +71,77 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
                 code,
                 appleConst
             )
-            var count = 0
-            if (status == COMPRESSION_STATUS_OK) {
-                val inPage = UByteArray(bufferSize)
-                var inCount = 0UL
-                inPage.usePinned { pinIn ->
-                    val outPage = UByteArray(bufferSize)
-                    outPage.usePinned { pinOut ->
-                        var inBuf = input()
-                        inCount += inBuf.remaining.toULong()
-                        var sourceLength = inBuf.remaining
-                        inBuf.getBytes(sourceLength).toUByteArray().copyInto(inPage)
-                        cmp.getPointer(this).pointed.apply {
-                            dst_ptr = pinOut.addressOf(0)
-                            dst_size = outPage.size.toULong()
-                            src_ptr = pinIn.addressOf(0)
-                            src_size = sourceLength.toULong()
-                            var needsFinal = false
+            try {
+                var count = 0
+                if (status == COMPRESSION_STATUS_OK) {
+                    val inPage = UByteArray(bufferSize)
+                    var inCount = 0UL
+                    inPage.usePinned { pinIn ->
+                        val outPage = UByteArray(bufferSize)
+                        outPage.usePinned { pinOut ->
+                            val pinOutSize = pinOut.get().size.toULong()
+                            var inBuf = input()
+                            if (inBuf.remaining == 0) return 0UL
                             var flags = 0
-                            while (sourceLength > 0) {
-                                val result = compression_stream_process(cmp, flags)
-                                count++
-                                //println("# $count - in: $inCount, out: $outCount, src: $src_size, dst: $dst_size, result: $result, flag: $flags")
-                                when (result) {
-                                    COMPRESSION_STATUS_OK -> {
-                                        if (src_size == 0UL) {
-                                            if (encode) needsFinal = true
-                                            inBuf = input()
-                                            sourceLength = inBuf.remaining
-                                            inCount += sourceLength.toUInt()
-                                            if (sourceLength == 0)
-                                                flags = COMPRESSION_STREAM_FINALIZE.toInt()
-                                            inBuf.getBytes(sourceLength).toUByteArray().copyInto(inPage)
-                                            src_ptr = pinIn.addressOf(0)
-                                            src_size = sourceLength.toULong()
+                            cmp.getPointer(this).pointed.apply {
+                                var sourceLength = min(inBuf.remaining, bufferSize)
+                                inCount += sourceLength.toULong()
+                                inBuf.getBytes(sourceLength).toUByteArray().copyInto(pinIn.get())
+                                dst_ptr = pinOut.addressOf(0)
+                                dst_size = pinOut.get().size.toULong()
+                                src_ptr = pinIn.addressOf(0)
+                                src_size = sourceLength.toULong()
+
+                                while (true) {
+                                    val result = compression_stream_process(cmp, flags)
+                                    count++
+                                    //println("# $count - inBuf.remaining: ${inBuf.remaining}, in: $inCount, out: $outCount, src: $src_size, dst: $dst_size, result: $result, flag: $flags")
+                                    when (result) {
+                                        COMPRESSION_STATUS_OK -> {
+                                            if (src_size == 0UL) {
+                                                if (inBuf.remaining == 0) {
+                                                    inBuf = input()
+                                                }
+                                                if (inBuf.remaining == 0) {
+                                                    if (encode)
+                                                        flags = COMPRESSION_STREAM_FINALIZE.toInt()
+                                                } else {
+                                                    sourceLength = min(inBuf.remaining, bufferSize)
+                                                    inBuf.getBytes(sourceLength).toUByteArray().copyInto(pinIn.get())
+                                                    src_ptr = pinIn.addressOf(0)
+                                                    src_size = sourceLength.toULong()
+                                                    inCount += sourceLength.toULong()
+                                                }
+                                            }
+                                            if (dst_size == 0UL) {
+                                                output(ByteBuffer(pinOut.get().toByteArray()))
+                                                outCount += pinOutSize
+                                                dst_ptr = pinOut.addressOf(0)
+                                                dst_size = pinOutSize
+                                            }
                                         }
-                                        if (dst_size == 0UL) {
-                                            output(ByteBuffer(outPage.toByteArray()))
-                                            outCount += outPage.size.toULong()
-                                            dst_ptr = pinOut.addressOf(0)
-                                            dst_size = outPage.size.toULong()
+
+                                        COMPRESSION_STATUS_END -> {
+                                            outCount += sink(pinOut.get(), dst_size, output)
+                                            //println("Compression end. dst_size: $dst_size, wrote: ${pinOutSize - dst_size}, total out: $outCount")
+                                            break
                                         }
-                                    }
-                                    COMPRESSION_STATUS_END -> {
-                                        if (encode) throw IllegalStateException("Compression error - unexpected STATUS_END during encode")
-                                        outCount += sink(outPage, dst_size, output)
-                                        break
-                                    }
-                                    COMPRESSION_STATUS_ERROR -> {
-                                        throw IllegalStateException("Compression error. Result $result")
+
+                                        COMPRESSION_STATUS_ERROR -> {
+                                            throw IllegalStateException("Compression error. Result $result")
+                                        }
                                     }
                                 }
                             }
-                            if (needsFinal) {
-                                val result = compression_stream_process(cmp, COMPRESSION_STREAM_FINALIZE.toInt())
-                                if (result == COMPRESSION_STATUS_END) {
-                                    outCount += sink(outPage, dst_size, output)
-                                } else
-                                    throw IllegalStateException("Compression error. Result $result")
-                            }
                         }
                     }
-                }
-            } else
-                throw IllegalStateException("Compression init failed")
-            compression_stream_destroy(cmp)
+                } else
+                    throw IllegalStateException("Compression init failed")
+            } catch (e: IllegalStateException) {
+                throw e
+            } finally {
+                compression_stream_destroy(cmp)
+            }
         }
         return outCount
     }

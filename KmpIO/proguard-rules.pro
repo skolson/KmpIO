@@ -1,0 +1,1 @@
+# Any required rules for r8/proguard

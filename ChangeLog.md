@@ -9,9 +9,8 @@
 - kotlinx.datetime 0.5.0
 - Some sourceset names changed to conform to Default Kotlin Hierarchy Template. 
 - New targets iosSimulatorArm64, macosArm64 added, but not tested
-- fixed bug with bad compress/uncompress support on Apple targets
+- fixed bug with bad compress/uncompress support on Apple targets (payloads larger than 4k failed). New logic passes simple unit tests
 - no other functional changes
-
 
 ### 0.1.4
 

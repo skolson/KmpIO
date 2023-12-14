@@ -110,28 +110,26 @@ class CompressionTests {
     }
 
     @Test
-            /**
-             * Initialize a chunk of data with a repeating sequence. Compress and decompress, verify result
-             */
+    /**
+     * Initialize a chunk of data with a repeating sequence. Compress and decompress, verify result
+     */
     fun compressTest() {
         runTest {
             val token = ByteArray(10) { i -> (i + 48).toByte() }
             val dataSize = 24000
             val inData = ByteArray(dataSize) { i -> token[i % 10] }
-
-            val blockSize = 4096
-            var outBytes = 0
-            var index = 0
             val out = ByteBuffer(dataSize)
             val inBuffer = ByteBuffer(inData)
             CompressionDeflate(true).apply {
-                val compressed = compress(
-                    input = {
-                        inBuffer
-                    }
-                ) {
-                    out.expand(it)
-                }
+                val compressed = compress( input = { inBuffer }) { out.expand(it) }
+                assertEquals(73, compressed.toInt())
+                out.flip()
+                val out2 = ByteBuffer(24000)
+                val uncompressed = decompress(input = { out }) { out2.expand(it) }
+                out2.flip()
+                assertEquals(dataSize, uncompressed.toInt())
+                assertEquals(dataSize, out2.limit)
+                assertEquals(0, out2.compareTo(inBuffer))
             }
         }
     }
