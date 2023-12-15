@@ -15,10 +15,13 @@ Supported targets:
 
 - Android X64 and Arm64 ABIs
 - macosX64
+- macosArm64
 - iosX64
 - iosArm64
+- iosSimulatorArm64
 
-A common source set "appleNativeMain" contains common source used by all three Apple targets. 
+
+A common source set "appleMain" contains common source used by all three Apple targets. Project uses Kotlin's default hierarchy templte for source sets
 
 ## Reason for Existence
 
@@ -40,22 +43,13 @@ Kotlin multiplatform code needing basic IO file support should not need platform
 - ByteBuffer support using KMP-only code, similar to Java's ByteBuffer, with little endian and big endian support selectable at constructor time. Syntax is more Kotlin friendly. Both ByteBuffer and UByteBuffer are available for use.
 - Basic Charset encode/decode for a limited number of charsets 
 
-Supported platforms (KMM targets) all 64 bit only:
-
-- Android Arm, X64
-- linuxX64
-- macosX64
-- iosArm64
-- iosX64 Simulator
-- mingw64 currently not supported but is **easy** to add.
-
 # Dependencies
 
 Kotlin only is used for the KMP code.
 
 - atomicfu
 - Coroutines
-- datetime
+- kotlinx datetime
 
 ## Usage
 
@@ -63,7 +57,7 @@ Define the library as a gradle dependency (assumes mavenCentral() is defined as 
 
 ```
     dependencies {
-        implementation("io.github.skolson:kmp-io:0.1.3")
+        implementation("io.github.skolson:kmp-io:0.1.5")
     }  
 ```
 

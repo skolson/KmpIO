@@ -136,7 +136,7 @@ class AppleCompression(override val algorithm: CompressionAlgorithms)
                         }
                     }
                 } else
-                    throw IllegalStateException("Compression init failed")
+                    throw IllegalArgumentException("Compression init failed")
             } catch (e: IllegalStateException) {
                 throw e
             } finally {
