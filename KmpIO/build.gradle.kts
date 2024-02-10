@@ -2,6 +2,7 @@ import java.util.Properties
 import java.io.FileInputStream
 import org.gradle.kotlin.dsl.signing
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 
@@ -33,7 +34,7 @@ val localProps = Properties().apply {
 val mavenArtifactId = "kmp-io"
 val appleFrameworkName = "KmpIO"
 group = "io.github.skolson"
-version = "0.1.5"
+version = "0.1.6"
 
 val iosMinSdk = "14"
 val kmpPackageName = "com.oldguy.common.io"
@@ -87,6 +88,11 @@ tasks {
 }
 
 kotlin {
+    // Turns off warnings about expect/actual class usage
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
     androidTarget {
         java.sourceCompatibility = JavaVersion.VERSION_17
         java.targetCompatibility = JavaVersion.VERSION_17

@@ -1,8 +1,8 @@
 [versions]
-androidGradlePlugin = "8.3.0-alpha18"
+androidGradlePlugin = "8.4.0-alpha09"
 
-kotlin = "1.9.21"
-kotlinCoroutines = "1.7.3"
+kotlin = "1.9.22"
+kotlinCoroutines = "1.8.0-RC2"
 kotlinx-datetime = "0.5.0"
 
 androidBuildTools = "34"

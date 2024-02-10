@@ -1,5 +1,13 @@
 # Change Log
 
+### 0.1.6
+
+- Kotlin 1.9.22
+- Gradle 8.6
+- AGP 8.4.0-alpha09
+- License.md containing Apache 2.0 license text
+- no functional changes
+
 ### 0.1.5
 
 - Kotlin 1.9.21
@@ -9,7 +17,7 @@
 - kotlinx.datetime 0.5.0
 - Some sourceset names changed to conform to Default Kotlin Hierarchy Template. 
 - New targets iosSimulatorArm64, macosArm64 added, but not tested
-- fixed bug with bad compress/uncompress support on Apple targets (payloads larger than 4k failed). New logic passes simple unit tests
+- fixed bug with bad ZipFile compress/uncompress support on Apple targets (payloads larger than 4k failed). New logic passes simple unit tests
 - no other functional changes
 
 ### 0.1.4
