@@ -1,7 +1,9 @@
 [versions]
-androidGradlePlugin = "8.4.0-alpha09"
+appVersion = "0.1.7"
 
-kotlin = "1.9.22"
+androidGradlePlugin = "8.5.0-alpha02"
+
+kotlin = "1.9.23"
 kotlinCoroutines = "1.8.0-RC2"
 kotlinx-datetime = "0.5.0"
 
@@ -9,7 +11,7 @@ androidBuildTools = "34"
 androidSdk = "34"
 androidSdkMinimum = "26"
 
-dokkaPlugin = "1.9.10"
+dokkaPlugin = "1.9.20"
 junit = "4.13.2"
 androidxTest = "1.5.0"
 androidxTestRunner = "1.5.2"

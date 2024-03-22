@@ -1,5 +1,11 @@
 # Change Log
 
+### 0.1.7
+
+- Kotlin 1.9.23
+- AGP 8.5.0-alpha02
+- no functional changes
+
 ### 0.1.6
 
 - Kotlin 1.9.22
