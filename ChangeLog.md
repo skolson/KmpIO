@@ -1,5 +1,11 @@
 # Change Log
 
+### 0.1.8 (in progress)
+
+- Gradle 8.7
+- Added the beginnings of IOS-specific unit tests
+- 
+
 ### 0.1.7
 
 - Kotlin 1.9.23

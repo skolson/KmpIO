@@ -1,5 +1,5 @@
 [versions]
-appVersion = "0.1.7"
+appVersion = "0.1.8"
 
 androidGradlePlugin = "8.5.0-alpha02"
 
@@ -23,6 +23,8 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 
 #build only
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "androidGradlePlugin" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinCoroutines" }
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTest"}
@@ -31,6 +33,7 @@ androidx-test-ext = { module = "androidx.test.ext:junit", version.ref="androidxT
 
 [bundles]
 androidx-test = [ "androidx-test-core", "androidx-test-runner", "androidx-test-ext"]
+kotlin-test = [ "kotlin-test", "kotlinx-coroutines-test" ]
 
 [plugins]
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }

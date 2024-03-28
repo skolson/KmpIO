@@ -178,9 +178,7 @@ kotlin {
         }
         val commonTest by getting {
             dependencies {
-                implementation(kotlin("test-common"))
-                implementation(kotlin("test-annotations-common"))
-                implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.bundles.kotlin.test)
             }
         }
         val androidUnitTest by getting {
@@ -193,6 +191,16 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.junit)
+            }
+        }
+        val iosSimulatorArm64Test by getting {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
+            }
+        }
+        val iosX64Test by getting {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
             }
         }
         val jvmTest by getting {
