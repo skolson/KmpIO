@@ -1,5 +1,6 @@
-package com.oldguy.common.io
+package test
 
+import com.oldguy.common.io.*
 import com.oldguy.common.io.charsets.Charsets
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import platform.Foundation.NSTemporaryDirectory

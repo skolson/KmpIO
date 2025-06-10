@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'KmpIO'
-    spec.version                  = '0.1.7'
+    spec.version                  = '0.1.8'
     spec.homepage                 = 'https://github.com/skolson/KmpIO'
     spec.source                   = { :http=> ''}
     spec.authors                  = 'Steven Olson'
@@ -8,7 +8,7 @@ Pod::Spec.new do |spec|
     spec.summary                  = 'Kotlin Multiplatform API for basic File I/O'
     spec.vendored_frameworks      = 'build/cocoapods/framework/KmpIO.framework'
     spec.libraries                = 'c++'
-    spec.ios.deployment_target = '14'
+    spec.ios.deployment_target    = '14'
                 
                 
     if !Dir.exist?('build/cocoapods/framework/KmpIO.framework') || Dir.empty?('build/cocoapods/framework/KmpIO.framework')
@@ -21,6 +21,10 @@ Pod::Spec.new do |spec|
 
         Alternatively, proper pod installation is performed during Gradle sync in the IDE (if Podfile location is set)"
     end
+                
+    spec.xcconfig = {
+        'ENABLE_USER_SCRIPT_SANDBOXING' => 'NO',
+    }
                 
     spec.pod_target_xcconfig = {
         'KOTLIN_PROJECT_PATH' => ':KmpIO',

@@ -1,11 +1,14 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class Base64Tests {
-    val utf8 = Charset(Charsets.Utf8)
+    val utf8 = Utf8()
     val testVal1 = "3MF5qZLl/e0shTV0MAcVeg=="
     val result1 = byteArrayOf(-36, -63, 121, -87, -110, -27, -3, -19, 44, -123, 53, 116, 48, 7, 21, 122)
 

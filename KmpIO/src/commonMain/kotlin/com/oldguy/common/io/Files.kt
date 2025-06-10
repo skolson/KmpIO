@@ -1,5 +1,8 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.datetime.LocalDateTime
 
 expect class TimeZones {
@@ -8,7 +11,7 @@ expect class TimeZones {
     }
 }
 
-class IOException(message: String, cause: Throwable?): Exception(message, cause)
+class IOException(message: String, cause: Throwable? = null): Exception(message, cause)
 
 /**
  * Some platform-specific file descriptors are not easily encoded to a string.  Platform specific
@@ -53,6 +56,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val lastModified: LocalDateTime
     val createdTime: LocalDateTime
     val lastAccessTime: LocalDateTime
+    val tempDirectory: String
 
     suspend fun delete(): Boolean
     suspend fun copy(destinationPath: String): File
@@ -63,6 +67,8 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
         val pathSeparator: String
     }
 }
+
+expect fun tempDirectory(): String
 
 enum class FileSource {
     Asset, Classpath, File
@@ -279,7 +285,7 @@ expect class RawFile(
  */
 expect class TextFile(
     file: File,
-    charset: Charset = Charset(Charsets.Utf8),
+    charset: Charset = Utf8(),
     mode: FileMode = FileMode.Read,
     source: FileSource = FileSource.File
 ) : Closeable {
@@ -288,7 +294,7 @@ expect class TextFile(
 
     constructor(
         filePath: String,
-        charset: Charset = Charset(Charsets.Utf8),
+        charset: Charset = Utf8(),
         mode: FileMode = FileMode.Read,
         source: FileSource = FileSource.File
     )

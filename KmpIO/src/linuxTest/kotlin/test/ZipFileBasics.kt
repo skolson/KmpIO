@@ -3,28 +3,25 @@ package com.oldguy.common.test
 import com.oldguy.common.io.File
 import com.oldguy.common.io.FileMode
 import com.oldguy.common.io.ZipFile
+import com.oldguy.common.io.tempDirectory
 import kotlinx.coroutines.test.runTest
-import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.runtime.GC
 import kotlin.test.Test
-import platform.Foundation.*
 import kotlin.native.runtime.NativeRuntimeApi
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.test.fail
 
 class ZipFileBasics {
 
-    @OptIn(ExperimentalNativeApi::class, NativeRuntimeApi::class, ExperimentalStdlibApi::class)
+    @OptIn(NativeRuntimeApi::class, ExperimentalStdlibApi::class)
     @Test
     fun zipFileEmpty() {
         runTest {
             GC.collect()
             val startMemory = GC.lastGCInfo!!.memoryUsageAfter["heap"]?.totalObjectsSizeBytes
-            NSFileManager.defaultManager.temporaryDirectory.path?.let {
-                val zipPath = "$it/test.zip"
-                val fil = File(zipPath)
+            val temp = tempDirectory().let {
+                val fil = File(tempDirectory(), "test.zip")
                 assertFalse(fil.exists)
                 assertFalse(fil.delete())
                 val zipFile = ZipFile(fil, FileMode.Write)
@@ -33,10 +30,6 @@ class ZipFileBasics {
                 assertTrue(fil.exists)
                 assertTrue(fil.delete())
                 assertFalse(fil.exists)
-                println("zip: $zipPath")
-                println("Start memory = $startMemory")
-            } ?: run {
-                fail("no temp directory found")
             }
             try {
                 println("Second CG start")

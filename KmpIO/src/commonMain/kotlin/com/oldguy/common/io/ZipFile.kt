@@ -1,5 +1,8 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -73,7 +76,7 @@ interface ZipFileBase: Closeable {
      */
     suspend fun addTextEntry(
         entry: ZipEntry,
-        charset: Charset = Charset(Charsets.Utf8),
+        charset: Charset = Utf8(),
         appendEol: Boolean = true,
         block: suspend () -> String
     )
@@ -163,7 +166,7 @@ interface ZipFileBase: Closeable {
      */
     suspend fun readTextEntry(
         entryName: String,
-        charset: Charset = Charset(Charsets.Utf8),
+        charset: Charset = Utf8(),
         block: suspend (text: String, last: Boolean) -> Unit
     ): ZipEntry
 

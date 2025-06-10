@@ -11,7 +11,7 @@ plugins {
         alias(it.kotlin.multiplatform)
         alias(it.android.library)
         alias(it.kotlinx.atomicfu)
-        alias(it.dokka)
+        alias(it.dokka.javadoc)
     }
     kotlin("native.cocoapods")
     id("maven-publish")
@@ -33,6 +33,9 @@ val localProps = Properties().apply {
 
 val mavenArtifactId = "kmp-io"
 val appleFrameworkName = "KmpIO"
+val githubUri = "skolson/$appleFrameworkName"
+val githubUrl = "https://github.com/$githubUri"
+
 group = "io.github.skolson"
 version = libs.versions.appVersion.get()
 
@@ -41,7 +44,53 @@ val kmpPackageName = "com.oldguy.common.io"
 
 val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
 val javadocTaskName = "javadocJar"
-val junitVersion = "4.13.2"
+val javaVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
+
+java {
+    toolchain {
+        languageVersion.set(javaVersion)
+    }
+}
+
+publishing {
+    val server = localProps.getProperty("ossrhServer")
+    repositories {
+        maven {
+            url = uri("https://$server/service/local/staging/deploy/maven2/")
+            credentials {
+                username = localProps.getProperty("ossrhUsername")
+                password = localProps.getProperty("ossrhPassword")
+            }
+        }
+    }
+    publications.withType(MavenPublication::class) {
+        artifactId = artifactId.replace(project.name, mavenArtifactId)
+
+        pom {
+            name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
+            description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android, IOS, Windows, Linux, MacOS")
+            url.set(githubUrl)
+            licenses {
+                license {
+                    name.set("The Apache License, Version 2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                }
+            }
+            developers {
+                developer {
+                    id.set("oldguy")
+                    name.set("Steve Olson")
+                    email.set("skolson5903@gmail.com")
+                }
+            }
+            scm {
+                url.set(githubUrl)
+                connection.set("scm:git:git://git@github.com:${githubUri}.git")
+                developerConnection.set("cm:git:ssh://git@github.com:${githubUri}.git")
+            }
+        }
+    }
+}
 
 android {
     compileSdk = libs.versions.androidSdk.get().toInt()
@@ -66,7 +115,7 @@ android {
     }
 
     compileOptions {
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
     }
 
     dependencies {
@@ -75,35 +124,29 @@ android {
     }
 }
 
-tasks {
-    dokkaHtml {
-        moduleName.set("Kotlin Multiplatform Common IO Library")
-        dokkaSourceSets {
-            named("commonMain") {
-                noAndroidSdkLink.set(false)
-                includes.from("$appleFrameworkName.md")
-            }
-        }
+dokka {
+    moduleName.set("Kotlin Multiplatform Common IO Library")
+    dokkaSourceSets.commonMain {
+        includes.from("$appleFrameworkName.md")
     }
 }
 
 kotlin {
+    jvmToolchain {
+        languageVersion = javaVersion
+    }
     // Turns off warnings about expect/actual class usage
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
     androidTarget {
-        java.sourceCompatibility = JavaVersion.VERSION_17
-        java.targetCompatibility = JavaVersion.VERSION_17
         publishLibraryVariants("release", "debug")
         mavenPublication {
             artifactId = artifactId.replace(project.name, mavenArtifactId)
         }
     }
 
-    val githubUri = "skolson/$appleFrameworkName"
-    val githubUrl = "https://github.com/$githubUri"
     cocoapods {
         ios.deploymentTarget = iosMinSdk
         summary = "Kotlin Multiplatform API for basic File I/O"
@@ -113,7 +156,6 @@ kotlin {
         framework {
             baseName = appleFrameworkName
             isStatic = true
-            embedBitcode(org.jetbrains.kotlin.gradle.plugin.mpp.BitcodeEmbeddingMode.BITCODE)
         }
         // Maps custom Xcode configuration to NativeBuildType
         xcodeConfigurationToNativeBuildType["CUSTOM_DEBUG"] = NativeBuildType.DEBUG
@@ -162,12 +204,24 @@ kotlin {
             framework {
                 appleXcf.add(this)
                 isStatic = true
-                embedBitcode("bitcode")
                 freeCompilerArgs = freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
             }
         }
     }
     jvm()
+    linuxX64() {
+        binaries {
+            executable {
+                debuggable = true
+            }
+        }
+        /*
+        testRuns["test"].executionTask.configure {
+            dependsOn(binaries.getExecutable("debug").linkTaskProvider)
+        }
+         */
+    }
+    linuxArm64()
     applyDefaultHierarchyTemplate()
     sourceSets {
         val commonMain by getting {
@@ -209,6 +263,11 @@ kotlin {
                 implementation(libs.junit)
             }
         }
+        val linuxX64Test by getting {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
+            }
+        }
         all {
             languageSettings {
                 optIn("kotlin.ExperimentalUnsignedTypes")
@@ -216,55 +275,6 @@ kotlin {
         }
     }
 
-    publishing {
-        val server = localProps.getProperty("ossrhServer")
-        repositories {
-            maven {
-                url = uri("https://$server/service/local/staging/deploy/maven2/")
-                credentials {
-                    username = localProps.getProperty("ossrhUsername")
-                    password = localProps.getProperty("ossrhPassword")
-                }
-            }
-        }
-        publications.withType(MavenPublication::class) {
-            artifactId = artifactId.replace(project.name, mavenArtifactId)
-
-            // workaround for https://github.com/gradle/gradle/issues/26091
-            val dokkaJar = tasks.register("${this.name}DokkaJar", Jar::class) {
-                group = JavaBasePlugin.DOCUMENTATION_GROUP
-                description = "Dokka builds javadoc jar"
-                archiveClassifier.set("javadoc")
-                from(tasks.named("dokkaHtml"))
-                archiveBaseName.set("${archiveBaseName.get()}-${this.name}")
-            }
-            artifact(dokkaJar)
-
-            pom {
-                name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
-                description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android, IOS, Windows, Linux, MacOS")
-                url.set(githubUrl)
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("oldguy")
-                        name.set("Steve Olson")
-                        email.set("skolson5903@gmail.com")
-                    }
-                }
-                scm {
-                    url.set(githubUrl)
-                    connection.set("scm:git:git://git@github.com:${githubUri}.git")
-                    developerConnection.set("cm:git:ssh://git@github.com:${githubUri}.git")
-                }
-            }
-        }
-    }
 }
 
 tasks.withType<Test> {
@@ -279,9 +289,4 @@ tasks.withType<Test> {
 signing {
     isRequired = true
     sign(publishing.publications)
-}
-
-// workaround
-task("testClasses").doLast {
-    println("workaround for Iguana change")
 }

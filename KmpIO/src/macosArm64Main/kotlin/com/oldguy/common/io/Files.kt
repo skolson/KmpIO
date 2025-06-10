@@ -1,5 +1,6 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
 import kotlinx.cinterop.*
 import kotlinx.datetime.LocalDateTime
 import platform.Foundation.*
@@ -11,6 +12,8 @@ actual class TimeZones {
         }
     }
 }
+
+actual fun tempDirectory(): String = appleTempDirectory()
 
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
     : AppleFile(filePath, platformFd){

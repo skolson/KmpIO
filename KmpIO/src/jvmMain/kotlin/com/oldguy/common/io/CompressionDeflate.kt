@@ -16,7 +16,7 @@ import java.util.zip.Inflater
 actual class CompressionDeflate actual constructor(val noWrap: Boolean): Compression {
     actual enum class Strategy {Default, Filtered, Huffman}
     actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
-    override val bufferSize = 4096
+    actual override val bufferSize = 4096
     actual var strategy = Strategy.Default
 
     /**

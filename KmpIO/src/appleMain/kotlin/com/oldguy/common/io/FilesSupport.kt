@@ -1,19 +1,22 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
 import kotlinx.cinterop.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
 import platform.Foundation.*
 import platform.posix.memcpy
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.min
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 open class AppleCharset(val set: Charsets) {
     val nsEnc = when (set) {
         Charsets.Utf8 -> NSUTF8StringEncoding
-        Charsets.Utf16le -> NSUTF16LittleEndianStringEncoding
-        Charsets.Utf16be -> NSUTF16BigEndianStringEncoding
+        Charsets.Utf16LE -> NSUTF16LittleEndianStringEncoding
+        Charsets.Utf16BE -> NSUTF16BigEndianStringEncoding
         Charsets.Iso8859_1 -> NSISOLatin1StringEncoding
         Charsets.UsAscii -> NSASCIIStringEncoding
     }
@@ -46,7 +49,28 @@ open class AppleTimeZones {
     }
 }
 
-class NSErrorException(val nsError: NSError): Exception(nsError.toString())
+class NSErrorException(nsError: NSError): Exception(nsError.localizedDescription) {
+    val code = nsError.code
+    val domain = nsError.domain
+    val description = nsError.description
+    val reason = nsError.localizedFailureReason
+    val suggestion = nsError.localizedRecoverySuggestion
+    val causes = nsError.underlyingErrors.map { error ->
+        val nsCause = error as NSError
+        NSErrorException(nsCause)
+    }
+
+    override fun toString(): String {
+        return buildString {
+            append("Code: $code, domain: $domain, description: $description, reason: $reason\n")
+            append("suggestion: $suggestion\n")
+            causes.forEach {
+                append("caused by\n")
+                append(it.toString())
+            }
+        }
+    }
+}
 
 /**
  * Apple-specific native file code that is usable on macOS, iOS, and ios simulator targets.
@@ -163,6 +187,7 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
     }
 
     open val exists: Boolean get() = pathExists(path)
+    open val tempDirectory: String = NSTemporaryDirectory()
 
     open val isUri: Boolean
         get() = TODO("Not yet implemented")
@@ -218,10 +243,13 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         return File(destinationPath, null)
     }
 
+    @Throws(NSErrorException::class, CancellationException::class)
     open suspend fun delete(): Boolean {
         return if (exists) {
             throwError {
-                fm.removeItemAtPath(path, it)
+                val rc = fm.removeItemAtPath(path, it)
+                println("delete NSError: ${it.pointed.value?.localizedDescription ?: "null"}")
+                rc
             }
         } else
             false
@@ -270,21 +298,24 @@ open class AppleFile(pathArg: String, val fd: FileDescriptor?) {
         }
 
         /**
-         * Creates an NSError pointer for use by File-based operations, and invokes [block] with it. If an error
+         * Creates a pointer to an NSError pointer for use by File-based operations, and invokes [block] with it. If an error
          * is produced by the [block] invocation, it is converted to an NSErrorException and thrown.
+         * @param block lambda that typically uses the errorPointer argument in an Apple API that requires an NSError**
          */
         fun <T> throwError(block: (errorPointer: CPointer<ObjCObjectVar<NSError?>>) -> T): T {
-            memScoped {
-                val errorPointer = alloc<ObjCObjectVar<NSError?>>().ptr
-                val result: T = block(errorPointer)
-                val error: NSError? = errorPointer.pointed.value
-                if (error != null) {
-                    throw NSErrorException(error)
-                } else {
-                    return result
+            val errorPointer: ObjCObjectVar<NSError?> = nativeHeap.alloc()
+
+            println("throwError. raw: ${errorPointer.rawPtr}, ptr: ${errorPointer.ptr.rawValue}, objc: ${errorPointer.objcPtr()}")
+                val result: T = block(errorPointer.ptr)
+                errorPointer.value?.let {
+                    val appleError = NSErrorException(it)
+                    println("Attempting throw NSErrorException:")
+                    println(appleError.toString())
+                    throw appleError
                 }
+                return result
             }
-        }
+
     }
 }
 
@@ -323,7 +354,6 @@ open class AppleRawFile(
     val mode: FileMode
 ) : Closeable {
     private val apple = AppleFileHandle(fileArg, mode)
-    private val handle = apple.handle
     private val path = apple.path
     open val file = fileArg
 
@@ -340,14 +370,14 @@ open class AppleRawFile(
             return AppleFile.throwError {
                 memScoped {
                     val result = alloc<ULongVar>()
-                    handle.getOffset(result.ptr, it)
+                    apple.handle.getOffset(result.ptr, it)
                     result.value
                 }
             }
         }
         set(value) {
             AppleFile.throwError { cPointer ->
-                val result = handle.seekToOffset(value, cPointer)
+                val result = apple.handle.seekToOffset(value, cPointer)
                 if (!result) {
                     cPointer.pointed.value?.let {
                         println("NSerror content: ${it.localizedDescription}")
@@ -377,7 +407,7 @@ open class AppleRawFile(
         var len = 0u
         AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
-            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
+            apple.handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -405,7 +435,7 @@ open class AppleRawFile(
         AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
             position = newPos
-            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
+            apple.handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -430,7 +460,7 @@ open class AppleRawFile(
         var len = 0u
         AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
-            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
+            apple.handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -458,7 +488,7 @@ open class AppleRawFile(
         AppleFile.throwError { cPointer ->
             if (reuseBuffer) buf.clear()
             position = newPos
-            handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
+            apple.handle.readDataUpToLength(buf.remaining.convert(), cPointer)?.let { bytes ->
                 len = min(buf.limit.toUInt(), bytes.length.convert())
                 buf.buf.usePinned {
                     memcpy(it.addressOf(buf.position), bytes.bytes, len.convert())
@@ -530,7 +560,7 @@ open class AppleRawFile(
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    handle.writeData(nsData, error)
+                    apple.handle.writeData(nsData, error)
                 }
             }
         }
@@ -550,7 +580,7 @@ open class AppleRawFile(
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    handle.writeData(nsData, error)
+                    apple.handle.writeData(nsData, error)
                 }
             }
         }
@@ -567,7 +597,7 @@ open class AppleRawFile(
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    handle.writeData(nsData, error)
+                    apple.handle.writeData(nsData, error)
                 }
             }
         }
@@ -587,7 +617,7 @@ open class AppleRawFile(
             memScoped {
                 buf.buf.usePinned {
                     val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    handle.writeData(nsData, error)
+                    apple.handle.writeData(nsData, error)
                 }
             }
         }
@@ -722,7 +752,7 @@ open class AppleRawFile(
         if (mode == FileMode.Read)
             throw IllegalStateException("No truncate on read-only RawFile")
         AppleFile.throwError {
-            handle.truncateAtOffset(size.convert(), it)
+            apple.handle.truncateAtOffset(size.convert(), it)
         }
     }
 }
@@ -730,102 +760,44 @@ open class AppleRawFile(
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 open class AppleTextFile(
     file: File,
-    open val charset: Charset,
-    val mode: FileMode
-) : Closeable {
+    charset: Charset,
+    mode: FileMode
+) : TextBuffer(
+    charset
+), Closeable {
     private val apple = AppleFileHandle(file, mode)
-    private var blockSize = 2048
-    private var buf = ByteArray(blockSize)
-    private var index = -1
-    private var lineEndIndex = -1
-    private var endOfFile = false
-    private var str: String = ""
-    private var readLock = false
 
     override suspend fun close() {
         apple.close()
     }
 
-    private fun nextBlock(): String {
-        if (endOfFile) return ""
-        AppleFile.throwError { cPointer ->
-            apple.handle.readDataUpToLength(blockSize.convert(), cPointer)?.let { bytes ->
-                val len = min(blockSize.toUInt(), bytes.length.convert())
-                if (len < buf.size.toUInt()) {
-                    buf = ByteArray(len.toInt())
-                    endOfFile = true
-                }
-                buf.usePinned {
-                    memcpy(it.addressOf(0), bytes.bytes, len.convert())
-                }
-            }
-            index = 0
-        }
-        return charset.decode(buf)
-    }
-
-    private fun nextBlockLineState(): Boolean {
-        if (lineEndIndex < 0) {
-            if (endOfFile) return false
-            str += nextBlock()
-            index = 0
-            val x = str.indexOf(EOL)
-            lineEndIndex = if (x >= 0) x + 1 else -1
-            return true
-        }
-        return false
-    }
-
-    /**
-     * Reads one line of text, no matter how long, which has obvious implications for memory on large files with no
-     * line breaks. Otherwise, reads blocks and maintains state of where next line is. So only use this on files with
-     * line breaks.
-     * @return a non empty line containing any text found and ended by a line separator. After all lines have been
-     * returned subsequent calls will always be an empty string.
-     */
-    open suspend fun readLine(): String {
-        val lin: String
-        while (!endOfFile && lineEndIndex == -1)
-            nextBlockLineState()
-        if (endOfFile && lineEndIndex == -1) {
-            lin = str
-            str = ""
-        } else {
-            lin = str.substring(index, lineEndIndex)
-            index = lineEndIndex
-            val x = str.indexOf(EOL, index)
-            lineEndIndex = if (x >= 0)
-                x + 1
-            else {
-                str = str.substring(index)
-                -1
-            }
-        }
-        return lin
-    }
-
     open suspend fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         try {
-            readLock = true
-            var count = 1
-            var lin = readLine()
-            while (lin.isNotEmpty()) {
-                if (action(count, lin)) {
-                    lin = readLine()
-                    count++
-                } else
-                    break
-            }
+            super.forEachLine( { buffer ->
+                    var len = 0u
+                    if (!isEndOfFile) {
+                        AppleFile.throwError { cPointer ->
+                            apple.handle.readDataUpToLength(blockSize.convert(), cPointer)
+                                ?.let { bytes ->
+                                    len = min(blockSize.toUInt(), bytes.length.convert())
+                                    if (len > 0u) {
+                                        buffer.usePinned {
+                                            memcpy(it.addressOf(0), bytes.bytes, len.convert())
+                                        }
+                                    }
+                                }
+                        }
+                    }
+                    len
+                },
+                action)
         } finally {
             close()
-            readLock = false
         }
     }
 
-    open suspend fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
-        blockSize = maxSizeBytes
+    open suspend fun forEachBlock(action: (text: String) -> Boolean) {
         try {
-            readLock = true
             val str = nextBlock()
             while (str.isNotEmpty()) {
                 if (action(str))
@@ -835,18 +807,19 @@ open class AppleTextFile(
             }
         } finally {
             close()
-            readLock = false
         }
     }
 
     open suspend fun read(maxSizeBytes: Int): String {
-        if (readLock)
+        if (isReadLock)
             throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
-        if (endOfFile) return ""
+        if (isEndOfFile) return ""
         return nextBlock()
     }
 
     open suspend fun write(text: String) {
+        if (isReadLock)
+            throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
         AppleFile.throwError { error ->
             memScoped {
                 val buf = charset.encode(text)
@@ -859,10 +832,12 @@ open class AppleTextFile(
     }
 
     open suspend fun writeLine(text: String) {
+        if (isReadLock)
+            throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
         write (text + EOL)
     }
+}
 
-    companion object {
-        const val EOL = "\n"
-    }
+fun appleTempDirectory(): String {
+    return NSTemporaryDirectory()
 }

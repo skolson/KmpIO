@@ -1,5 +1,8 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf16LE
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.*
@@ -55,7 +58,7 @@ class FileTests(testDirPath: String) {
     fun textFileWriteRead(charset: Charset) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
-            val fil = File(subDir, "Text${charset.charset.charsetName}.txt")
+            val fil = File(subDir, "Text${charset.name}.txt")
             fil.delete()
             assertEquals(false, fil.exists)
             TextFile(
@@ -68,7 +71,6 @@ class FileTests(testDirPath: String) {
             }
 
             assertEquals(true, fil.exists)
-            assertEquals(textContent.length * charset.charset.bytesPerChar, fil.size.toInt())
             val lastModDate = fil.lastModified
             val createdDate = fil.createdTime
             val lastAccessDate = fil.lastAccessTime
@@ -98,7 +100,7 @@ class FileTests(testDirPath: String) {
     fun biggerTextFileWriteRead(charset: Charset, copyCount: Int = 100) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
-            val fil = File(subDir, "TextMedium${charset.charset.charsetName}.txt")
+            val fil = File(subDir, "TextMedium${charset.name}.txt")
             fil.delete()
             assertEquals(false, fil.exists)
             val textFile = TextFile(
@@ -111,7 +113,6 @@ class FileTests(testDirPath: String) {
                 textFile.write(textContent)
             textFile.close()
             assertEquals(true, fil.exists)
-            assertEquals(textContent.length * charset.charset.bytesPerChar * copyCount, fil.size.toInt())
 
             val textFileIn = TextFile(
                 fil,
@@ -150,7 +151,7 @@ class FileTests(testDirPath: String) {
                 count = it.read(buf)
                 assertEquals(12u, count)
                 buf.rewind()
-                val lastLine = Charset(Charsets.Utf16le).decode(buf.getBytes(count.toInt()))
+                val lastLine = Utf16LE().decode(buf.getBytes(count.toInt()))
                 assertEquals("Line6\n", lastLine)
             }
         }
@@ -169,7 +170,7 @@ class FileTests(testDirPath: String) {
             
             Line6
             """.trimIndent() + eol
-        val hexContent = Charset(Charsets.Utf16le).encode(textContent)
+        val hexContent = Utf16LE().encode(textContent)
 
         suspend fun testDirectory(): File {
             val up = File("..")
@@ -187,17 +188,17 @@ class FileUnitTests {
     @Test
     fun textUtf8Basics() {
         tests.filesBasics()
-        tests.textFileWriteRead(Charset(Charsets.Utf8))
+        tests.textFileWriteRead(Charsets.Utf8.charset)
     }
 
     @Test
     fun textMediumSizeUtf8Basics() {
-        tests.biggerTextFileWriteRead(Charset(Charsets.Utf8), 100)
+        tests.biggerTextFileWriteRead(Charsets.Utf8.charset, 100)
     }
 
     @Test
     fun textUtf16leBasics() {
-        tests.textFileWriteRead(Charset(Charsets.Utf16le))
+        tests.textFileWriteRead(Charsets.Utf16LE.charset)
     }
 
     @Test

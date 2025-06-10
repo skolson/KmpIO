@@ -1,5 +1,6 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
@@ -9,7 +10,6 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
 import java.nio.ByteBuffer
-import java.nio.CharBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
@@ -22,6 +22,8 @@ actual class TimeZones {
         }
     }
 }
+
+actual fun tempDirectory(): String = System.getProperty("java.io.tmpdir")
 
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
@@ -80,6 +82,9 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             }
         }
     actual val listNames: List<String> get() = listFiles.map { it.name }
+
+    actual val tempDirectory: String
+        get() = System.getProperty("java.io.tmpdir")
 
     private fun directoryWalk(dir: File, list: MutableList<File>) {
         if (dir.isDirectory) {
@@ -490,7 +495,7 @@ actual class TextFile actual constructor(
         mode: FileMode,
         stream: InputStream
     ) : this(file, charset, mode, FileSource.Asset) {
-        javaReader = stream.bufferedReader(charset.javaCharset)
+        javaReader = stream.bufferedReader(java.nio.charset.Charset.forName(charset.name))
     }
 
     constructor(
@@ -499,7 +504,7 @@ actual class TextFile actual constructor(
         mode: FileMode,
         stream: OutputStream
     ) : this(file, charset, mode, FileSource.Asset) {
-        javaWriter = stream.bufferedWriter(charset.javaCharset)
+        javaWriter = stream.bufferedWriter(java.nio.charset.Charset.forName(charset.name))
     }
 
     init {
@@ -511,7 +516,7 @@ actual class TextFile actual constructor(
             }
             if (stream != null)
                 javaReader =
-                    java.io.BufferedReader(java.io.InputStreamReader(stream, charset.javaCharset))
+                    java.io.BufferedReader(java.io.InputStreamReader(stream, java.nio.charset.Charset.forName(charset.name)))
         }
 
         if (javaWriter == null && mode == FileMode.Write) {
@@ -521,7 +526,7 @@ actual class TextFile actual constructor(
                 FileSource.File -> FileOutputStream(file.fullPath)
             }
             if (stream != null)
-                javaWriter = stream.bufferedWriter(charset.javaCharset)
+                javaWriter = stream.bufferedWriter(java.nio.charset.Charset.forName(charset.name))
         }
     }
 

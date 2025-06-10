@@ -1,5 +1,8 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
@@ -152,7 +155,7 @@ class ZipFileTests {
     @Test
     fun compressionTest() {
         val test = "123456123456sdfghjklzxcvbxcvxcvbzxcvb"
-        val bytes = Charset(Charsets.Utf8).encode(test)
+        val bytes = Utf8().encode(test)
         val buf = ByteBuffer(bytes)
         val out = ByteBuffer(test.length)
         val out2 = ByteBuffer(test.length)
@@ -218,7 +221,7 @@ class ZipFileTests {
                 }
                 out2.flip()
                 assertEquals(test.length.toULong(), uncompressed)
-                assertEquals(test, Charset(Charsets.Utf8).decode(out2.getBytes()))
+                assertEquals(test, Utf8().decode(out2.getBytes()))
             }
         }
     }

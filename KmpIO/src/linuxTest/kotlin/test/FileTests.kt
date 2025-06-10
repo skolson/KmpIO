@@ -1,13 +1,16 @@
-package com.oldguy.common.io
+package test
 
+import com.oldguy.common.io.*
 import com.oldguy.common.io.charsets.Charsets
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import platform.Foundation.NSTemporaryDirectory
 import kotlin.test.Test
 
+/*
+./gradlew :KmpIO:linuxX64Test --tests "test.FileTestSuite.textUtf8Basics"
+ */
 @ExperimentalCoroutinesApi
 class FileTestSuite {
-    val path = NSTemporaryDirectory()
+    val path = File(".").tempDirectory
     val tests = FileTests(path)
 
     init {
@@ -16,6 +19,7 @@ class FileTestSuite {
 
     @Test
     fun textUtf8Basics() {
+        //println("testUtf8Basics entry")
         tests.filesBasics()
     }
 

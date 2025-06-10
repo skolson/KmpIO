@@ -1,5 +1,8 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -11,7 +14,7 @@ class ByteBufferCommonTests {
 
     @Test
     fun readerTest() {
-        val charset = Charset(Charsets.Utf8)
+        val charset = Utf8()
         val anyContent = "1234567890abcdefghijklmnopqrstuvwxyz"
         val anyBytes = charset.encode(anyContent)
 

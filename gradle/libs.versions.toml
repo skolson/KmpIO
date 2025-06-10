@@ -1,21 +1,22 @@
 [versions]
 appVersion = "0.1.8"
+java = "21"
 
-androidGradlePlugin = "8.5.0-alpha02"
+androidGradlePlugin = "8.12.0-alpha04"
 
-kotlin = "1.9.23"
-kotlinCoroutines = "1.8.0-RC2"
-kotlinx-datetime = "0.5.0"
+kotlin = "2.1.21"
+kotlinCoroutines = "1.10.2"
+kotlinx-datetime = "0.6.2"
 
-androidBuildTools = "34"
-androidSdk = "34"
+androidBuildTools = "36.0.0"
+androidSdk = "36"
 androidSdkMinimum = "26"
 
-dokkaPlugin = "1.9.20"
+dokkaPlugin = "2.0.0"
 junit = "4.13.2"
-androidxTest = "1.5.0"
-androidxTestRunner = "1.5.2"
-androidxTestExt = "1.1.5"
+androidxTest = "1.6.1"
+androidxTestRunner = "1.6.2"
+androidxTestExt = "1.2.1"
 
 [libraries]
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
@@ -40,4 +41,4 @@ android-library = { id = "com.android.library", version.ref = "androidGradlePlug
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinx-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
 
-dokka = { id = "org.jetbrains.dokka", version.ref = "dokkaPlugin" }
+dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokkaPlugin" }

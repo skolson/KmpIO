@@ -1,12 +1,16 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
+
 /**
  * Base 64 encode/decode from/to UTF-8 bytes, or from/to String (decoded from UTF-8 bytes). No
  * line separator options available. No options around padding, line handling. Decode ignores
  * non-base64 characters
  */
 object Base64 {
-    private val charset = Charset(Charsets.Utf8)
+    private val charset = Utf8()
 
     /**
      * Encode incoming string to UTF-8, then do Base64 encode to produce UTF-8 bytes.

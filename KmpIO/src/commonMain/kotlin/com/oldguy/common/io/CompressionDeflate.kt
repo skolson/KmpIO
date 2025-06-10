@@ -11,6 +11,7 @@ package com.oldguy.common.io
 expect class CompressionDeflate constructor(noWrap: Boolean): Compression {
     enum class Strategy {Default, Filtered, Huffman}
     override val algorithm: CompressionAlgorithms
+    override val bufferSize: Int
     var strategy: Strategy
 
     override suspend fun compress(input: suspend () -> ByteBuffer,

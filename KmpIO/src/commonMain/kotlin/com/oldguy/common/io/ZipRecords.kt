@@ -4,6 +4,9 @@ import com.oldguy.common.getIntAt
 import com.oldguy.common.io.ZipRecord.Companion.decodeComment
 import com.oldguy.common.io.ZipRecord.Companion.decodeSignature
 import com.oldguy.common.io.ZipRecord.Companion.zipCharset
+import com.oldguy.common.io.charsets.Charset
+import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlin.math.min
 
 interface ZipRecord {
@@ -15,7 +18,7 @@ interface ZipRecord {
     }
 
     companion object {
-        val zipCharset = Charset(Charsets.Utf8)
+        val zipCharset = Utf8()
         val littleEndianRequired = IllegalArgumentException("Zip file buffer must be little endian")
 
         fun algorithm(method: Short) = when (method.toInt()) {

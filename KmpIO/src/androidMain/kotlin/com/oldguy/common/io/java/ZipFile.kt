@@ -1,6 +1,6 @@
 package com.oldguy.common.io.java
 
-import com.oldguy.common.io.Charset
+import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.File
 import com.oldguy.common.io.FileMode
 import java.io.BufferedOutputStream
@@ -219,12 +219,15 @@ class ZipFile constructor(
         bufferSize: Int,
         block: suspend (text: String) -> Boolean
     ): ZipEntry {
+        val javaCharset: java.nio.charset.Charset =
+            java.nio.charset.Charset.forName(charset.name)
+
         checkOpen(FileMode.Read)
         val javaEntry = javaZipFile.getEntry(entryName)
         BufferedReader(
             InputStreamReader(
                 javaZipFile.getInputStream(javaEntry),
-                charset.javaCharset
+                javaCharset
             )
         )
             .use { reader ->

@@ -1,5 +1,6 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.charsets.Charset
 import kotlinx.datetime.LocalDateTime
 
 actual class TimeZones {
@@ -9,6 +10,8 @@ actual class TimeZones {
         }
     }
 }
+
+actual fun tempDirectory(): String = appleTempDirectory()
 
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
     : AppleFile(filePath, platformFd){
@@ -34,6 +37,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual override val lastModified: LocalDateTime get() = super.lastModified
     actual override val createdTime: LocalDateTime get() = super.createdTime
     actual override val lastAccessTime: LocalDateTime get() = super.lastAccessTime
+    actual override val tempDirectory: String get() = super.tempDirectory
 
     actual override suspend fun delete(): Boolean {
         return super.delete()
@@ -235,7 +239,7 @@ actual class RawFile actual constructor(
 
 actual class TextFile actual constructor(
     actual val file: File,
-    actual override val charset: Charset,
+    charset: Charset,
     mode: FileMode,
     source: FileSource
 ) : Closeable, AppleTextFile(file, charset, mode) {
@@ -258,8 +262,8 @@ actual class TextFile actual constructor(
         super.forEachLine(action)
     }
 
-    actual override suspend fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
-        super.forEachBlock(maxSizeBytes, action)
+    actual suspend fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
+        super.forEachBlock(action)
     }
 
     actual override suspend fun read(maxSizeBytes: Int): String {

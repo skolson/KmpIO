@@ -1,13 +1,19 @@
 package com.oldguy.common.io
 
+import android.app.Application
 import android.net.Uri
+import com.oldguy.common.io.charsets.Charset
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
+import java.io.BufferedReader
+import java.io.BufferedWriter
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.InputStreamReader
 import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -20,6 +26,10 @@ actual class TimeZones {
             return TimeZone.getDefault().id
         }
     }
+}
+
+actual fun tempDirectory(): String {
+    return File.appContext.cacheDir.absolutePath
 }
 
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
@@ -79,6 +89,8 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             }
         }
     actual val listNames: List<String> get() = listFiles.map { it.name }
+    actual val tempDirectory: String
+        get() = appContext.cacheDir.absolutePath
 
     private fun directoryWalk(dir: File, list: MutableList<File>) {
         if (dir.isDirectory) {
@@ -114,7 +126,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual suspend fun copy(destinationPath: String): File {
         val dest = java.io.File(destinationPath)
-        kotlin.runCatching {
+        runCatching {
             FileOutputStream(dest).use { outputStream ->
                 FileInputStream(javaFile).use { inStream ->
                     val buf = ByteArray(4096)
@@ -132,6 +144,12 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual companion object {
         actual val pathSeparator = "/"
+        lateinit var appContext: Application
+            private set
+
+        fun setApplicationContext(app: Application) {
+            appContext = app
+        }
     }
 }
 
@@ -166,7 +184,7 @@ actual class RawFile actual constructor(
     val javaFile = when (source) {
         FileSource.Asset -> TODO()
         FileSource.Classpath -> throw IllegalArgumentException("cannot access raw file on classpath")
-        FileSource.File -> java.io.RandomAccessFile(file.fullPath, javaMode)
+        FileSource.File -> RandomAccessFile(file.fullPath, javaMode)
     }
 
     actual var position: ULong
@@ -480,8 +498,10 @@ actual class TextFile actual constructor(
     source: FileSource
 ) : Closeable {
 
-    var javaReader: java.io.BufferedReader? = null
-    var javaWriter: java.io.BufferedWriter? = null
+    var javaReader: BufferedReader? = null
+    var javaWriter: BufferedWriter? = null
+    val javaCharset: java.nio.charset.Charset =
+        java.nio.charset.Charset.forName(charset.name)
 
     constructor(
         file: File,
@@ -489,7 +509,7 @@ actual class TextFile actual constructor(
         mode: FileMode,
         stream: InputStream
     ) : this(file, charset, mode, FileSource.Asset) {
-        javaReader = stream.bufferedReader(charset.javaCharset)
+        javaReader = stream.bufferedReader(javaCharset)
     }
 
     constructor(
@@ -498,7 +518,7 @@ actual class TextFile actual constructor(
         mode: FileMode,
         stream: OutputStream
     ) : this(file, charset, mode, FileSource.Asset) {
-        javaWriter = stream.bufferedWriter(charset.javaCharset)
+        javaWriter = stream.bufferedWriter(javaCharset)
     }
 
     init {
@@ -510,7 +530,7 @@ actual class TextFile actual constructor(
             }
             if (stream != null)
                 javaReader =
-                    java.io.BufferedReader(java.io.InputStreamReader(stream, charset.javaCharset))
+                    BufferedReader(InputStreamReader(stream, javaCharset))
         }
 
         if (javaWriter == null && mode == FileMode.Write) {
@@ -520,7 +540,7 @@ actual class TextFile actual constructor(
                 FileSource.File -> FileOutputStream(file.fullPath)
             }
             if (stream != null)
-                javaWriter = stream.bufferedWriter(charset.javaCharset)
+                javaWriter = stream.bufferedWriter(javaCharset)
         }
     }
 
