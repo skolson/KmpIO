@@ -3,7 +3,7 @@ package com.oldguy.common.io
 actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression {
     actual enum class Strategy {Default, Filtered, Huffman}
     actual override val algorithm = CompressionAlgorithms.Deflate
-    override val bufferSize = 4096
+    actual override val bufferSize = 4096
     private val apple = AppleCompression(algorithm)
     actual var strategy = Strategy.Default
 

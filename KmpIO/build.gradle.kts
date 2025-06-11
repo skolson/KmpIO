@@ -235,6 +235,14 @@ kotlin {
                 implementation(libs.bundles.kotlin.test)
             }
         }
+/*
+        val androidMain by getting {
+            dependencies {
+                implementation()
+            }
+        }
+
+ */
         val androidUnitTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))

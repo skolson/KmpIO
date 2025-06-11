@@ -2,8 +2,11 @@
 
 ### 0.1.8 (in progress)
 
-- Gradle 8.7
+- Gradle 8.14.1
+- Kotlin 2.1.21
+- LinuxX64 native support
 - Added the beginnings of IOS-specific unit tests
+- Breaking change to Charsets and Charset support.  Now pure KMP code (no cinterop or jvm dependencies). Supported is limited to a few common charsets. New charsets are easy to add.
 - 
 
 ### 0.1.7
