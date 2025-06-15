@@ -4,8 +4,6 @@ import com.oldguy.common.getIntAt
 import com.oldguy.common.io.ZipRecord.Companion.decodeComment
 import com.oldguy.common.io.ZipRecord.Companion.decodeSignature
 import com.oldguy.common.io.ZipRecord.Companion.zipCharset
-import com.oldguy.common.io.charsets.Charset
-import com.oldguy.common.io.charsets.Charsets
 import com.oldguy.common.io.charsets.Utf8
 import kotlin.math.min
 

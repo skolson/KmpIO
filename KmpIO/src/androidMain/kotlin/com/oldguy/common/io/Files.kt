@@ -14,7 +14,6 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.RandomAccessFile
-import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
@@ -195,7 +194,7 @@ actual class RawFile actual constructor(
 
     private fun acceptRead(buf: com.oldguy.common.io.ByteBuffer,
                            bytesRead: Int,
-                           javaBuf: ByteBuffer,
+                           javaBuf: java.nio.ByteBuffer,
                            reuseBuffer: Boolean
     ): UInt {
         return if (bytesRead <= 0) {
@@ -245,7 +244,7 @@ actual class RawFile actual constructor(
 
     private fun acceptRead(buf: UByteBuffer,
                            bytesRead: Int,
-                           javaBuf: ByteBuffer,
+                           javaBuf: java.nio.ByteBuffer,
                            reuseBuffer: Boolean
     ): UInt {
         return if (bytesRead <= 0) {
@@ -470,12 +469,12 @@ actual class RawFile actual constructor(
         javaFile.channel.truncate(size.toLong())
     }
 
-    private fun makeJavaBuffer(buf: com.oldguy.common.io.ByteBuffer): ByteBuffer {
-        return ByteBuffer.wrap(buf.slice().contentBytes)
+    private fun makeJavaBuffer(buf: ByteBuffer): java.nio.ByteBuffer {
+        return java.nio.ByteBuffer.wrap(buf.slice().contentBytes)
     }
 
-    private fun makeJavaBuffer(buf: UByteBuffer): ByteBuffer {
-        return ByteBuffer.wrap(buf.slice().toByteBuffer().contentBytes)
+    private fun makeJavaBuffer(buf: UByteBuffer): java.nio.ByteBuffer {
+        return java.nio.ByteBuffer.wrap(buf.slice().toByteBuffer().contentBytes)
     }
 }
 

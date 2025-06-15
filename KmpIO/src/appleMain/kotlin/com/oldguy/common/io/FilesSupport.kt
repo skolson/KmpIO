@@ -17,8 +17,10 @@ open class AppleCharset(val set: Charsets) {
         Charsets.Utf8 -> NSUTF8StringEncoding
         Charsets.Utf16LE -> NSUTF16LittleEndianStringEncoding
         Charsets.Utf16BE -> NSUTF16BigEndianStringEncoding
-        Charsets.Iso8859_1 -> NSISOLatin1StringEncoding
-        Charsets.UsAscii -> NSASCIIStringEncoding
+        Charsets.Utf32LE -> NSUTF32LittleEndianStringEncoding
+        Charsets.Utf32BE -> NSUTF32BigEndianStringEncoding
+        Charsets.Iso88591 -> NSISOLatin1StringEncoding
+        Charsets.Window1252 -> NSWindowsCP1252StringEncoding
     }
 
     open fun decode(bytes: ByteArray): String {
