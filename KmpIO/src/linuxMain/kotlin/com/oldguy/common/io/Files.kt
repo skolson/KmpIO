@@ -18,12 +18,8 @@ actual class TimeZones {
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual fun tempDirectory(): String {
-    return getenv("TMPDIR")?.toKString() ?: "/tmp"
-}
-
-@OptIn(ExperimentalForeignApi::class)
-actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
+actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
+{
     actual constructor(parentDirectory: String, name: String) :
             this(parentDirectory + name, null)
 
@@ -32,121 +28,128 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual constructor(fd: FileDescriptor) : this("", fd)
 
-    val isAbsolute = filePath.startsWith(pathSeparator)
-    actual val name: String
-    val isHidden: Boolean
-    var mode = "777".toUInt(radix = 8)
-    actual val nameWithoutExtension: String
-    actual val extension: String
-    actual val path: String
-    actual val fullPath: String
-    actual val directoryPath: String
+    private val p = Path(filePath, pathSeparator[0])
+    actual val name = p.name
+    actual val nameWithoutExtension = p.nameWithoutExtension
+    actual val extension = p.extension
+    actual val path = p.path
+    actual val fullPath = p.fullPath
+    actual val directoryPath = p.directoryPath
+    actual val isUri = p.isUri
+    actual val isUriString = p.isUriString
     actual val isDirectory: Boolean
     actual val exists: Boolean
-    actual val isUri = false
-    actual val isUriString = false
     actual val size: ULong
     actual val lastModifiedEpoch: Long
-    actual val lastModified: LocalDateTime
-    actual val createdTime: LocalDateTime
-    actual val lastAccessTime: LocalDateTime
+    actual val lastModified: LocalDateTime?
+    actual val createdTime: LocalDateTime?
+    actual val lastAccessTime: LocalDateTime?
 
-    actual val listFiles: List<File>
-    actual val listFilesTree: List<File>
-    actual val listNames: List<String>
-    actual val tempDirectory: String = tempDirectory()
+    // Linux-specific properties
+    val ownerPermissions: UInt
+    val groupPermissions: UInt
+    val otherPermissions: UInt
+    /**
+     * Set this to an octal three digit string specifying the permissions to be used for new files and directories
+     */
+    var newPermissions: String = "666"
+        set(value) {
+            val mode = value.toUInt(8)
+            if (mode in 0u.."777".toUInt(8)) {
+                field = value
+                newMode = newPermissions.toUInt(8)
+            } else
+                throw IllegalArgumentException("File permission must be between 000 and 777 octal")
+        }
+    private var newMode = newPermissions.toUInt(8)
 
     init {
-        val index = filePath.indexOfLast { it == pathSeparator[0] }
-        name = if (index < 0)
-            filePath
-        else
-            filePath.substring(index + 1)
-        isHidden = name.startsWith('.')
-        val extIndex = name.indexOfLast { it == '.' }
-        extension = if (index < 0) name else name.substring(0, extIndex)
-        nameWithoutExtension = if (index < 0) name else name.substring(extIndex + 1)
-        path = if (index < 0)
-            ""
-        else
-            filePath.substring(0, index).trimEnd(pathSeparator[0])
-        fullPath = path
-        directoryPath = if (name.isNotEmpty())
-            path.replace(name, "").trimEnd(pathSeparator[0])
-        else
-            fullPath
         memScoped {
             val statBuf = alloc<stat>()
             val result = stat(filePath, statBuf.ptr)
-            exists = result == 0
-            if (result != 0)
-                throw IOException("stat function error: $errno on $filePath", null)
-            size = statBuf.st_size.toULong()
-            isDirectory = (statBuf.st_mode and 0x170000u) == 0x040000u  // stat.h source
-            lastModifiedEpoch = statBuf.st_mtim.tv_sec
+            exists = if (result == 0)
+                true
+            else if (errno == 2) false
+            else
+                throw IOException("stat function result: $result, errorno: $errno on $filePath", null)
+
             val tz = TimeZone.currentSystemDefault()
-            lastModified = Instant
-                .fromEpochMilliseconds(lastModifiedEpoch)
-                .toLocalDateTime(tz)
-            createdTime = Instant
-                .fromEpochMilliseconds(statBuf.st_ctim.tv_sec)
-                .toLocalDateTime(tz)
-            lastAccessTime = Instant
-                .fromEpochMilliseconds(statBuf.st_atim.tv_sec)
-                .toLocalDateTime(tz)
+            if (exists) {
+                size = statBuf.st_size.toULong()
+                statBuf.st_mode.also {
+                    isDirectory = (it and isDirectoryMask) == isDirectoryValue
+                    otherPermissions = (it and permissionMask)
+                    groupPermissions = (it and permissionMask.shl(3)).shr(3)
+                    ownerPermissions = (it and permissionMask.shl(6)).shr(6)
+                }
+                lastModifiedEpoch = statBuf.st_mtim.tv_sec
+                lastModified = Instant
+                    .fromEpochMilliseconds(lastModifiedEpoch * 1000)
+                    .toLocalDateTime(tz)
+                createdTime = Instant
+                    .fromEpochMilliseconds(statBuf.st_ctim.tv_sec * 1000)
+                    .toLocalDateTime(tz)
+                lastAccessTime = Instant
+                    .fromEpochMilliseconds(statBuf.st_atim.tv_sec * 1000)
+                    .toLocalDateTime(tz)
+            } else {
+                size = 0u
+                isDirectory = false
+                lastModifiedEpoch = 0
+                lastModified = null
+                createdTime = null
+                lastAccessTime = null
+                ownerPermissions = 0u
+                groupPermissions = 0u
+                otherPermissions = 0u
+            }
         }
-        val list = mutableListOf<File>()
-        listFiles = if (isDirectory) {
-            val dir = opendir(filePath)
+    }
+
+    actual fun newFile() = File(fullPath)
+
+    actual suspend fun directoryList(): List<String> {
+        val list = mutableListOf<String>()
+        if (isDirectory && exists) {
+            val dir = opendir(fullPath)
             if (dir != null) {
                 try {
                     var ep = readdir(dir)
                     while (ep != null) {
-                        list.add(File(ep.pointed.d_name.toKString(), null))
+                        val path = ep.pointed.d_name.toKString()
+                        if (path != "." && path != "..")
+                            list.add(ep.pointed.d_name.toKString())
                         ep = readdir(dir)
                     }
                 } finally {
                     closedir(dir)
                 }
             }
-            list
-        } else
-            list
-        listFilesTree =
-            mutableListOf<File>().apply {
-                listFiles.forEach { directoryWalk(it, this) }
-            }
-        listNames = listFiles.map { it.name }
-    }
-
-
-    private fun directoryWalk(dir: File, list: MutableList<File>) {
-        if (dir.isDirectory) {
-            list.add(dir)
-            dir.listFiles.forEach { directoryWalk(it, list) }
-        } else
-            list.add(dir)
+        }
+        return list
     }
 
     actual suspend fun delete(): Boolean {
-        return remove(fullPath) == 0
+        val rc = remove(fullPath) == 0
+        return rc
     }
 
-    actual suspend fun makeDirectory(): Boolean {
-        return if (isDirectory)
-            mkdir(fullPath, mode) == 0
-        else
-            false
+    actual suspend fun makeDirectory(): File {
+        if (isDirectory) {
+            if (exists) return this
+        } else if (exists)
+            throw IllegalArgumentException("Path exists and is not a directory")
+        val rc = mkdir(fullPath, newMode)
+        if (rc == 0)
+            return File(fullPath)
+        throw IllegalStateException("Failed to create directory: $fullPath, errno = $errno")
     }
 
     actual suspend fun resolve(directoryName: String): File {
         if (!this.isDirectory)
             throw IllegalArgumentException("Only invoke resolve on a directory")
         if (directoryName.isBlank()) return this
-        val directory = File(this, directoryName)
-        if (!directory.exists)
-            directory.makeDirectory()
-        return directory
+        return File(this, directoryName).makeDirectory()
     }
 
     /**
@@ -161,7 +164,16 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual companion object {
         actual val pathSeparator = "/"
 
+        actual fun tempDirectoryPath(): String {
+            return getenv("TMPDIR")?.toKString() ?: "/tmp"
+        }
+        actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
+        private val noTime = Instant.DISTANT_PAST
+        // these values used for decoding the st_mode value from stat()
+        private val isDirectoryMask = "170000".toUInt(8)
+        private val isDirectoryValue = "40000".toUInt(8)
+        private val permissionMask = "7".toUInt(8)
     }
 }
 
@@ -236,7 +248,7 @@ abstract class LinuxFile(
 
     val linuxMode = when (mode) {
         FileMode.Read -> "r"
-        FileMode.Write -> "rw"
+        FileMode.Write -> "w+"
     }
 
     val linuxFile = when (source) {
@@ -304,11 +316,11 @@ abstract class LinuxFile(
         }
     }
 
-    open suspend fun read(buf: ByteArray): UInt {
+    open suspend fun read(buf: ByteArray, count: Int = buf.size): UInt {
         val bytesRead = fread(
             buf.refTo(0),
             byteSz,
-            buf.size.toULong(), raw
+            count.toULong(), raw
         )
         return bytesRead.toUInt()
     }
@@ -339,13 +351,17 @@ abstract class LinuxFile(
     open suspend fun write(buf: ByteBuffer) {
         val arr = buf.getBytes()
         val bytesWritten = fwrite(arr.refTo(0), com.oldguy.common.io.byteSz, arr.size.toULong(), raw)
-        buf.position += bytesWritten.toInt()
+        if (bytesWritten != arr.size.toULong()) {
+            throw IllegalStateException("Write error, bytes written: $bytesWritten, bytes to write: ${arr.size}")
+        }
     }
 
     open suspend fun write(buf: UByteBuffer) {
         val arr = buf.getBytes()
         val bytesWritten = fwrite(arr.refTo(0), com.oldguy.common.io.byteSz, arr.size.toULong(), raw)
-        buf.position += bytesWritten.toInt()
+        if (bytesWritten != arr.size.toULong()) {
+            throw IllegalStateException("Write error, bytes written: $bytesWritten, bytes to write: ${arr.size}")
+        }
     }
 
     open suspend fun copyTo(
@@ -635,7 +651,9 @@ actual class TextFile actual constructor(
     )
 
     actual val charset = charset
-    val textBuffer = TextBuffer(charset)
+    val textBuffer = TextBuffer(charset) { buffer, count ->
+        read(buffer, count)
+    }
 
     actual suspend fun readLine(): String {
         return textBuffer.readLine()
@@ -643,14 +661,9 @@ actual class TextFile actual constructor(
 
     actual suspend fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         try {
-            textBuffer.forEachLine(
-                {buffer ->
-                    if (textBuffer.isEndOfFile)
-                        0u
-                    else
-                        read(buffer)
-                },
-                action)
+            textBuffer.forEachLine() { count, line ->
+                action(count, line)
+            }
         } finally {
             close()
         }

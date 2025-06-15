@@ -724,15 +724,16 @@ class ZipFile(
                                         parentPath: String,
                                         filter: ((pathName: String) -> Boolean)?)
     {
-        directory.listFiles.forEach { path ->
-            val name = (if (path.isDirectory && !path.path.endsWith(File.pathSeparator))
-                path.path + File.pathSeparator
+        directory.directoryList().forEach { path ->
+            val f = File(path)
+            val name = (if (f.isDirectory && !f.path.endsWith(File.pathSeparator))
+                f.path + File.pathSeparator
             else
-                path.path).replace(parentPath, "")
+                f.path).replace(parentPath, "")
             if (filter?.invoke(name) != false) {
-                zipFile(path)
-                if (!shallow && path.isDirectory)
-                    zipOneDirectory(path, shallow, parentPath, filter)
+                zipFile(f)
+                if (!shallow && f.isDirectory)
+                    zipOneDirectory(f, shallow, parentPath, filter)
             }
         }
     }

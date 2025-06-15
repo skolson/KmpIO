@@ -11,7 +11,7 @@ plugins {
         alias(it.kotlin.multiplatform)
         alias(it.android.library)
         alias(it.kotlinx.atomicfu)
-        alias(it.dokka.javadoc)
+        alias(it.dokka.base)
     }
     kotlin("native.cocoapods")
     id("maven-publish")
@@ -52,6 +52,12 @@ java {
     }
 }
 
+val htmlJarTask = tasks.register<Jar>("htmlJar") {
+    archiveClassifier.set("htmldoc")
+    dependsOn(tasks.dokkaGeneratePublicationHtml)
+    from(project.layout.buildDirectory.dir("dokka/html"))
+}
+
 publishing {
     val server = localProps.getProperty("ossrhServer")
     repositories {
@@ -65,6 +71,9 @@ publishing {
     }
     publications.withType(MavenPublication::class) {
         artifactId = artifactId.replace(project.name, mavenArtifactId)
+        if (name != "androidDebug" && name != "androidRelease") {
+            artifact(htmlJarTask)
+        }
 
         pom {
             name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
@@ -124,26 +133,16 @@ android {
     }
 }
 
-dokka {
-    moduleName.set("Kotlin Multiplatform Common IO Library")
-    dokkaSourceSets.commonMain {
-        includes.from("$appleFrameworkName.md")
-    }
-}
-
 kotlin {
     jvmToolchain {
         languageVersion = javaVersion
-    }
-    // Turns off warnings about expect/actual class usage
-    @OptIn(ExperimentalKotlinGradlePluginApi::class)
-    compilerOptions {
-        freeCompilerArgs.add("-Xexpect-actual-classes")
     }
     androidTarget {
         publishLibraryVariants("release", "debug")
         mavenPublication {
             artifactId = artifactId.replace(project.name, mavenArtifactId)
+            if (name == "androidRelease")
+                artifact(htmlJarTask)
         }
     }
 
@@ -210,18 +209,22 @@ kotlin {
     }
     jvm()
     linuxX64() {
+        compilerOptions {
+            freeCompilerArgs.add("-g")
+        }
         binaries {
             executable {
                 debuggable = true
             }
         }
-        /*
-        testRuns["test"].executionTask.configure {
-            dependsOn(binaries.getExecutable("debug").linkTaskProvider)
-        }
-         */
+
     }
     linuxArm64()
+    // Turns off warnings about expect/actual class usage
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
     applyDefaultHierarchyTemplate()
     sourceSets {
         val commonMain by getting {
@@ -275,6 +278,16 @@ kotlin {
         }
     }
 
+}
+
+dokka {
+    moduleName.set("Kotlin Multiplatform Common IO Library")
+    dokkaSourceSets.commonMain {
+        includes.from("$appleFrameworkName.md")
+    }
+    dokkaPublications.html {
+        includes.from("$appleFrameworkName.md")
+    }
 }
 
 tasks.withType<Test> {

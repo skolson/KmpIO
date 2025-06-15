@@ -6,26 +6,32 @@ class Iso88591()
     1..1
 )
 {
-    override fun decode(bytes: ByteArray): String {
+    override fun decode(bytes: ByteArray, count: Int): String {
         return buildString {
+            var read = 0
             for (byte in bytes) {
                 val c = byte.toInt()
                 if (c > MAX_CODE) {
                     throw IllegalStateException("Invalid $name encoding. byte found ${byte.toString(16)}")
                 }
                 append(Char(c))
+                read++
+                if (read > count) break
             }
         }
     }
 
-    override fun decode(bytes: UByteArray): String {
+    override fun decode(bytes: UByteArray, count: Int): String {
         return buildString {
             for (byte in bytes) {
+                var read = 0
                 val c = byte.toInt()
                 if (c > MAX_CODE) {
                     throw IllegalStateException("Invalid $name encoding. byte found ${byte.toString(16)}")
                 }
                 append(Char(c))
+                read++
+                if (read > count) break
             }
         }
     }

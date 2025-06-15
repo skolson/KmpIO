@@ -48,18 +48,20 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual val isUriString = platformFd?.code == 2 && platformFd.descriptor is String
     actual val size: ULong get() = javaFile.length().toULong()
     actual val lastModifiedEpoch: Long = javaFile.lastModified()
-    actual val lastModified = Instant
-        .fromEpochMilliseconds(lastModifiedEpoch)
-        .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-    actual val createdTime: LocalDateTime get() {
+    private val defaultTimeZone = kotlinx.datetime.TimeZone.currentSystemDefault()
+    actual val lastModified = if (lastModifiedEpoch == 0L)
+        null
+    else Instant.fromEpochMilliseconds(lastModifiedEpoch)
+        .toLocalDateTime(defaultTimeZone)
+    actual val createdTime: LocalDateTime? get() {
         if (!exists)
             throw IllegalStateException("File $path does not exist")
         val fileTime = Files.getAttribute(Paths.get(path), "creationTime") as FileTime
         return Instant
             .fromEpochMilliseconds(fileTime.toMillis())
-            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+            .toLocalDateTime(defaultTimeZone)
     }
-    actual val lastAccessTime: LocalDateTime get() {
+    actual val lastAccessTime: LocalDateTime? get() {
         if (!exists)
             throw IllegalStateException("File $path does not exist")
         val fileTime = Files.getAttribute(Paths.get(path), "lastAccessTime") as FileTime
@@ -68,30 +70,15 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
     }
 
-    actual val listFiles: List<File>
-        get() {
-            val list = mutableListOf<File>()
-            return if (isDirectory)
-                javaFile.listFiles()?.map { File(it.absolutePath, null) } ?: emptyList()
-            else
-                list
-        }
-    actual val listFilesTree: List<File> get() {
-            return mutableListOf<File>().apply {
-                listFiles.forEach { directoryWalk(it, this) }
-            }
-        }
-    actual val listNames: List<String> get() = listFiles.map { it.name }
-
     actual val tempDirectory: String
         get() = System.getProperty("java.io.tmpdir")
 
-    private fun directoryWalk(dir: File, list: MutableList<File>) {
-        if (dir.isDirectory) {
-            list.add(dir)
-            dir.listFiles.forEach { directoryWalk(it, list) }
-        } else
-            list.add(dir)
+    actual suspend fun directoryList(): List<String> {
+        val list = mutableListOf<String>()
+        return if (isDirectory)
+            javaFile.listFiles()?.map { it.absolutePath } ?: emptyList()
+        else
+            list
     }
 
     val fd: URI? =
@@ -104,8 +91,11 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         return javaFile.delete()
     }
 
-    actual suspend fun makeDirectory(): Boolean {
-        return javaFile.mkdir()
+    actual suspend fun makeDirectory(): File {
+        return if (javaFile.mkdir())
+            File(fullPath)
+        else
+            this
     }
 
     actual suspend fun resolve(directoryName: String): File {

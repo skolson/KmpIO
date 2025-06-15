@@ -13,9 +13,9 @@ open class Utf16(
         2..4
     )
 {
-    override fun decode(bytes: ByteArray): String {
+    override fun decode(bytes: ByteArray, count: Int): String {
         return buildString {
-            val buf = ByteBuffer(bytes, order)
+            val buf = ByteBuffer(bytes.sliceArray(0 until count), order)
             while (buf.remaining > 0) {
                 val code = buf.ushort.toInt()
                 when (code) {
@@ -44,9 +44,9 @@ open class Utf16(
         }
     }
 
-    override fun decode(bytes: UByteArray): String {
+    override fun decode(bytes: UByteArray, count: Int): String {
         return buildString {
-            val buf = UByteBuffer(bytes, order)
+            val buf = UByteBuffer(bytes.sliceArray(0 until count), order)
             while (buf.remaining > 0) {
                 val code = buf.ushort.toInt()
                 when (code) {

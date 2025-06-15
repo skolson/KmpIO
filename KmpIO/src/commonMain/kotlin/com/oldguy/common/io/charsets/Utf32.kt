@@ -12,18 +12,18 @@ open class Utf32(
     4..4
 )
 {
-    override fun decode(bytes: ByteArray): String {
+    override fun decode(bytes: ByteArray, count: Int): String {
         return buildString {
-            val buf = ByteBuffer(bytes, order)
+            val buf = ByteBuffer(bytes.sliceArray(0 until count), order)
             while (buf.remaining > 0) {
                 append(buf.int.toChar())
             }
         }
     }
 
-    override fun decode(bytes: UByteArray): String {
+    override fun decode(bytes: UByteArray, count: Int): String {
         return buildString {
-            val buf = UByteBuffer(bytes, order)
+            val buf = UByteBuffer(bytes.sliceArray(0 until count), order)
             while (buf.remaining > 0) {
                 append(buf.int.toChar())
             }

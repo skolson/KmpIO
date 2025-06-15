@@ -5,10 +5,10 @@ class Windows1252()
     "Windows-1252",
     1..1
 ) {
-    override fun decode(bytes: ByteArray): String {
+    override fun decode(bytes: ByteArray, count: Int): String {
         return buildString {
-            bytes.forEach {
-                val key = it.toInt()
+            for(i in 0 until count) {
+                val key = bytes[i].toInt()
                 checkCode(key)
                 val c = byteToCode[key] ?: key
                 append(Char(c))
@@ -16,10 +16,10 @@ class Windows1252()
         }
     }
 
-    override fun decode(bytes: UByteArray): String {
+    override fun decode(bytes: UByteArray, count: Int): String {
         return buildString {
-            bytes.forEach {
-                val key = it.toInt()
+            for(i in 0 until count) {
+                val key = bytes[i].toInt()
                 checkCode(key)
                 val c = byteToCode[key] ?: key
                 append(Char(c))

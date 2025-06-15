@@ -3,7 +3,6 @@ package com.oldguy.common.test
 import com.oldguy.common.io.File
 import com.oldguy.common.io.FileMode
 import com.oldguy.common.io.ZipFile
-import com.oldguy.common.io.tempDirectory
 import kotlinx.coroutines.test.runTest
 import kotlin.native.runtime.GC
 import kotlin.test.Test
@@ -20,8 +19,8 @@ class ZipFileBasics {
         runTest {
             GC.collect()
             val startMemory = GC.lastGCInfo!!.memoryUsageAfter["heap"]?.totalObjectsSizeBytes
-            val temp = tempDirectory().let {
-                val fil = File(tempDirectory(), "test.zip")
+            File.tempDirectoryPath().let {
+                val fil = File(it, "test.zip")
                 assertFalse(fil.exists)
                 assertFalse(fil.delete())
                 val zipFile = ZipFile(fil, FileMode.Write)

@@ -2,7 +2,7 @@
 appVersion = "0.1.8"
 java = "21"
 
-androidGradlePlugin = "8.12.0-alpha04"
+androidGradlePlugin = "8.12.0-alpha05"
 
 kotlin = "2.1.21"
 kotlinCoroutines = "1.10.2"
@@ -41,4 +41,4 @@ android-library = { id = "com.android.library", version.ref = "androidGradlePlug
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinx-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
 
-dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokkaPlugin" }
+dokka-base = { id = "org.jetbrains.dokka", version.ref = "dokkaPlugin" }

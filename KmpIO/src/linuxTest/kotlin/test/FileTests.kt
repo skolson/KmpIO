@@ -2,6 +2,8 @@ package test
 
 import com.oldguy.common.io.*
 import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf16LE
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.Test
 
@@ -10,27 +12,22 @@ import kotlin.test.Test
  */
 @ExperimentalCoroutinesApi
 class FileTestSuite {
-    val path = File(".").tempDirectory
-    val tests = FileTests(path)
 
-    init {
-        println("Path: $path")
-    }
+    val tests = FileTests(File.tempDirectoryPath())
 
     @Test
     fun textUtf8Basics() {
-        //println("testUtf8Basics entry")
         tests.filesBasics()
     }
 
     @Test
     fun textMediumSizeUtf8Basics() {
-        tests.biggerTextFileWriteRead(com.oldguy.common.io.charsets.Charset(Charsets.Utf8), 100)
+        tests.biggerTextFileWriteRead(Utf8(), 100)
     }
 
     @Test
     fun textUtf16leBasics() {
-        tests.textFileWriteRead(com.oldguy.common.io.charsets.Charset(Charsets.Utf16LE))
+        tests.textFileWriteRead(Utf16LE())
     }
 
     @Test

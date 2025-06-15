@@ -31,6 +31,7 @@ data class FileDescriptor(val code: Int = 0, val descriptor: Any)
  * Represents a file ID.  The filePath can be file syntax or URI or something else - actual platform
  * implementation will parse accordingly. Does assume file name at end of string may have an extension
  * of form "<path><nameWithoutExtension>.<extension>" = fullPath.
+ * Note that a File object is immutable. The properties are set from the file system only at constructor time.
  * @param filePath string value identifying a file
  */
 expect class File(filePath: String, platformFd: FileDescriptor? = null) {
@@ -45,30 +46,32 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val fullPath: String
     val directoryPath: String
     val isDirectory: Boolean
-    val listNames: List<String>
-    val listFiles: List<File>
-    val listFilesTree: List<File>
     val exists: Boolean
     val isUri: Boolean
     val isUriString: Boolean
     val size: ULong
     val lastModifiedEpoch: Long
-    val lastModified: LocalDateTime
-    val createdTime: LocalDateTime
-    val lastAccessTime: LocalDateTime
-    val tempDirectory: String
+    val lastModified: LocalDateTime?
+    val createdTime: LocalDateTime?
+    val lastAccessTime: LocalDateTime?
 
     suspend fun delete(): Boolean
     suspend fun copy(destinationPath: String): File
-    suspend fun makeDirectory(): Boolean
+    suspend fun makeDirectory(): File
     suspend fun resolve(directoryName: String): File
+    suspend fun directoryList(): List<String>
+
+    /**
+     * Make a new File object with updated attributes from the same fullPath as this File instance
+     */
+    fun newFile(): File
 
     companion object {
         val pathSeparator: String
+        fun tempDirectoryPath(): String
+        fun tempDirectoryFile(): File
     }
 }
-
-expect fun tempDirectory(): String
 
 enum class FileSource {
     Asset, Classpath, File

@@ -11,10 +11,6 @@ class FileTestSuite {
     val path = NSTemporaryDirectory()
     val tests = FileTests(path)
 
-    init {
-        println("Path: $path")
-    }
-
     @Test
     fun textUtf8Basics() {
         tests.filesBasics()

@@ -123,13 +123,11 @@ class ZipFileTests {
             ZipFile(testFile()).apply {
                 extractToDirectory(dir)
             }
-            val list = dir.listFiles
+            val list = dir.directoryList().map { File(it) }
             assertEquals(7, list.size)
             assertEquals(6, list.count { it.isDirectory })
             assertEquals(1, list.count { !it.isDirectory })
             assertEquals(readme, list.first { !it.isDirectory }.name)
-            val tree = dir.listFilesTree
-            assertEquals(68, tree.size)
             dir.delete()
         }
     }

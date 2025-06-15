@@ -9,12 +9,12 @@ class Utf8:
         1..3
     )
 {
-    override fun decode(bytes: ByteArray): String {
-        return bytes.decodeToString()
+    override fun decode(bytes: ByteArray, count: Int): String {
+        return bytes.sliceArray(0 until count).decodeToString()
     }
 
-    override fun decode(bytes: UByteArray): String {
-        return bytes.toByteArray().decodeToString()
+    override fun decode(bytes: UByteArray, count: Int): String {
+        return bytes.toByteArray().sliceArray(0 until count).decodeToString()
     }
 
     override fun encode(inString: String): ByteArray {

@@ -71,17 +71,19 @@ abstract class Charset(
      * Using the current character set, decode the entire ByteArray into a String
      * @param bytes For 8 bit character sets, has the same size as the number of characters. For 16-bit character sets,
      * bytes.size is double the number of String characters. Entire content is decoded.
+     * @param count number of bytes to decode
      * @return decoded String
      */
-    abstract fun decode(bytes: ByteArray): String
+    abstract fun decode(bytes: ByteArray, count: Int = bytes.size): String
 
     /**
-     * Using the current character set, decode the entire ByteArray into a String
+     * Using the current character set, decode the ByteArray into a String
      * @param bytes For 8 bit character sets, has the same size as the number of characters. For 16-bit character sets,
      * bytes.size is double the number of String characters. Entire content is decoded.
+     * @param count number of bytes to decode
      * @return decoded String
      */
-    abstract fun decode(bytes: UByteArray): String
+    abstract fun decode(bytes: UByteArray, count: Int = bytes.size): String
 
     /**
      * Using the current character set, encode the entire String into a ByteArray.

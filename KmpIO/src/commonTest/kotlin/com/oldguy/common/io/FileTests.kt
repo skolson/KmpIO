@@ -15,25 +15,39 @@ class FileTests(testDirPath: String) {
 
     fun filesBasics() {
         assertTrue(testDirectory.isDirectory)
+        val testText = "Test text"
         runTest {
             val subDir = testDirectory.resolve(subDirName)
             assertTrue(subDir.exists)
             assertTrue(subDir.isDirectory)
+
+            val testFileName = "Test.txt"
+            File(subDir, testFileName).delete()
+            val tmpList = subDir.directoryList()
+            assertTrue(tmpList.isEmpty())
+            assertEquals(0, tmpList.size)
+
+            File(subDir, testFileName).apply {
+                assertEquals(false, exists)
+                assertEquals("txt", extension)
+                assertEquals(testFileName, name)
+                assertEquals("Test", nameWithoutExtension)
+                assertEquals(false, isDirectory)
+                assertEquals("${testDirectory.fullPath}/$subDirName/$testFileName", fullPath)
+                TextFile(this, mode = FileMode.Write).use {
+                    it.write(testText)
+                }
+                val tmpList2 = subDir.directoryList()
+                assertTrue(tmpList2.isNotEmpty())
+                assertEquals(1, tmpList2.size)
+                assertEquals(testFileName, tmpList2.first())
+                TextFile(this).forEachLine {count, line ->
+                    assertEquals(1, count)
+                    assertEquals(testText,line)
+                    true
+                }
+            }
         }
-
-        val testFileName = "Test.txt"
-        val textFile = File(testDirectory, testFileName)
-        assertEquals(false, textFile.exists)
-        assertEquals(".txt", textFile.extension)
-        assertEquals(testFileName, textFile.name)
-        assertEquals("Test", textFile.nameWithoutExtension)
-        assertEquals(false, textFile.isDirectory)
-        val path ="${testDirectory.path}/$testFileName".replace('\\', '/')
-        assertEquals(path, textFile.path.replace('\\', '/'))
-
-        val tmpList = testDirectory.listFiles
-        assertTrue(tmpList.isNotEmpty())
-        assertEquals(1, tmpList.count {it.name == subDirName})
     }
 
     private fun checkTextLines(textFile: TextFile): Int {
@@ -41,11 +55,11 @@ class FileTests(testDirPath: String) {
         runTest {
             textFile.forEachLine { count, it ->
                 when ((count - 1) % 6) {
-                    0 -> assertEquals(line1 + eol, it)
-                    1 -> assertEquals(line2 + eol, it)
-                    2 -> assertEquals(line3 + eol, it)
-                    3, 4 -> assertEquals(eol, it)
-                    5 -> assertEquals("Line6" + eol, it)
+                    0 -> assertEquals(line1, it)
+                    1 -> assertEquals(line2, it)
+                    2 -> assertEquals(line3, it)
+                    3, 4 -> assertTrue(it.isEmpty())
+                    5 -> assertEquals("Line6", it)
                     else -> fail("Unexpected line $count, content:\"$it\", file ${textFile.file.name}, charset: ${textFile.charset}.")
                 }
                 lines = count
@@ -71,9 +85,9 @@ class FileTests(testDirPath: String) {
             }
 
             assertEquals(true, fil.exists)
-            val lastModDate = fil.lastModified
-            val createdDate = fil.createdTime
-            val lastAccessDate = fil.lastAccessTime
+            val lastModDate = fil.lastModified!!
+            val createdDate = fil.createdTime!!
+            val lastAccessDate = fil.lastAccessTime!!
             val nowTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
             assertEquals(nowTime.year, lastModDate.year)
             assertEquals(nowTime.monthNumber, lastModDate.monthNumber)
@@ -100,8 +114,10 @@ class FileTests(testDirPath: String) {
     fun biggerTextFileWriteRead(charset: Charset, copyCount: Int = 100) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
-            val fil = File(subDir, "TextMedium${charset.name}.txt")
-            fil.delete()
+            assertTrue { subDir.exists }
+            val fileName = "TextMedium${charset.name}.txt"
+            File(subDir, fileName).delete()
+            val fil = File(subDir, fileName)
             assertEquals(false, fil.exists)
             val textFile = TextFile(
                 fil,
@@ -109,10 +125,12 @@ class FileTests(testDirPath: String) {
                 FileMode.Write,
                 FileSource.File
             )
-            for (i in 0 until copyCount)
-                textFile.write(textContent)
+            (0 until copyCount)
+                .forEach { _ ->
+                    textFile.write(textContent)
+                }
             textFile.close()
-            assertEquals(true, fil.exists)
+            assertEquals(true, File(subDir, fileName).exists)
 
             val textFileIn = TextFile(
                 fil,
