@@ -17,6 +17,42 @@ actual class TimeZones {
     }
 }
 
+/**
+ * Represents a file or directory on the filesystem, providing various utility methods and properties
+ * to interact with file paths, directories, and file metadata.
+ *
+ * This class is platform-specific and contains functionality for file manipulation,
+ * directory creation, file copying, and retrieving file attributes such as permissions and timestamps.
+ * It is a combination of platform-independent methods and Linux-specific features such
+ * as POSIX file permissions.
+ *
+ * Note: Instances are immutable, with one exception - the newPermissions property,  So properties are
+ * all set at constructor time and do not change as a result of using methods. See the newFile() function
+ * as a convenience for getting a new current File instance using the same full path to get new state when desired.
+ *
+ * @constructor Creates a `File` instance using the given file path or `FileDescriptor`.
+ * Platform-specific implementation details may vary for certain methods.
+ *
+ * @property name Name of the file or directory.
+ * @property nameWithoutExtension Name of the file without its extension.
+ * @property extension The file's extension (if any).
+ * @property path The normalized file path.
+ * @property fullPath The full absolute path of the file or directory.
+ * @property directoryPath Path to the parent directory of the file or the path itself if it's a directory.
+ * @property isUri Indicates whether the file is represented by a URI.
+ * @property isUriString Checks if the file path is formatted as a URI string.
+ * @property isDirectory Whether the path points to a directory.
+ * @property exists Whether the file or directory exists on the filesystem.
+ * @property size Size of the file in bytes.
+ * @property lastModifiedEpoch The last modification timestamp of the file in seconds since the Unix epoch.
+ * @property lastModified The last modification time as a `LocalDateTime` object.
+ * @property createdTime The creation time of the file as a `LocalDateTime` object (if available).
+ * @property lastAccessTime The last access time of the file as a `LocalDateTime` object (if available).
+ * @property ownerPermissions File permission bits for the owner of the file (Linux-specific).
+ * @property groupPermissions File permission bits for the group associated with the file (Linux-specific).
+ * @property otherPermissions File permission bits for others (Linux-specific).
+ * @property newPermissions Default permissions to use for newly created files and directories, represented as an octal string.
+ */
 @OptIn(ExperimentalForeignApi::class)
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
 {
