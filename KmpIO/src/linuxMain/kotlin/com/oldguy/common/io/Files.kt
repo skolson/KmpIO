@@ -130,8 +130,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     }
 
     actual suspend fun delete(): Boolean {
-        val rc = remove(fullPath) == 0
-        return rc
+        return remove(fullPath) == 0
     }
 
     actual suspend fun makeDirectory(): File {
