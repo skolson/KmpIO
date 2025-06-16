@@ -57,7 +57,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     suspend fun delete(): Boolean
     suspend fun copy(destinationPath: String): File
     suspend fun makeDirectory(): File
-    suspend fun resolve(directoryName: String): File
+    suspend fun resolve(directoryName: String, make: Boolean = true): File
     suspend fun directoryList(): List<String>
 
     /**
@@ -69,6 +69,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
         val pathSeparator: String
         fun tempDirectoryPath(): String
         fun tempDirectoryFile(): File
+        fun workingDirectory(): File
     }
 }
 
@@ -87,8 +88,8 @@ enum class FileMode {
 }
 
 /**
- * Use this to access a file at the bytes level. Random access by byte position is required, with
- * first byte of file as position 0. No translation of data is performed
+ * Use this to access a file at the bytes level. Random access by byte position is supported, with
+ * first byte of a file as position 0. No translation of data is performed
  */
 expect class RawFile(
     fileArg: File,

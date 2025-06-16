@@ -141,8 +141,11 @@ kotlin {
         publishLibraryVariants("release", "debug")
         mavenPublication {
             artifactId = artifactId.replace(project.name, mavenArtifactId)
+            /*
+                causes a signing task cross-dependency problem in Dokka v2
             if (name == "androidRelease")
                 artifact(htmlJarTask)
+             */
         }
     }
 

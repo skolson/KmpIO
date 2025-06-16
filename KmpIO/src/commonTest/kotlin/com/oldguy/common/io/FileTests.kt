@@ -200,7 +200,7 @@ class FileTests(testDirPath: String) {
 
 @ExperimentalCoroutinesApi
 class FileUnitTests {
-    private val path = "d:\\temp"
+    private val path = File.tempDirectoryPath()
     private val tests = FileTests(path)
 
     @Test

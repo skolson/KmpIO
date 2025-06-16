@@ -11,9 +11,7 @@ actual class TimeZones {
     }
 }
 
-actual fun tempDirectory(): String = appleTempDirectory()
-
-actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
+actual open class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
     : AppleFile(filePath, platformFd){
 
     actual constructor(parentDirectory: String, name: String) : this(makePath(parentDirectory, name), null)
@@ -58,6 +56,8 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual companion object {
         actual val pathSeparator = "/"
+        actual fun tempDirectoryPath(): String = appleTempDirectory()
+        actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
     }
 }
 

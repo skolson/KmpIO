@@ -180,11 +180,12 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         throw IllegalStateException("Failed to create directory: $fullPath, errno = $errno")
     }
 
-    actual suspend fun resolve(directoryName: String): File {
+    actual suspend fun resolve(directoryName: String, make: Boolean): File {
         if (!this.isDirectory)
             throw IllegalArgumentException("Only invoke resolve on a directory")
         if (directoryName.isBlank()) return this
-        return File(this, directoryName).makeDirectory()
+        val d = File(this, directoryName)
+        return if (make) d.makeDirectory() else d
     }
 
     /**
@@ -203,6 +204,17 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             return getenv("TMPDIR")?.toKString() ?: "/tmp"
         }
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
+
+        actual fun workingDirectory(): File {
+            memScoped {
+                val bufferLength = 4096uL
+                val buffer = allocArray<ByteVar>(bufferLength.toInt())
+
+                if (getcwd(buffer, bufferLength) == null)
+                    throw IllegalStateException("getcwd() returned error: $errno")
+                return File(buffer.toKString())
+            }
+        }
 
         private val noTime = Instant.DISTANT_PAST
         // these values used for decoding the st_mode value from stat()

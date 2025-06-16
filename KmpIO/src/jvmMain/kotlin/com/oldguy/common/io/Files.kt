@@ -23,9 +23,7 @@ actual class TimeZones {
     }
 }
 
-actual fun tempDirectory(): String = System.getProperty("java.io.tmpdir")
-
-actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
+actual open class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
             this(parentDirectory + name, null)
 
@@ -70,9 +68,6 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
     }
 
-    actual val tempDirectory: String
-        get() = System.getProperty("java.io.tmpdir")
-
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
         return if (isDirectory)
@@ -97,6 +92,8 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         else
             this
     }
+
+    actual fun newFile() = File(fullPath)
 
     actual suspend fun resolve(directoryName: String): File {
         if (!this.isDirectory)
@@ -128,6 +125,8 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual companion object {
         actual val pathSeparator = "/"
+        actual fun tempDirectoryPath(): String = System.getProperty("java.io.tmpdir")
+        actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
     }
 }
 

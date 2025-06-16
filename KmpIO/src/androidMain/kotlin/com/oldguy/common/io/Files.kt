@@ -27,10 +27,6 @@ actual class TimeZones {
     }
 }
 
-actual fun tempDirectory(): String {
-    return File.appContext.cacheDir.absolutePath
-}
-
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
             this(parentDirectory + name, null)
@@ -77,8 +73,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
     }
 
-    actual val tempDirectory: String
-        get() = appContext.cacheDir.absolutePath
+    actual fun newFile() = File(fullPath)
 
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
@@ -137,6 +132,11 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         actual val pathSeparator = "/"
         lateinit var appContext: Application
             private set
+
+        actual fun tempDirectoryPath(): String {
+            return File.appContext.cacheDir.absolutePath
+        }
+        actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
         fun setApplicationContext(app: Application) {
             appContext = app
