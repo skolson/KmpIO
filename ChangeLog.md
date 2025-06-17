@@ -2,12 +2,16 @@
 
 ### 0.1.8 (in progress)
 
-- Gradle 8.14.1
+This release is after a long period of inactivity on the author's part (family health issues). So there is a lot of change, some of which is breaking changes.
+- Gradle 8.14.2
 - Kotlin 2.1.21
-- LinuxX64 native support
+- LinuxX64 native support. This includes various basic posix functions and zlib support for zip file compression/decompression 
 - Added the beginnings of IOS-specific unit tests
 - Breaking change to Charsets and Charset support.  Now pure KMP code (no cinterop or jvm dependencies). Supported is limited to a few common charsets. New charsets are easy to add.
-- 
+- File class has had changes to make it almost entirely immutable (still one exception to this that is linux-specific). File will still need some enhancing to properly support file/directory permissions at creation time
+- A pure Kotlin TextBuffer class has replaced prior logic underlying the various TextFile implementations.
+- Made a new Directory class, also pure Kotlin, that uses the native File implementation to support directory contents lists, walking a directory tree, deleting populated directories, etc. Also moved path/name property parsing logic to a new pure Kotlin Path class. Actual FIle implementations now much more focused on the underlying native code required to provide the various File properties and functions.
+- Moved temporary directory support to File class companion object. The previous File extension function is gone.
 
 ### 0.1.7
 

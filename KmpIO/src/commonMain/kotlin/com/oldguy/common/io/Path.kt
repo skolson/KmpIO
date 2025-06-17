@@ -3,7 +3,7 @@ package com.oldguy.common.io
 /**
  * Parse a file path into its various components.
  */
-open class Path(filePath: String, pathSeparator: Char = '/') {
+open class Path(filePath: String, val pathSeparator: Char = '/') {
     val isAbsolute = filePath.startsWith(pathSeparator)
     val isHidden: Boolean
     val name: String
@@ -42,5 +42,20 @@ open class Path(filePath: String, pathSeparator: Char = '/') {
             else
                 fullPath
         }
+    }
+
+    /**
+     * Returns the parent directory of the current path.
+     * If the current path does not have a parent, returns the path itself.
+     * If the current path is a file, then the file's parent directory is returned.
+     *
+     * @return A new `Path` instance representing the parent directory, or the current path if no parent exists.
+     */
+    fun up(): Path {
+        val index = fullPath.lastIndexOf(pathSeparator)
+        return if (index > 1) {
+            Path(fullPath.substring(0, index))
+        } else
+            this
     }
 }

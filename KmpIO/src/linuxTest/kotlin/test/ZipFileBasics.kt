@@ -1,50 +1,27 @@
 package com.oldguy.common.test
 
-import com.oldguy.common.io.File
-import com.oldguy.common.io.FileMode
-import com.oldguy.common.io.ZipFile
-import kotlinx.coroutines.test.runTest
-import kotlin.native.runtime.GC
+import com.oldguy.common.io.ZipFileTests
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.Test
-import kotlin.native.runtime.NativeRuntimeApi
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.time.ExperimentalTime
 
+@OptIn(
+    ExperimentalStdlibApi::class,
+    ExperimentalTime::class,
+    ExperimentalCoroutinesApi::class
+    )
 class ZipFileBasics {
+    val tests = ZipFileTests()
 
-    @OptIn(NativeRuntimeApi::class, ExperimentalStdlibApi::class)
     @Test
     fun zipFileEmpty() {
-        runTest {
-            GC.collect()
-            val startMemory = GC.lastGCInfo!!.memoryUsageAfter["heap"]?.totalObjectsSizeBytes
-            File.tempDirectoryPath().let {
-                val fil = File(it, "test.zip")
-                assertFalse(fil.exists)
-                assertFalse(fil.delete())
-                val zipFile = ZipFile(fil, FileMode.Write)
-                assertEquals(0, zipFile.entries.size)
-                zipFile.close()
-                assertTrue(fil.exists)
-                assertTrue(fil.delete())
-                assertFalse(fil.exists)
-            }
-            try {
-                println("Second CG start")
-                GC.collect()
-                println("Second CG end")
-            } catch (e: Throwable) {
-                println(e.message)
-            }
-
-            /*
-                        val endMemory = GC.lastGCInfo?.let {
-                            it.memoryUsageAfter["heap"]?.totalObjectsSizeBytes
-                        }
-                        println("Start memory = $startMemory, end = ${endMemory ?: "null"}")
-
-             */
-        }
+        tests.zipFileEmpty()
     }
+
+    @Test
+    fun compressionTest() {
+        println("Test start")
+        tests.smallCompressionTest()
+    }
+
 }

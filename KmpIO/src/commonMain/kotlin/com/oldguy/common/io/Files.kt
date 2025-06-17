@@ -59,6 +59,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     suspend fun makeDirectory(): File
     suspend fun resolve(directoryName: String, make: Boolean = true): File
     suspend fun directoryList(): List<String>
+    fun up(): File
 
     /**
      * Make a new File object with updated attributes from the same fullPath as this File instance

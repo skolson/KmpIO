@@ -1,5 +1,7 @@
 package com.oldguy.common.io
 
+import kotlin.text.get
+
 /**
  * Pure Kotlin (not expect/actual platform-specific logic) methods used for traversing an existing
  * directory tree.
@@ -43,6 +45,26 @@ class Directory(dirPath: String)
     suspend fun walkTree(action: (suspend ((file: File) -> Boolean))) {
         listTree(directory, emptyList<File>().toMutableList()).forEach {
             if (!action(it)) return
+        }
+    }
+
+    /**
+     * Deletes the current directory and all its contents, including nested files and subdirectories, if they exist.
+     *
+     * This method retrieves all files and directories within the current directory recursively
+     * by relying on the `directoryTree` method. It iterates through the list of files starting
+     * from the deepest subdirectories to ensure a bottom-up deletion order.
+     *
+     * If the deletion of any file or directory fails, an `IllegalStateException` is thrown.
+     *
+     * @throws IllegalStateException If deletion of any file or directory within the hierarchy fails.
+     */
+    suspend fun deleteDirectoryAndContents() {
+        directoryTree().apply {
+            for ( i in lastIndex downTo 0) {
+                if (!this[i].delete())
+                    throw IllegalStateException("Attempt to delete ${this[i].fullPath} failed")
+            }
         }
     }
 

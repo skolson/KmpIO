@@ -88,7 +88,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     /**
      * Set this to an octal three digit string specifying the permissions to be used for new files and directories
      */
-    var newPermissions: String = "666"
+    var newPermissions: String = "777"
         set(value) {
             val mode = value.toUInt(8)
             if (mode in 0u.."777".toUInt(8)) {
@@ -195,6 +195,10 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         val dest = File(destinationPath)
         copyFile(this, dest)
         return dest
+    }
+
+    actual fun up(): File {
+        return File(Path(fullPath).up().fullPath)
     }
 
     actual companion object {

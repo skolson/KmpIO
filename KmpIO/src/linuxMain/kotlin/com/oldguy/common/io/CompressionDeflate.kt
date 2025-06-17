@@ -1,6 +1,7 @@
 package com.oldguy.common.io
 
 import kotlinx.cinterop.*
+import platform.linux.ether_hostton
 import platform.zlib.*
 
 /**
@@ -27,7 +28,8 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual override suspend fun compress(input: suspend () -> ByteBuffer,
                                          output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        return compressCore(
+        return process(
+            false,
             {
                 input().getBytes()
             },
@@ -48,50 +50,70 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual override suspend fun compressArray(input: suspend () -> ByteArray,
                                               output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
-        return compressCore(input, output)
+        return process(false, input, output)
     }
 
-    private suspend fun compressCore(
+    private suspend fun process(
+        inflate: Boolean,
         input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
         var inArray: ByteArray
         val outArray = UByteArray(chunk)
         var outCount = 0uL
+        val str = if (inflate) "inflate" else "deflate"
         memScoped {
-            val zlibStream = alloc<z_stream>().apply {
+            alloc<z_stream>().apply {
                 zalloc = null
                 zfree = null
                 opaque = null
-            }
-            var rc = deflateInit(zlibStream.ptr, Z_DEFAULT_COMPRESSION)
-            if (rc != Z_OK)
-                throw IOException("zlib deflateInit failed, rc = $rc")
-            var flush: Int
-            var have: UInt
-            do {
-                inArray = input()
-                val bytes = inArray.size.toUInt()
-                flush = if (bytes > 0u) Z_NO_FLUSH else Z_FINISH
-                inArray.toUByteArray().usePinned { inPtr ->
-                    outArray.usePinned { outPtr ->
-                        zlibStream.next_in = inPtr.addressOf(0)
-                        do {
-                            zlibStream.apply {
-                                avail_out = outArray.size.toUInt()
-                                next_out = outPtr.addressOf(0)
+                var rc = if (inflate)
+                    inflateInit(ptr)
+                else
+                    deflateInit(ptr, Z_DEFAULT_COMPRESSION)
+                if (rc != Z_OK)
+                    throw IOException("zlib $str failed, rc = $rc")
+                try {
+                    inArray = input()
+                    val bytes = inArray.size.toUInt()
+                    var flush = if (bytes > 0u) Z_NO_FLUSH else Z_FINISH
+                    inArray.toUByteArray().usePinned { inPtr ->
+                        outArray.usePinned { outPtr ->
+                            next_in = inPtr.addressOf(0)
+                            avail_in = inArray.size.toUInt()
+                            avail_out = outArray.size.toUInt()
+                            next_out = outPtr.addressOf(0)
+                            var loopCount = 0
+                            do {
+                                loopCount++
+                                rc = if (inflate)
+                                    inflate(ptr, flush)
+                                else
+                                    deflate(ptr, flush)
+                                if (rc != Z_OK && rc != Z_STREAM_END)
+                                    throw IOException("zlib $str failed, rc = $rc")
+
+                                if (avail_in == 0u) {
+                                    inArray = input()
+                                    avail_in = inArray.size.toUInt()
+                                    next_in = inPtr.addressOf(0)
+                                    if (avail_in == 0u) flush = Z_FINISH
+                                }
+                                if (avail_out == 0u) {
+                                    output(outArray.toByteArray())
+                                    next_out = outPtr.addressOf(0)
+                                }
+                            } while (rc == Z_OK)
+                            if (avail_out > 0u) {
+                                output(copy(outArray, (outArray.size.toUInt() - avail_out)))
                             }
-                            rc = deflate(zlibStream.ptr, flush)
-                            if (rc == Z_STREAM_ERROR)
-                                throw IOException("zlib deflate failed, rc = $rc")
-                            have = outArray.size.toUInt() - zlibStream.avail_out
-                            output(copy(outArray, have))
-                            outCount += have
-                        } while (zlibStream.avail_in == 0u)
+                        }
                     }
+                } finally {
+                    outCount = total_out
+                    deflateEnd(ptr)
                 }
-            } while (flush != Z_FINISH)
-            deflateEnd(zlibStream.ptr)
+            }
         }
         return outCount
     }
@@ -115,7 +137,8 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
         input: suspend () -> ByteBuffer,
         output: suspend (buffer: ByteBuffer) -> Unit
     ): ULong {
-        return decompressCore(
+        return process(
+            true,
             {
                 input().getBytes()
             },
@@ -143,60 +166,7 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
         input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
-        return decompressCore(input, output)
-    }
-
-    private suspend fun decompressCore(
-        input: suspend () -> ByteArray,
-        output: suspend (buffer: ByteArray) -> Unit
-    ): ULong {
-        var inArray: UByteArray
-        val outArray = UByteArray(chunk)
-        var outCount = 0uL
-        memScoped {
-            val zlibStream = alloc<z_stream>().apply {
-                zalloc = null
-                zfree = null
-                opaque = null
-                avail_in = 0u
-                next_in = null
-            }
-            try {
-                var rc = inflateInit(zlibStream.ptr)
-                if (rc != Z_OK)
-                    throw IOException("zlib inflateInit failed, rc = $rc")
-                var have: UInt
-                do {
-                    inArray = input().toUByteArray()
-                    val bytes = inArray.size
-                    inArray.usePinned { inPtr ->
-                        outArray.usePinned { outPtr ->
-                            zlibStream.avail_in = bytes.toUInt()
-                            zlibStream.next_in = inPtr.addressOf(0)
-                            do {
-                                zlibStream.apply {
-                                    avail_out = outArray.size.toUInt()
-                                    next_out = outPtr.addressOf(0)
-                                }
-                                rc = inflate(zlibStream.ptr, Z_NO_FLUSH)
-                                if (rc == Z_STREAM_ERROR)
-                                    throw IOException("zlib deflate failed, rc = $rc")
-                                when (rc) {
-                                    Z_NEED_DICT, Z_DATA_ERROR, Z_MEM_ERROR -> rc = Z_DATA_ERROR
-
-                                }
-                                have = outArray.size.toUInt() - zlibStream.avail_out
-                                output(copy(outArray, have))
-                                outCount += have
-                            } while (zlibStream.avail_out == 0u)
-                        }
-                    }
-                } while (rc != Z_STREAM_END)
-            } finally {
-                deflateEnd(zlibStream.ptr)
-            }
-        }
-        return outCount
+        return process(true, input, output)
     }
 
     /**
