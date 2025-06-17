@@ -66,6 +66,8 @@ class Directory(dirPath: String)
                     throw IllegalStateException("Attempt to delete ${this[i].fullPath} failed")
             }
         }
+        if (!directory.delete())
+            throw IllegalStateException("Attempt to delete ${directory.fullPath} failed")
     }
 
     companion object {

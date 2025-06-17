@@ -12,6 +12,7 @@ This release is after a long period of inactivity on the author's part (family h
 - A pure Kotlin TextBuffer class has replaced prior logic underlying the various TextFile implementations.
 - Made a new Directory class, also pure Kotlin, that uses the native File implementation to support directory contents lists, walking a directory tree, deleting populated directories, etc. Also moved path/name property parsing logic to a new pure Kotlin Path class. Actual FIle implementations now much more focused on the underlying native code required to provide the various File properties and functions.
 - Moved temporary directory support to File class companion object. The previous File extension function is gone.
+- Native zip file inflate/deflate logic for Linux and Apple refactored to improve memory management.
 
 ### 0.1.7
 

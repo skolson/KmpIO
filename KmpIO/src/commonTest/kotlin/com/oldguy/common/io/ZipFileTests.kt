@@ -138,7 +138,8 @@ class ZipFileTests {
             ZipFile(testFile()).apply {
                 extractToDirectory(dir)
             }
-            val list = dir.directoryList().map { File(it) }
+            val list = dir.directoryList().map { File(dir, it) }
+            println("Unzipped List: ${list.map { it.fullPath } }")
             assertEquals(7, list.size)
             assertEquals(6, list.count { it.isDirectory })
             assertEquals(1, list.count { !it.isDirectory })

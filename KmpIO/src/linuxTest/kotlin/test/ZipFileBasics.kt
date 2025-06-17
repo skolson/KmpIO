@@ -20,8 +20,16 @@ class ZipFileBasics {
 
     @Test
     fun compressionTest() {
-        println("Test start")
         tests.smallCompressionTest()
     }
 
+    @Test
+    fun readSmallTextAndBinaryTest() {
+        tests.zipFileRead()
+    }
+
+    @Test
+    fun unzipToDirectoryTest() {
+        tests.unzipToDirectoryTest()
+    }
 }

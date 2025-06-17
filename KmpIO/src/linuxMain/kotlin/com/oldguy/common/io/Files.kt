@@ -368,6 +368,7 @@ abstract class LinuxFile(
     }
 
     open suspend fun read(buf: ByteArray, count: Int = buf.size): UInt {
+        if (buf.isEmpty()) return 0u
         val bytesRead = fread(
             buf.refTo(0),
             byteSz,
@@ -378,6 +379,7 @@ abstract class LinuxFile(
 
     open suspend fun read(buf: ByteBuffer, reuseBuffer: Boolean): UInt {
         if (reuseBuffer) buf.clear()
+        if (buf.remaining == 0) return 0u
         val bytes = ByteArray(buf.remaining)
         val bytesRead = fread(bytes.refTo(0),
             com.oldguy.common.io.byteSz, buf.remaining.toULong(), raw)
@@ -386,6 +388,7 @@ abstract class LinuxFile(
 
     open suspend fun read(buf: UByteBuffer, reuseBuffer: Boolean): UInt {
         if (reuseBuffer) buf.clear()
+        if (buf.remaining == 0) return 0u
         val bytes = ByteArray(buf.remaining)
         val bytesRead = fread(bytes.refTo(0),
             com.oldguy.common.io.byteSz, buf.remaining.toULong(), raw)
