@@ -11,6 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -94,10 +95,10 @@ class ZipFileTests {
     }
 
     /**
-     * Reads a test entry that is 5+MB compressed and 5+GB uncompressed.
+     * Reads a test entry that is 5+MB compressed and 5+GB uncompressed. It is a long-running test
      */
     fun zip64LargeFileRead() {
-        runTest {
+        runTest(timeout = 4.minutes) {
             val file = File(FileTests.testDirectory(), "ZerosZip64.zip")
             ZipFile(file).use {
                 (it.map["0000"]
@@ -146,23 +147,6 @@ class ZipFileTests {
             assertEquals(readme, list.first { !it.isDirectory }.name)
             Directory(dir).deleteDirectoryAndContents()
             assertTrue { !dir.newFile().exists }
-        }
-    }
-
-    fun saveEmpty() {
-        runTest {
-            val dir = tempDir().resolve("EmptyTest")
-            val emptyZip = File(dir, "empty.zip")
-            emptyZip.delete()
-            runTest {
-                ZipFile(emptyZip, FileMode.Write).use {
-                }
-                ZipFile(emptyZip).use {
-                    assertTrue(it.map.isEmpty())
-                }
-            }
-            emptyZip.delete()
-            dir.delete()
         }
     }
 

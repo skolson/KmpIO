@@ -258,7 +258,7 @@ class ZipFile(
      * Set this to provide a sub-class of ZipExtraFactory that supports additional subclasses
      * of the ZipExtra class. Default is [ZipExtraParser].
      */
-    var parser: ExtraParserFactory = { it ->
+    var parser: ExtraParserFactory = {
         ZipExtraParser(it)
     }
 
@@ -416,7 +416,7 @@ class ZipFile(
         addEntry(newEntry) {
             try {
                 ch.receive()
-            } catch (e: ClosedReceiveChannelException) {
+            } catch (_: ClosedReceiveChannelException) {
                 ByteArray(0)
             }
         }
@@ -459,6 +459,7 @@ class ZipFile(
         ZipLocalRecord.decode(file, entry.directories.localHeaderOffset).apply {
             entry.directories.update(this)
             entry.directories.apply {
+                println("entry: ${entry.name}")
                 decompress(entry, block)
                 if (generalPurpose.isDataDescriptor) {
                     if (!hasDataDescriptor)
@@ -666,7 +667,7 @@ class ZipFile(
             directoryPosition = this
         }
         map.clear()
-        for (index in 0UL until eocd.entryCount) {
+        repeat (eocd.entryCount.toInt()) {
             ZipDirectoryRecord.decode(file).apply {
                 map[name] = ZipEntry(this, parser)
             }
@@ -834,7 +835,7 @@ class ZipFile(
     companion object {
         // This is a self defense mechanism against huge comment values in Zip64 formats.
         const val maxCommentLength = 2 * 1024 * 1024
-        val defaultExtraParser: ExtraParserFactory = { it ->
+        val defaultExtraParser: ExtraParserFactory = {
             ZipExtraParser(it)
         }
     }

@@ -13,6 +13,7 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual enum class Strategy {Default, Filtered, Huffman}
     actual override val algorithm: CompressionAlgorithms = CompressionAlgorithms.Deflate
     actual var strategy = Strategy.Default
+    actual override var zlibHeader = false
 
     actual override val bufferSize = 4096
     private val chunk = 16384
@@ -108,6 +109,11 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     /**
      * Processes data using the specified compression or decompression algorithm.
      *
+     * During inflate, first two bytes of input are checked for zlib headers. If zlib headers are detected,
+     * zlib inflate will process using them.
+     * During deflate, if zlibHeader is true, zlib will create header bytes in first output buffer. Default is false,
+     * as most standard zip files do not use this header.
+     *
      * Note that usePinned is not used here as the input buffer changes every input call. usePinned could be used
      * for the outArray since the same one is reused over and over.  But pin/unpi for both seemed more readable.
      *
@@ -122,8 +128,14 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
         input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong {
-        var inArray: UByteArray
+        var inArray = input().toUByteArray()
+        if (inArray.isEmpty()) return 0uL
+        val windowBits = if ((inflate && detectZlibHeaders(inArray)) || (!inflate && zlibHeader))
+            Compression.MAX_WBITS
+        else
+            - Compression.MAX_WBITS
         val outArray = UByteArray(chunk)
+        val outArraySize = outArray.size.toUInt()
         var outCount = 0uL
         val str = if (inflate) "inflate" else "deflate"
         memScoped {
@@ -132,13 +144,13 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
                 zfree = null
                 opaque = null
                 var rc = if (inflate)
-                    inflateInit2(ptr, -MAX_WBITS)
+                    inflateInit2(ptr, windowBits)
                 else
                     deflateInit2(
                         ptr,
                         Z_DEFAULT_COMPRESSION,
                         Z_DEFLATED,
-                        -MAX_WBITS,
+                        windowBits,
                         8,
                         Z_DEFAULT_STRATEGY
                     )
@@ -147,13 +159,12 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
                 val outArrayPtr = outArray.pin()
                 var inArrayPtr: Pinned<UByteArray>? = null
                 try {
-                    inArray = input().toUByteArray()
                     val bytes = inArray.size.toUInt()
                     var flush = if (bytes > 0u) Z_NO_FLUSH else Z_FINISH
                     inArrayPtr = inArray.pin()
                     next_in = inArrayPtr.addressOf(0)
                     avail_in = inArray.size.toUInt()
-                    avail_out = outArray.size.toUInt()
+                    avail_out = outArraySize
                     next_out = outArrayPtr.addressOf(0)
                     var loopCount = 0
                     do {
@@ -178,6 +189,7 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
                         if (avail_out == 0u) {
                             output(outArray.toByteArray())
                             next_out = outArrayPtr.addressOf(0)
+                            avail_out = outArraySize
                         }
                     } while (rc == Z_OK)
                     if (avail_out > 0u) {
@@ -195,9 +207,5 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
             }
         }
         return outCount
-    }
-
-    companion object {
-        const val MAX_WBITS = 15
     }
 }

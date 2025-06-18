@@ -13,6 +13,7 @@ expect class CompressionDeflate constructor(noWrap: Boolean): Compression {
     override val algorithm: CompressionAlgorithms
     override val bufferSize: Int
     var strategy: Strategy
+    override var zlibHeader: Boolean
 
     override suspend fun compress(input: suspend () -> ByteBuffer,
                                   output: suspend (buffer: ByteBuffer) -> Unit

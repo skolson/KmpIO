@@ -32,4 +32,14 @@ class ZipFileBasics {
     fun unzipToDirectoryTest() {
         tests.unzipToDirectoryTest()
     }
+
+    @Test
+    fun timesTest() {
+        tests.testTime()
+    }
+
+    @Test
+    fun zip64LargeFileReadTest() {
+        tests.zip64LargeFileRead()
+    }
 }

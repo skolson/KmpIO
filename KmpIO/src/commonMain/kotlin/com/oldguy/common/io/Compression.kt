@@ -18,6 +18,7 @@ enum class CompressionAlgorithms {
 interface Compression {
     val algorithm: CompressionAlgorithms
     val bufferSize: Int
+    var zlibHeader: Boolean
 
     /**
      * Compress one or more blocks of data in ByteBuffer using an implementation-specific algorithm.
@@ -87,4 +88,19 @@ interface Compression {
         input: suspend () -> ByteArray,
         output: suspend (buffer: ByteArray) -> Unit
     ): ULong
+
+    fun detectZlibHeaders(inBytes: UByteArray): Boolean {
+        return if (inBytes.size < 2) false else {
+            val firstTwo = inBytes[0].toInt().shl(8) + inBytes[1].toInt()
+            zlibHeaderBytes.contains(firstTwo).also {
+                zlibHeader = it
+                return it
+            }
+        }
+    }
+
+    companion object {
+        const val MAX_WBITS = 15
+        val zlibHeaderBytes = listOf(0x7801, 0x789C, 0x78DA)
+    }
 }
