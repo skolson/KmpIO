@@ -128,7 +128,7 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     }
 
     actual companion object {
-        actual val pathSeparator = "/"
+        actual val pathSeparator: String = java.io.File.pathSeparator
         actual fun tempDirectoryPath(): String = System.getProperty("java.io.tmpdir")
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
