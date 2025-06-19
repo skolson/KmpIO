@@ -7,6 +7,7 @@ package com.oldguy.common.io
 class CompressionNone: Compression {
     override val algorithm = CompressionAlgorithms.None
     override val bufferSize = 4096
+    override var zlibHeader = false
 
     override suspend fun compress(
         input: suspend () -> ByteBuffer,

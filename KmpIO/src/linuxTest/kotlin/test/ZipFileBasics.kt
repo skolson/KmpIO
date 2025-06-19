@@ -42,4 +42,10 @@ class ZipFileBasics {
     fun zip64LargeFileReadTest() {
         tests.zip64LargeFileRead()
     }
+
+    @Test
+    fun zipDirectoryTest() {
+        tests.zipDirectoryTest(false)
+        tests.zipDirectoryTest(true)
+    }
 }

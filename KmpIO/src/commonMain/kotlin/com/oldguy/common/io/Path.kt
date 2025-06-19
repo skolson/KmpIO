@@ -58,4 +58,18 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
         } else
             this
     }
+
+    /**
+     * Computes the relative path from the specified base path to this path.
+     * If this path does not start with the base path, the method returns this path.
+     *
+     * @param path The base path to compute the relative path against.
+     * @return A new `Path` instance representing the relative path, or this path if it does not start with the base path.
+     */
+    fun relativeTo(path: Path): Path {
+        return if (!fullPath.startsWith(path.fullPath))
+            this
+        else
+            Path(fullPath.substring(path.fullPath.length))
+    }
 }

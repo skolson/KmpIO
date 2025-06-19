@@ -428,7 +428,7 @@ class ZipFile(
             if (file.size > 0u)
                 parseDirectory()
             else when (mode) {
-                FileMode.Read -> throw ZipException("File: ${file.file.path} is empty, cannot be read")
+                FileMode.Read -> throw ZipException("File: ${file.file.fullPath} is empty, cannot be read")
                 FileMode.Write -> directoryPosition = 0UL
             }
             isOpen = true
@@ -495,7 +495,8 @@ class ZipFile(
                 }
             }
             return it
-        } ?: throw IllegalArgumentException("Entry name: $entryName not a valid entry")
+        }
+        throw IllegalArgumentException("Entry name: $entryName not a valid entry")
     }
 
     /**
@@ -536,11 +537,22 @@ class ZipFile(
     ) {
         if (!directory.isDirectory)
             throw IllegalArgumentException("Path ${file.file.path} os not a directory")
-        val parentPath = if (directory.path.endsWith(File.pathSeparator))
-            directory.path
-        else
-            directory.path + File.pathSeparator
-        zipOneDirectory(directory, shallow, parentPath, filter)
+        val owningPath = Path(directory.fullPath)
+        Directory(directory).walkTree { file ->
+            if (file.isDirectory)
+                true
+            else {
+                val zipPath = Path(file.fullPath).relativeTo(owningPath).fullPath
+                    .replace('\\', '/').trimStart('/')
+                if (shallow && zipPath.contains('/'))
+                    true
+                else if (filter == null || filter.invoke(zipPath)) {
+                    println("file: ${file.fullPath}, zipAs: $zipPath")
+                    zipFile(file, zipPath)
+                }
+                true
+            }
+        }
     }
 
     override suspend fun zipFile(
@@ -548,10 +560,12 @@ class ZipFile(
         entryName: String
     ) {
         RawFile(inputFile).use { rdr ->
-            addEntry(ZipEntry(
-                entryName,
-                isZip64 = isZip64,
-                parserFactory = parser)
+            addEntry(
+                ZipEntry(
+                    entryName,
+                    isZip64 = isZip64,
+                    parserFactory = parser
+                )
             ) {
                 buffer.apply {
                     positionLimit(0, bufferSize)
@@ -715,25 +729,6 @@ class ZipFile(
             }
             if (crc.result != entry.directory.crc32) {
                 throw ZipException("CRC32 values don't match. Entry CRC: ${entry.directory.crc32.toString(16)}, content CRC: ${crc.result.toString(16)}")
-            }
-        }
-    }
-
-    private suspend fun zipOneDirectory(directory: File,
-                                        shallow: Boolean,
-                                        parentPath: String,
-                                        filter: ((pathName: String) -> Boolean)?)
-    {
-        directory.directoryList().forEach { path ->
-            val f = File(path)
-            val name = (if (f.isDirectory && !f.path.endsWith(File.pathSeparator))
-                f.path + File.pathSeparator
-            else
-                f.path).replace(parentPath, "")
-            if (filter?.invoke(name) != false) {
-                zipFile(f)
-                if (!shallow && f.isDirectory)
-                    zipOneDirectory(f, shallow, parentPath, filter)
             }
         }
     }

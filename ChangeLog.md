@@ -14,6 +14,8 @@ This release is after a long period of inactivity on the author's part (family h
 - Moved temporary directory support to File class companion object. The previous File extension function is gone.
 - Native zip file inflate/deflate logic for Linux and Apple refactored to improve memory management.
 - inflate now attempts to detect zlib header bytes
+- The zipDirectory function has been re-written to use the new Directory class walkTree function. This corrects a prior problem with path-relative names. It also now enforces use of forward slash as a path separator no matter what platform it is run on.
+- Issue #15 fixed on android
 
 ### 0.1.7
 

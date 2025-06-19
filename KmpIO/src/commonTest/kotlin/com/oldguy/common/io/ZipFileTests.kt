@@ -238,6 +238,56 @@ class ZipFileTests {
         }
     }
 
+    /**
+     * Tests the functionality of zipping a directory, either in shallow or deep mode.
+     * The method verifies zipping behavior and validates resulting zip entries based on the specified depth.
+     *
+     * The TestFiles directory in this project has a simple directory tree with max of two subdirectories
+     * @param shallow Specifies whether the directory should be zipped in shallow mode or deep mode.
+     *                If true, only top-level entries are included in the zip; otherwise, the entire directory structure is included.
+     */
+    fun zipDirectoryTest(shallow: Boolean) {
+        runTest {
+            val dirZip = File(tempDir(), "testFilesDir$shallow.zip")
+            println("DirZip: ${dirZip.fullPath}")
+            ZipFile(dirZip, FileMode.Write).use {
+                it.zipDirectory(FileTests.testDirectory(), shallow) { f ->
+                    val rc = !(f.contains("ZerosZip64") || f.contains("Zip64_90,000_files"))
+                    println("Filter: $f, rc = $rc")
+                    rc
+                }
+            }
+            println("read DirZip: ${dirZip.fullPath}")
+            ZipFile(dirZip.newFile()).use { zip ->
+                zip.entries.apply {
+                    if (shallow) {
+                        assertEquals(3, size)
+                    } else {
+                        assertEquals(6, size)
+                        assertEquals(1, count { it.name.contains("dir1") })
+                        assertEquals(2, count { it.name.contains("dir2") })
+                        assertEquals(1, count { it.name.contains("dir3") })
+                        forEach {
+                            if (it.name.startsWith("dir1")) {
+                                assertTrue { it.name.contains("dir1/") }
+                                assertTrue { it.name.endsWith("/image1.png") }
+                            }
+                            if (it.name.startsWith("dir2")) {
+                                if (it.name.startsWith("dir2/dir3")) {
+                                    assertTrue { it.name.endsWith("/image3.png") }
+                                } else
+                                    assertTrue { it.name.endsWith("/image2.png") }
+                            }
+                        }
+                    }
+                    assertEquals(1, count { it.name == "ic_help_grey600_48dp.7zip.zip" })
+                    assertEquals(1, count { it.name == "ic_help_grey600_48dp.png" })
+                    assertEquals(1, count { it.name == "SmallTextAndBinary.zip" })
+                }
+            }
+            dirZip.newFile().delete()
+        }
+    }
     fun twoPlusMergeTest() {
         runTest {
             val dir = tempDir()
