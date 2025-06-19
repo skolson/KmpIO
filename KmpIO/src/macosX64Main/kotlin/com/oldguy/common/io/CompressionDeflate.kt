@@ -7,6 +7,8 @@ actual class CompressionDeflate actual constructor(noWrap: Boolean): Compression
     actual override val bufferSize = 4096
     actual var strategy = Strategy.Default
 
+    actual override var zlibHeader: Boolean = false
+
     /**
      * Call this with one or more blocks of data to compress any amount of data using the algorithm specified at
      * constructor time.

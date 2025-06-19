@@ -73,7 +73,7 @@ open class TextBuffer(
      * arguments; the one-relative line number of the text, and the text without any line separator.
      * action should return false if reading should stop
      */
-    suspend fun forEachLine(
+    open suspend fun forEachLine(
         action: (count: Int, line: String) -> Boolean
     ) {
         var lineCount = 0

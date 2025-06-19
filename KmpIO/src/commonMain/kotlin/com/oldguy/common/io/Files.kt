@@ -67,7 +67,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     fun newFile(): File
 
     companion object {
-        val pathSeparator: String
+        val pathSeparator: Char
         fun tempDirectoryPath(): String
         fun tempDirectoryFile(): File
         fun workingDirectory(): File

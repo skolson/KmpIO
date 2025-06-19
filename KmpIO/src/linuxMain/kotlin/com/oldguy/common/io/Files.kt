@@ -57,14 +57,14 @@ actual class TimeZones {
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
 {
     actual constructor(parentDirectory: String, name: String) :
-            this(parentDirectory + name, null)
+            this(Path.newPath(parentDirectory, name, pathSeparator), null)
 
     actual constructor(parentDirectory: File, name: String) :
-            this("${parentDirectory.fullPath}$pathSeparator$name", null)
+            this(Path.newPath(parentDirectory.fullPath, name, pathSeparator), null)
 
     actual constructor(fd: FileDescriptor) : this("", fd)
 
-    private val p = Path(filePath, pathSeparator[0])
+    private val p = Path(filePath, pathSeparator)
     actual val name = p.name
     actual val nameWithoutExtension = p.nameWithoutExtension
     actual val extension = p.extension
@@ -202,7 +202,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     }
 
     actual companion object {
-        actual val pathSeparator = "/"
+        actual val pathSeparator = '/'
 
         actual fun tempDirectoryPath(): String {
             return getenv("TMPDIR")?.toKString() ?: "/tmp"

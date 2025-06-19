@@ -1,6 +1,7 @@
 package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -10,7 +11,7 @@ import kotlin.test.assertTrue
 @ExperimentalCoroutinesApi
 class CompressionTests {
     val test = "123456123456sdfghjklzxcvbxcvxcvbzxcvb"
-    val bytes = com.oldguy.common.io.charsets.Charset(Charsets.Utf8).encode(test)
+    val bytes = Utf8().encode(test)
     // bytearray of test string compressed with Android Deflater to do a quick interop test
     val zipDeflaterNowrapResult = byteArrayOf(
         0x1,
@@ -71,7 +72,7 @@ class CompressionTests {
                 val uncompressed = decompress(input = { out }) { out2.expand(it) }
                 out2.flip()
                 assertEquals(test.length.toULong(), uncompressed)
-                assertEquals(test, com.oldguy.common.io.charsets.Charset(Charsets.Utf8).decode(out2.getBytes()))
+                assertEquals(test, Utf8().decode(out2.getBytes()))
             }
             // decompress a byte array of the test string built with Java Deflater class
             CompressionDeflate(true).apply {
@@ -80,7 +81,7 @@ class CompressionTests {
                 val uncompressed = decompress(input = { payload }) { out2.expand(it) }
                 out2.flip()
                 assertEquals(test.length.toULong(), uncompressed)
-                assertEquals(test, com.oldguy.common.io.charsets.Charset(Charsets.Utf8).decode(out2.getBytes()))
+                assertEquals(test, Utf8().decode(out2.getBytes()))
             }
         }
     }
@@ -102,7 +103,7 @@ class CompressionTests {
                 val uncompressed = decompress(input = { out }) { out2.expand(it) }
                 out2.flip()
                 assertEquals((test.length.toULong() * copies), uncompressed)
-                val bigString = com.oldguy.common.io.charsets.Charset(Charsets.Utf8).decode(out2.getBytes())
+                val bigString = Utf8().decode(out2.getBytes())
                 assertTrue(bigString.startsWith(test))
                 assertTrue(bigString.endsWith(test))
                 assertEquals(copies.toInt(), bigString.split(test).size - 1)

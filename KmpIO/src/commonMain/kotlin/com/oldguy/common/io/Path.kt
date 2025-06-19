@@ -18,13 +18,13 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
     init {
         if (filePath.isBlank() || filePath.isEmpty())
             throw IllegalArgumentException("Path value cannot be blank")
-        val index = filePath.indexOfLast { it == File.Companion.pathSeparator[0] }
+        val index = filePath.indexOfLast { it == pathSeparator }
         if (index < 0) {
             name = filePath
             path = filePath
         } else {
             name = filePath.substring(index + 1)
-            path = filePath.take(index).trimEnd(File.Companion.pathSeparator[0])
+            path = filePath.take(index).trimEnd(pathSeparator)
         }
         fullPath = filePath
         if (name == "." || name == "..") {
@@ -38,7 +38,7 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
             extension = if ((extIndex <= 0) || (extIndex == name.length - 1)) "" else name.substring(extIndex + 1)
             nameWithoutExtension = if (extIndex < 0) name else name.substring(0, extIndex)
             directoryPath = if (name.isNotEmpty())
-                path.replace(name, "").trimEnd(File.Companion.pathSeparator[0])
+                path.replace(name, "").trimEnd(pathSeparator)
             else
                 fullPath
         }
@@ -71,5 +71,14 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
             this
         else
             Path(fullPath.substring(path.fullPath.length))
+    }
+
+    companion object {
+        fun newPath(parentPath: String, name: String, pathSeparator: Char): String
+            = if (parentPath.endsWith(pathSeparator))
+                "$parentPath$name"
+            else
+                "$parentPath$pathSeparator$name"
+
     }
 }

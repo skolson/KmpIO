@@ -1,13 +1,15 @@
 package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf16LE
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import platform.Foundation.NSTemporaryDirectory
 import kotlin.test.Test
 
 @ExperimentalCoroutinesApi
 class FileTestSuite {
-    val path = NSTemporaryDirectory()
+    val path = File.tempDirectoryPath()
     val tests = FileTests(path)
 
     @Test
@@ -17,12 +19,12 @@ class FileTestSuite {
 
     @Test
     fun textMediumSizeUtf8Basics() {
-        tests.biggerTextFileWriteRead(com.oldguy.common.io.charsets.Charset(Charsets.Utf8), 100)
+        tests.biggerTextFileWriteRead(Utf8(), 100)
     }
 
     @Test
     fun textUtf16leBasics() {
-        tests.textFileWriteRead(com.oldguy.common.io.charsets.Charset(Charsets.Utf16LE))
+        tests.textFileWriteRead(Utf16LE())
     }
 
     @Test
