@@ -251,12 +251,14 @@ kotlin {
  */
         val androidUnitTest by getting {
             dependencies {
+                implementation(libs.bundles.kotlin.test)
                 implementation(kotlin("test-junit"))
                 implementation(libs.junit)
             }
         }
         val androidInstrumentedTest by getting {
             dependencies {
+                implementation(libs.bundles.kotlin.test)
                 implementation(kotlin("test-junit"))
                 implementation(libs.junit)
             }

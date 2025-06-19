@@ -95,12 +95,12 @@ actual open class File actual constructor(filePath: String, val platformFd: File
 
     actual fun newFile() = File(fullPath)
 
-    actual suspend fun resolve(directoryName: String): File {
+    actual suspend fun resolve(directoryName: String, make: Boolean): File {
         if (!this.isDirectory)
             throw IllegalArgumentException("Only invoke resolve on a directory")
         if (directoryName.isBlank()) return this
         val directory = File(this, directoryName)
-        if (!directory.javaFile.exists())
+        if (!directory.javaFile.exists() && make)
             directory.makeDirectory()
         return directory
     }
@@ -123,10 +123,19 @@ actual open class File actual constructor(filePath: String, val platformFd: File
         return File(dest.absolutePath, null)
     }
 
+    actual fun up(): File {
+        return File(Path(fullPath).up().fullPath)
+    }
+
     actual companion object {
         actual val pathSeparator = "/"
         actual fun tempDirectoryPath(): String = System.getProperty("java.io.tmpdir")
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
+
+        actual fun workingDirectory(): File {
+            return File(System.getProperty("user.dir"))
+        }
+
     }
 }
 

@@ -22,6 +22,7 @@ class FileTests(testDirPath: String) {
             assertTrue(subDir.isDirectory)
 
             val testFileName = "Test.txt"
+            val testFilePath = "${testDirectory.fullPath}/$subDirName/$testFileName"
             File(subDir, testFileName).delete()
             val tmpList = subDir.directoryList()
             assertTrue(tmpList.isEmpty())
@@ -33,14 +34,14 @@ class FileTests(testDirPath: String) {
                 assertEquals(testFileName, name)
                 assertEquals("Test", nameWithoutExtension)
                 assertEquals(false, isDirectory)
-                assertEquals("${testDirectory.fullPath}/$subDirName/$testFileName", fullPath)
+                assertEquals(testFilePath, fullPath)
                 TextFile(this, mode = FileMode.Write).use {
                     it.write(testText)
                 }
                 val tmpList2 = subDir.directoryList()
                 assertTrue(tmpList2.isNotEmpty())
                 assertEquals(1, tmpList2.size)
-                assertEquals(testFileName, tmpList2.first())
+                assertEquals(testFilePath, tmpList2.first())
                 TextFile(this).forEachLine {count, line ->
                     assertEquals(1, count)
                     assertEquals(testText,line)

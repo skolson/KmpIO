@@ -40,7 +40,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual val name: String = javaFile.name
     actual val nameWithoutExtension: String = javaFile.nameWithoutExtension
-    actual val extension: String = if (javaFile.extension.isNotEmpty()) ".${javaFile.extension}" else ""
+    actual val extension: String = javaFile.extension.ifEmpty { "" }
     actual val path: String = javaFile.path.trimEnd(pathSeparator[0])
     actual val fullPath: String = javaFile.absolutePath.trimEnd(pathSeparator[0])
     actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator[0])
@@ -100,12 +100,12 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             this
     }
 
-    actual suspend fun resolve(directoryName: String): File {
+    actual suspend fun resolve(directoryName: String, make: Boolean): File {
         if (!this.isDirectory)
             throw IllegalArgumentException("Only invoke resolve on a directory")
         if (directoryName.isBlank()) return this
         val directory = File(this, directoryName)
-        if (!directory.javaFile.exists())
+        if (!directory.javaFile.exists() && make)
             directory.makeDirectory()
         return directory
     }
@@ -128,18 +128,21 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         return File(dest.absolutePath, null)
     }
 
+    actual fun up(): File {
+        return File(Path(fullPath).up().fullPath)
+    }
+
     actual companion object {
         actual val pathSeparator = "/"
         lateinit var appContext: Application
-            private set
 
         actual fun tempDirectoryPath(): String {
-            return File.appContext.cacheDir.absolutePath
+            return appContext.cacheDir.absolutePath
         }
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
-        fun setApplicationContext(app: Application) {
-            appContext = app
+        actual fun workingDirectory(): File {
+            return File(appContext.filesDir.absolutePath)
         }
     }
 }
