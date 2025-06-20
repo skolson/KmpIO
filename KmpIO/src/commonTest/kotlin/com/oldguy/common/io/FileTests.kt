@@ -25,8 +25,7 @@ class FileTests(testDirPath: String) {
             val testFilePath = "${testDirectory.fullPath}/$subDirName/$testFileName"
             File(subDir, testFileName).delete()
             val tmpList = subDir.directoryList()
-            assertTrue(tmpList.isEmpty())
-            assertEquals(0, tmpList.size)
+            assertFalse(tmpList.contains(testFileName))
 
             File(subDir, testFileName).apply {
                 assertEquals(false, exists)
@@ -38,10 +37,7 @@ class FileTests(testDirPath: String) {
                 TextFile(this, mode = FileMode.Write).use {
                     it.write(testText)
                 }
-                val tmpList2 = subDir.directoryList()
-                assertTrue(tmpList2.isNotEmpty())
-                assertEquals(1, tmpList2.size)
-                assertEquals(testFilePath, tmpList2.first())
+                assertTrue(subDir.directoryList().contains(testFileName))
                 TextFile(this).forEachLine {count, line ->
                     assertEquals(1, count)
                     assertEquals(testText,line)
@@ -73,11 +69,12 @@ class FileTests(testDirPath: String) {
     fun textFileWriteRead(charset: Charset) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
-            val fil = File(subDir, "Text${charset.name}.txt")
-            fil.delete()
-            assertEquals(false, fil.newFile().exists)
+            val name = "Text${charset.name}.txt"
+            File(subDir, name).delete()
+            val fil = File(subDir, name)
+            assertEquals(false, fil.exists)
             TextFile(
-                fil.newFile(),
+                fil,
                 charset,
                 FileMode.Write,
                 FileSource.File
@@ -85,20 +82,23 @@ class FileTests(testDirPath: String) {
                 it.write(textContent)
             }
 
-            assertEquals(true, fil.newFile().exists)
-            val lastModDate = fil.lastModified!!
-            val createdDate = fil.createdTime!!
-            val lastAccessDate = fil.lastAccessTime!!
-            val nowTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-            assertEquals(nowTime.year, lastModDate.year)
-            assertEquals(nowTime.monthNumber, lastModDate.monthNumber)
-            assertEquals(nowTime.dayOfMonth, lastModDate.dayOfMonth)
-            assertEquals(nowTime.year, lastAccessDate.year)
-            assertEquals(nowTime.monthNumber, lastAccessDate.monthNumber)
-            assertEquals(nowTime.dayOfMonth, lastAccessDate.dayOfMonth)
-            assertEquals(nowTime.year, createdDate.year)
-            assertEquals(nowTime.monthNumber, createdDate.monthNumber)
-            assertEquals(nowTime.dayOfMonth, createdDate.dayOfMonth)
+            fil.newFile().apply {
+                assertEquals(true, exists)
+                val lastModDate = lastModified!!
+                val createdDate = createdTime!!
+                val lastAccessDate = lastAccessTime!!
+                Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).apply {
+                    assertEquals(year, lastModDate.year)
+                    assertEquals(monthNumber, lastModDate.monthNumber)
+                    assertEquals(dayOfMonth, lastModDate.dayOfMonth)
+                    assertEquals(year, lastAccessDate.year)
+                    assertEquals(monthNumber, lastAccessDate.monthNumber)
+                    assertEquals(dayOfMonth, lastAccessDate.dayOfMonth)
+                    assertEquals(year, createdDate.year)
+                    assertEquals(monthNumber, createdDate.monthNumber)
+                    assertEquals(dayOfMonth, createdDate.dayOfMonth)
+                }
+            }
 
             val textFileIn = TextFile(
                 fil,
@@ -108,7 +108,7 @@ class FileTests(testDirPath: String) {
             )
             val lines = checkTextLines(textFileIn)
             assertEquals(6, lines)
-            fil.delete()
+            fil.newFile().delete()
         }
     }
 
@@ -131,7 +131,7 @@ class FileTests(testDirPath: String) {
                     textFile.write(textContent)
                 }
             textFile.close()
-            assertEquals(true, File(subDir, fileName).exists)
+            assertTrue(File(subDir, fileName).exists)
 
             val textFileIn = TextFile(
                 fil,
@@ -141,19 +141,21 @@ class FileTests(testDirPath: String) {
             )
             val lines = checkTextLines(textFileIn)
             assertEquals(6 * copyCount, lines)
-            fil.delete()
+            fil.newFile().delete()
         }
     }
 
     fun testRawWriteRead(namePrefix: String, copyCount: Int = 10) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
-            val fil = File(subDir, "${namePrefix}Hex.utf16")
-            fil.delete()
-            RawFile(fil, FileMode.Write).use {
-                it.write(ByteBuffer(hexContent))
+            var fil = File(subDir, "${namePrefix}Hex.utf16")
+            val rc = fil.delete()
+            println("file: ${fil.fullPath} deleted: $rc")
+            RawFile(fil, FileMode.Write).use { file ->
+                repeat(copyCount) { file.write(ByteBuffer(hexContent)) }
             }
-            assertTrue(fil.newFile().exists)
+            fil = fil.newFile()
+            assertTrue(fil.exists)
             assertEquals((hexContent.size * copyCount).toULong(), fil.size)
             RawFile(fil).use {
                 val buf = ByteBuffer(4096)

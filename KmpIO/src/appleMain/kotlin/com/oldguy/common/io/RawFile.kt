@@ -37,23 +37,23 @@ class AppleFileHandle(val file: File, mode: FileMode)
 
     var updating = false
         private set
-    val path = file.path
+    val fullPath = file.fullPath
     val handle = when (mode) {
         FileMode.Read ->
-            NSFileHandle.fileHandleForReadingAtPath(path)
+            NSFileHandle.fileHandleForReadingAtPath(fullPath)
         FileMode.Write -> {
             updating = file.exists
             if (updating) {
-                NSFileHandle.fileHandleForUpdatingAtPath(path)
+                NSFileHandle.fileHandleForUpdatingAtPath(fullPath)
             } else {
                 val fm = NSFileManager.defaultManager
-                if (fm.createFileAtPath(path, null, null))
-                    NSFileHandle.fileHandleForWritingAtPath(path)
+                if (fm.createFileAtPath(fullPath, null, null))
+                    NSFileHandle.fileHandleForWritingAtPath(fullPath)
                 else
-                    throw IllegalArgumentException("Create file failed: $path ")
+                    throw IllegalArgumentException("Create file failed: $fullPath ")
             }
         }
-    } ?: throw IllegalArgumentException("Path $path mode $mode could not be opened")
+    } ?: throw IllegalArgumentException("Path $fullPath mode $mode could not be opened")
 
     fun close() {
         handle.closeFile()
@@ -68,7 +68,7 @@ actual class RawFile actual constructor(
 ): Closeable
 {
     private val apple = AppleFileHandle(fileArg, mode)
-    private val path = apple.path
+    private val fullPath = apple.fullPath
     actual val file = fileArg
 
     /**
@@ -359,7 +359,7 @@ actual class RawFile actual constructor(
         if (transform == null) {
             File.throwError {
                 val fm = NSFileManager.defaultManager
-                fm.copyItemAtPath(path, destination.file.fullPath, it)
+                fm.copyItemAtPath(fullPath, destination.file.fullPath, it)
             }
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()
@@ -407,7 +407,7 @@ actual class RawFile actual constructor(
         if (transform == null) {
             File.throwError {
                 val fm = NSFileManager.defaultManager
-                fm.copyItemAtPath(path, destination.file.fullPath, it)
+                fm.copyItemAtPath(fullPath, destination.file.fullPath, it)
             }
         } else {
             val blkSize = if (blockSize <= 0) this.blockSize else blockSize.toUInt()

@@ -23,7 +23,7 @@ actual class TimeZones {
     }
 }
 
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(BetaInteropApi::class, ExperimentalForeignApi::class)
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
 {
     actual constructor(parentDirectory: String, name: String) :
@@ -55,11 +55,11 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         exists = pathExists(fullPath)
         if (exists) {
             size = throwError {
-                (fm.attributesOfItemAtPath(path, it) as NSDictionary)
+                (fm.attributesOfItemAtPath(fullPath, it) as NSDictionary)
                     .fileSize()
             }
             lastModifiedEpoch = throwError { error ->
-                (fm.attributesOfItemAtPath(path, error) as NSDictionary?)
+                (fm.attributesOfItemAtPath(fullPath, error) as NSDictionary?)
                     ?.let { dict ->
                         dict.fileModificationDate()?.let {
                             (it.timeIntervalSince1970 * 1000.0).toLong()
@@ -69,7 +69,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             isDirectory = throwError { error ->
                 memScoped {
                     val isDirPointer = alloc<BooleanVar>()
-                    fm.fileExistsAtPath(path, isDirPointer.ptr)
+                    fm.fileExistsAtPath(fullPath, isDirPointer.ptr)
                     isDirPointer.value
                 }
             }
@@ -78,7 +78,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
                 .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
             createdTime = throwError { cPointer ->
                 var epoch = 0L
-                (fm.attributesOfItemAtPath(path, cPointer) as NSDictionary?)
+                (fm.attributesOfItemAtPath(fullPath, cPointer) as NSDictionary?)
                     ?.let { dict ->
                         dict.fileCreationDate()?.let {
                             epoch = (it.timeIntervalSince1970 * 1000.0).toLong()
@@ -106,17 +106,16 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual suspend fun copy(destinationPath: String): File {
         throwError {
-            fm.copyItemAtPath(path, destinationPath, it)
+            fm.copyItemAtPath(fullPath, destinationPath, it)
         }
         return File(destinationPath, null)
     }
 
-    @OptIn(BetaInteropApi::class)
     @Throws(NSErrorException::class, CancellationException::class)
     actual suspend fun delete(): Boolean {
         return if (exists) {
             throwError {
-                val rc = fm.removeItemAtPath(path, it)
+                val rc = fm.removeItemAtPath(fullPath, it)
                 println("delete NSError: ${it.pointed.value?.localizedDescription ?: "null"}")
                 rc
             }
@@ -124,14 +123,15 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             false
     }
 
+    @Throws(NSErrorException::class, CancellationException::class)
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
         throwError {
-            fm.contentsOfDirectoryAtPath(path, it)?.let { names ->
+            fm.contentsOfDirectoryAtPath(fullPath, it)?.let { names ->
                 names.forEach { name ->
                     name?.let { ptr ->
                         val n = ptr as String
-                        if (n.isNotEmpty())
+                        if (n.isNotEmpty() && n != DS_STORE)
                             list.add(n)
                     }
                 }
@@ -150,10 +150,10 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual suspend fun resolve(directoryName: String, make: Boolean): File {
         if (!isDirectory)
             throw IllegalArgumentException("Only invoke resolve on a directory")
-        if (directoryName.isBlank()) return File(path)
-        if (directoryName.startsWith(pathSeparator))
-            throw IllegalArgumentException("resolve requires $directoryName to be not empty and cannot start with $pathSeparator")
-        return File("$path/$directoryName", null).apply {
+        if (directoryName.isBlank()) return newFile()
+        if (Path(directoryName).isAbsolute)
+            throw IllegalArgumentException("resolve requires $directoryName to be not empty and must be relative")
+        return File("$fullPath/$directoryName", null).apply {
             if (make) makeDirectory()
         }
     }
@@ -162,10 +162,12 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         return File(Path(fullPath).up().fullPath)
     }
 
+    @Throws(NSErrorException::class, CancellationException::class)
     actual suspend fun makeDirectory(): File {
+        if (exists) return this
         var rc = false
         throwError { errorPointer ->
-            val withIntermediates = path.contains(pathSeparator)
+            val withIntermediates = fullPath.contains(pathSeparator)
             rc = fm.createDirectoryAtPath(
                 fullPath,
                 withIntermediates,
@@ -196,6 +198,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         actual fun workingDirectory(): File =
             File(NSFileManager.defaultManager().currentDirectoryPath)
 
+        private const val DS_STORE = ".DS_Store"
         /**
          * Creates a pointer to an NSError pointer for use by File-based operations, and invokes [block] with it. If an error
          * is produced by the [block] invocation, it is converted to an NSErrorException and thrown.
@@ -203,8 +206,6 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
          */
         fun <T> throwError(block: (errorPointer: CPointer<ObjCObjectVar<NSError?>>) -> T): T {
             val errorPointer: ObjCObjectVar<NSError?> = nativeHeap.alloc()
-
-            println("throwError. raw: ${errorPointer.rawPtr}, ptr: ${errorPointer.ptr.rawValue}, objc: ${errorPointer.objcPtr()}")
             val result: T = block(errorPointer.ptr)
             errorPointer.value?.let {
                 val appleError = NSErrorException(it)

@@ -2,6 +2,8 @@ package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charset
 import kotlinx.cinterop.*
+import platform.Foundation.NSData
+import platform.Foundation.dataWithBytes
 import platform.posix.__sFILE
 import platform.posix.fwrite
 import platform.posix.memcpy
@@ -84,25 +86,32 @@ actual class TextFile actual constructor(
     actual suspend fun write(text: String) {
         if (textBuffer.isReadLock)
             throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
-        val buf = ByteBuffer(textBuffer.charset.encode(text))
-        val arr = buf.getBytes()
-        val bytesWritten = fwrite(arr.refTo(0), RawFile.byteSz, arr.size.toULong(), raw)
-        if (bytesWritten != arr.size.toULong()) {
-            throw IllegalStateException("Write error, bytes written: $bytesWritten, bytes to write: ${arr.size}")
-        }    }
+        val buf = textBuffer.charset.encode(text)
+        File.throwError { cPointer ->
+            buf.usePinned {
+                val nsData = NSData.dataWithBytes(
+                    bytes = it.addressOf(0),
+                    length = buf.size.toULong()
+                )
+                if (!apple.handle.writeData(nsData, cPointer))
+                    throw IllegalStateException("Write error, bytes count: ${nsData.length}")
+            }
+        }
+    }
 
     actual suspend fun writeLine(text: String) {
         if (textBuffer.isReadLock)
             throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
-        val buf = ByteBuffer(textBuffer.charset.encode(text + TextBuffer.EOL))
-        val arr = buf.getBytes()
-        val bytesWritten = fwrite(arr.refTo(0), RawFile.byteSz, arr.size.toULong(), raw)
-        if (bytesWritten != arr.size.toULong()) {
-            throw IllegalStateException("Write error, bytes written: $bytesWritten, bytes to write: ${arr.size}")
+        val buf = textBuffer.charset.encode(text + TextBuffer.EOL)
+        File.throwError { cPointer ->
+            buf.usePinned {
+                val nsData = NSData.dataWithBytes(
+                    bytes = it.addressOf(0),
+                    length = buf.size.toULong()
+                )
+                if (!apple.handle.writeData(nsData, cPointer))
+                    throw IllegalStateException("Write error, bytes count: ${nsData.length}")
+            }
         }
-    }
-
-    companion object {
-        const val EOL = "\n"
     }
 }

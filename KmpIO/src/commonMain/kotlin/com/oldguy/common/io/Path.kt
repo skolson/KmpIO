@@ -4,13 +4,41 @@ package com.oldguy.common.io
  * Parse a file path into its various components.
  */
 open class Path(filePath: String, val pathSeparator: Char = '/') {
-    val isAbsolute = filePath.startsWith(pathSeparator)
+    /*
+        True if path starts with a path separator character or a letter and a colon (windows),
+        otherwise false
+     */
+    val isAbsolute = filePath.startsWith(pathSeparator) ||
+            (filePath.length > 2 && filePath[0].isLetter() && filePath[1] == ':')
+    /*
+        True if name starts with a period, else false
+     */
     val isHidden: Boolean
+    /*
+        Name of file or directory without the path that owns it
+     */
     val name: String
-    val nameWithoutExtension: String
+    /*
+        If the name has a period in it, then this contains the string after the last period. Otherwise
+        it is empty
+     */
     val extension: String
+    /*
+        Contains the value of name, without the trailing period and extension, if there is one
+     */
+    val nameWithoutExtension: String
+    /*
+        Contains the path portion, or owning directory path, of the file or directory
+     */
+    @Deprecated("Use directoryPath for the owner, or fullPath instead")
     val path: String
+    /*
+        The full path to the file or directory.
+     */
     val fullPath: String
+    /*
+        The full path to the parent directory.
+     */
     val directoryPath: String
     val isUri = false
     val isUriString = false
@@ -37,10 +65,7 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
             val extIndex = name.indexOfLast { it == '.' }
             extension = if ((extIndex <= 0) || (extIndex == name.length - 1)) "" else name.substring(extIndex + 1)
             nameWithoutExtension = if (extIndex < 0) name else name.substring(0, extIndex)
-            directoryPath = if (name.isNotEmpty())
-                path.replace(name, "").trimEnd(pathSeparator)
-            else
-                fullPath
+            directoryPath = up().fullPath
         }
     }
 
