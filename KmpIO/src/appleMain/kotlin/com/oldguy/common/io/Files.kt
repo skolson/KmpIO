@@ -123,6 +123,9 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             false
     }
 
+    /**
+     * List directory content. Apple implementation explicitly excludes .DS_Store file used by Finder
+     */
     @Throws(NSErrorException::class, CancellationException::class)
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
@@ -130,9 +133,10 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             fm.contentsOfDirectoryAtPath(fullPath, it)?.let { names ->
                 names.forEach { name ->
                     name?.let { ptr ->
-                        val n = ptr as String
-                        if (n.isNotEmpty() && n != DS_STORE)
-                            list.add(n)
+                        (ptr as String).apply {
+                            if (isNotEmpty() && this != DS_STORE)
+                                list.add(this)
+                        }
                     }
                 }
             }
