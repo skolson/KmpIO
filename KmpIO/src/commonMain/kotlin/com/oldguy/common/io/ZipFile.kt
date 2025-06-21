@@ -241,17 +241,22 @@ typealias ExtraParserFactory = ((directory: ZipDirectoryCommon) -> ZipExtraParse
  * Support does not include:
  * multi-"disk" or segmented disk files
  * encryption
+ *
+ * @param fileArg specifies the zip file full path to be read or written
+ * @param mode Read or Write
+ * @param zip64 true if creating a Zip64 file, false for normal.
  */
 class ZipFile(
     fileArg: File,
-    val mode: FileMode = FileMode.Read
+    val mode: FileMode = FileMode.Read,
+    zip64: Boolean = false
 ) :ZipFileBase {
 
     val map = mutableMapOf<String, ZipEntry>()
     override var bufferSize = 4096
     override val entries get() = map.values.toList()
     override val file: RawFile = RawFile(fileArg, mode, FileSource.File)
-    override var isZip64: Boolean = false
+    override var isZip64: Boolean = zip64
     override var textEndOfLine: String = "\n"
 
     /**

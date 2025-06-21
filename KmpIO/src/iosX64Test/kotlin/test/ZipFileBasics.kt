@@ -1,8 +1,12 @@
 package com.oldguy.common.test
 
+import com.oldguy.common.io.Directory
+import com.oldguy.common.io.File
 import com.oldguy.common.io.ZipFileTests
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 @OptIn(
@@ -40,7 +44,11 @@ class ZipFileBasics {
 
     @Test
     fun zip64LargeFileReadTest() {
-        tests.zip64LargeFileRead()
+        runTest(timeout = 4.minutes) {
+            tests.zip64LargeFileRead(
+                File.workingDirectory()
+                    .resolve("KmpIOLargeZip"))
+        }
     }
 
     @Test

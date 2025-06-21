@@ -97,9 +97,10 @@ class ZipFileTests {
     /**
      * Reads a test entry that is 5+MB compressed and 5+GB uncompressed. It is a long-running test
      */
-    fun zip64LargeFileRead() {
+    fun zip64LargeFileRead(testFilesDir: File) {
         runTest(timeout = 4.minutes) {
-            val file = File(FileTests.testDirectory(), "ZerosZip64.zip")
+            val file = File(testFilesDir, "ZerosZip64.zip")
+            println("BigZip: ${file.fullPath}")
             ZipFile(file).use {
                 (it.map["0000"]
                     ?: throw IllegalStateException("0000 file not found")).apply {

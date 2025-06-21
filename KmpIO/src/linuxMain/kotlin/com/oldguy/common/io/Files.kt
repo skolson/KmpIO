@@ -178,6 +178,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     }
 
     actual suspend fun delete(): Boolean {
+
         return remove(fullPath) == 0
     }
 
@@ -211,7 +212,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     }
 
     actual fun up(): File {
-        return File(Path(fullPath).up().fullPath)
+        return File(Path(fullPath).up())
     }
 
     actual companion object {
