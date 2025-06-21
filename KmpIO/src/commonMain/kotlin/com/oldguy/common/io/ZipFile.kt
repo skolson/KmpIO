@@ -459,7 +459,6 @@ class ZipFile(
         ZipLocalRecord.decode(file, entry.directories.localHeaderOffset).apply {
             entry.directories.update(this)
             entry.directories.apply {
-                println("entry: ${entry.name}")
                 decompress(entry, block)
                 if (generalPurpose.isDataDescriptor) {
                     if (!hasDataDescriptor)
@@ -547,7 +546,6 @@ class ZipFile(
                 if (shallow && zipPath.contains('/'))
                     true
                 else if (filter == null || filter.invoke(zipPath)) {
-                    println("file: ${file.fullPath}, zipAs: $zipPath")
                     zipFile(file, zipPath)
                 }
                 true
@@ -581,18 +579,20 @@ class ZipFile(
         filter: (suspend (entry: ZipEntry) -> Boolean)?,
         mapPath: ((entry: ZipEntry) -> String)?
     ): List<File> {
-        directory.makeDirectory()
+        val dir = directory.makeDirectory()
         val list = mutableListOf<File>()
         useEntries {
             if (filter?.invoke(it) != false) {
                 val name = mapPath?.invoke(it) ?: it.name
                 val f = File(name)
-                val d = if (f.directoryPath.isEmpty())
-                    directory
+
+                val d = if (!f.isParent)
+                    dir
                 else
-                    directory.resolve(f.directoryPath)
-                val copy = RawFile(File(d, f.name), FileMode.Write)
-                readEntry(it) { _, bytes, _, _ ->
+                    dir.resolve(f.directoryPath)
+                val newFile = File(d, f.name)
+                val copy = RawFile(newFile, FileMode.Write)
+                readEntry(it) { _, bytes, count, _ ->
                     copy.write(ByteBuffer(bytes))
                 }
                 copy.close()

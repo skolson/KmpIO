@@ -1,6 +1,6 @@
 package com.oldguy.common.io
 
-import com.oldguy.common.io.charsets.Charsets
+import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 @ExperimentalCoroutinesApi
 class CompressionTest {
     val test = "123456123456sdfghjklzxcvbxcvxcvbzxcvb"
-    val bytes = com.oldguy.common.io.charsets.Charset(Charsets.Utf8).encode(test)
+    val bytes = Utf8().encode(test)
 
     @Test
     fun compressTest1() {

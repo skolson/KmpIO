@@ -90,7 +90,7 @@ class FileTests(testDirPath: String) {
             val lastModDate = fil.lastModified!!
             val createdDate = fil.createdTime!!
             val lastAccessDate = fil.lastAccessTime!!
-            val nowTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            val nowTime = Clock.System.now().toLocalDateTime(TimeZones.default)
             assertEquals(nowTime.year, lastModDate.year)
             assertEquals(nowTime.monthNumber, lastModDate.monthNumber)
             assertEquals(nowTime.dayOfMonth, lastModDate.dayOfMonth)

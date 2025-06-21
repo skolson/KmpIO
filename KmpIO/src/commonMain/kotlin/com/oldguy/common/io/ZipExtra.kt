@@ -167,13 +167,13 @@ class ZipExtraNtfs(
 
     val lastModified: LocalDateTime get() = Instant
         .fromEpochMilliseconds(lastModifiedEpoch)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
+        .toLocalDateTime(TimeZones.default)
     val lastAccess: LocalDateTime get() = Instant
         .fromEpochMilliseconds(lastAccessEpoch)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
+        .toLocalDateTime(TimeZones.default)
     val created: LocalDateTime get() = Instant
         .fromEpochMilliseconds(createdEpoch)
-        .toLocalDateTime(TimeZone.currentSystemDefault())
+        .toLocalDateTime(TimeZones.default)
 
     constructor(
         lastModifiedEpoch: Long,

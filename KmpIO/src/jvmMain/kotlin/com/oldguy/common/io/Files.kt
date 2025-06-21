@@ -16,10 +16,22 @@ import java.nio.file.attribute.FileTime
 import java.util.*
 
 actual class TimeZones {
+    actual val defaultId: String = TimeZone.getDefault().id
+    actual val kotlinxTz: kotlinx.datetime.TimeZone = if (kotlinx.datetime.TimeZone.availableZoneIds.contains(defaultId))
+        kotlinx.datetime.TimeZone.of(defaultId)
+    else {
+        println("No such zoneId $defaultId in kotlinx tz")
+        kotlinx.datetime.TimeZone.UTC
+    }
+
+    actual fun localFromEpochMilliseconds(epochMilliseconds: Long): LocalDateTime {
+        return Instant
+            .fromEpochMilliseconds(epochMilliseconds)
+            .toLocalDateTime(kotlinxTz)
+    }
+
     actual companion object {
-        actual fun getDefaultId(): String {
-            return TimeZone.getDefault().id
-        }
+        actual val default: kotlinx.datetime.TimeZone = TimeZones().kotlinxTz
     }
 }
 
@@ -37,16 +49,17 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     actual val name: String = javaFile.name
     actual val nameWithoutExtension: String = javaFile.nameWithoutExtension
     actual val extension: String = if (javaFile.extension.isNotEmpty()) ".${javaFile.extension}" else ""
-    actual val path: String = javaFile.path.trimEnd(pathSeparator[0])
-    actual val fullPath: String = javaFile.absolutePath.trimEnd(pathSeparator[0])
-    actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator[0])
+    actual val path: String = javaFile.path.trimEnd(pathSeparator)
+    actual val fullPath: String = javaFile.absolutePath.trimEnd(pathSeparator)
+    actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator)
+    actual val isParent = directoryPath.isNotEmpty()
     actual val isDirectory get() = javaFile.isDirectory
     actual val exists get() = javaFile.exists()
     actual val isUri = platformFd?.code == 1 && platformFd.descriptor is URI
     actual val isUriString = platformFd?.code == 2 && platformFd.descriptor is String
     actual val size: ULong get() = javaFile.length().toULong()
     actual val lastModifiedEpoch: Long = javaFile.lastModified()
-    private val defaultTimeZone = kotlinx.datetime.TimeZone.currentSystemDefault()
+    private val defaultTimeZone = TimeZones.default
     actual val lastModified = if (lastModifiedEpoch == 0L)
         null
     else Instant.fromEpochMilliseconds(lastModifiedEpoch)
@@ -65,7 +78,7 @@ actual open class File actual constructor(filePath: String, val platformFd: File
         val fileTime = Files.getAttribute(Paths.get(path), "lastAccessTime") as FileTime
         return Instant
             .fromEpochMilliseconds(fileTime.toMillis())
-            .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+            .toLocalDateTime(TimeZones.default)
     }
 
     actual suspend fun directoryList(): List<String> {
@@ -128,7 +141,7 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     }
 
     actual companion object {
-        actual val pathSeparator: String = java.io.File.pathSeparator
+        actual val pathSeparator = java.io.File.pathSeparator[0]
         actual fun tempDirectoryPath(): String = System.getProperty("java.io.tmpdir")
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
@@ -136,6 +149,7 @@ actual open class File actual constructor(filePath: String, val platformFd: File
             return File(System.getProperty("user.dir"))
         }
 
+        actual val defaultTimeZone = TimeZones()
     }
 }
 

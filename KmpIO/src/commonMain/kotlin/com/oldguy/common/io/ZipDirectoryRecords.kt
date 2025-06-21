@@ -405,7 +405,7 @@ class ZipLocalRecord(
          */
         suspend fun decode(file: RawFile, position: ULong): ZipLocalRecord {
             ByteBuffer(minimumLength).apply {
-                file.read(this, position)
+                val n = file.read(this, position)
                 rewind()
                 ZipRecord.decodeSignature(signature, minimumLength, this)
                 return ZipLocalRecord(

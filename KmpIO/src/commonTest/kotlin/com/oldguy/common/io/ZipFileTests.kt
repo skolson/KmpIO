@@ -136,11 +136,12 @@ class ZipFileTests {
     fun unzipToDirectoryTest() {
         runTest {
             val dir = tempDir()
-            ZipFile(testFile()).apply {
+            val f = testFile()
+            println("dir: ${f.fullPath}")
+            ZipFile(f).apply {
                 extractToDirectory(dir)
             }
             val list = dir.directoryList().map { File(dir, it) }
-            println("Unzipped List: ${list.map { it.fullPath } }")
             assertEquals(7, list.size)
             assertEquals(6, list.count { it.isDirectory })
             assertEquals(1, list.count { !it.isDirectory })
@@ -249,15 +250,12 @@ class ZipFileTests {
     fun zipDirectoryTest(shallow: Boolean) {
         runTest {
             val dirZip = File(tempDir(), "testFilesDir$shallow.zip")
-            println("DirZip: ${dirZip.fullPath}")
             ZipFile(dirZip, FileMode.Write).use {
                 it.zipDirectory(FileTests.testDirectory(), shallow) { f ->
                     val rc = !(f.contains("ZerosZip64") || f.contains("Zip64_90,000_files"))
-                    println("Filter: $f, rc = $rc")
                     rc
                 }
             }
-            println("read DirZip: ${dirZip.fullPath}")
             ZipFile(dirZip.newFile()).use { zip ->
                 zip.entries.apply {
                     if (shallow) {
@@ -340,7 +338,6 @@ class ZipFileTests {
                     assertEquals(0UL, it.directories.compressedSize)
                 }
             }
-            println("Path: ${oneFileZip.fullPath}")
         }
     }
 }

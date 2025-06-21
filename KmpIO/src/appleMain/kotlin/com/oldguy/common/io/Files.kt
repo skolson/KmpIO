@@ -3,10 +3,13 @@ package com.oldguy.common.io
 import kotlinx.cinterop.*
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import platform.Foundation.NSDictionary
 import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
+import platform.Foundation.NSTimeZone
+import platform.Foundation.defaultTimeZone
 import platform.Foundation.fileCreationDate
 import platform.Foundation.fileModificationDate
 import platform.Foundation.fileSize
@@ -16,10 +19,22 @@ import platform.posix.errno
 import kotlin.coroutines.cancellation.CancellationException
 
 actual class TimeZones {
+    actual val defaultId: String = NSTimeZone.defaultTimeZone.name
+    actual val kotlinxTz: TimeZone = if (TimeZone.availableZoneIds.contains(defaultId))
+        TimeZone.of(defaultId)
+    else {
+        println("No such zoneId $defaultId in kotlinx tz")
+        TimeZone.UTC
+    }
+
+    actual fun localFromEpochMilliseconds(epochMilliseconds: Long): LocalDateTime {
+        return Instant
+            .fromEpochMilliseconds(epochMilliseconds)
+            .toLocalDateTime(kotlinxTz)
+    }
+
     actual companion object {
-        actual fun getDefaultId(): String {
-            return AppleTimeZones.getDefaultId()
-        }
+        actual val default: TimeZone = TimeZones().kotlinxTz
     }
 }
 
@@ -41,6 +56,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual val path = p.path
     actual val fullPath = p.fullPath
     actual val directoryPath = p.directoryPath
+    actual val isParent = directoryPath.isNotEmpty()
     actual val isDirectory: Boolean
     actual val exists: Boolean
     actual val isUri: Boolean
@@ -55,8 +71,8 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         exists = pathExists(fullPath)
         if (exists) {
             size = throwError {
-                (fm.attributesOfItemAtPath(fullPath, it) as NSDictionary)
-                    .fileSize()
+                 (fm.attributesOfItemAtPath(fullPath, it) as NSDictionary?)
+                    ?.fileSize() ?: 0uL
             }
             lastModifiedEpoch = throwError { error ->
                 (fm.attributesOfItemAtPath(fullPath, error) as NSDictionary?)
@@ -73,9 +89,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
                     isDirPointer.value
                 }
             }
-            lastModified = Instant
-                .fromEpochMilliseconds(lastModifiedEpoch)
-                .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+            lastModified = defaultTimeZone.localFromEpochMilliseconds(lastModifiedEpoch)
             createdTime = throwError { cPointer ->
                 var epoch = 0L
                 (fm.attributesOfItemAtPath(fullPath, cPointer) as NSDictionary?)
@@ -85,9 +99,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
                         }
                     }
                 if (epoch > 0L) {
-                    Instant
-                        .fromEpochMilliseconds(epoch)
-                        .toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+                    defaultTimeZone.localFromEpochMilliseconds(epoch)
                 } else
                     null
             }
@@ -126,7 +138,6 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     /**
      * List directory content. Apple implementation explicitly excludes .DS_Store file used by Finder
      */
-    @Throws(NSErrorException::class, CancellationException::class)
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
         throwError {
@@ -163,18 +174,16 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     }
 
     actual fun up(): File {
-        return File(Path(fullPath).up().fullPath)
+        return File(Path(fullPath).up())
     }
 
-    @Throws(NSErrorException::class, CancellationException::class)
     actual suspend fun makeDirectory(): File {
-        if (exists) return this
+        if (pathExists(fullPath)) return File(fullPath)
         var rc = false
         throwError { errorPointer ->
-            val withIntermediates = fullPath.contains(pathSeparator)
             rc = fm.createDirectoryAtPath(
                 fullPath,
-                withIntermediates,
+                false,
                 null,
                 errorPointer
             )
@@ -194,6 +203,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual companion object {
         actual val pathSeparator = '/'
+        actual val defaultTimeZone = TimeZones()
         actual fun tempDirectoryPath(): String
             = NSFileManager.defaultManager().temporaryDirectory.path
             ?: throw IOException("temporaryDirectory.path is null")
@@ -210,14 +220,18 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
          */
         fun <T> throwError(block: (errorPointer: CPointer<ObjCObjectVar<NSError?>>) -> T): T {
             val errorPointer: ObjCObjectVar<NSError?> = nativeHeap.alloc()
-            val result: T = block(errorPointer.ptr)
-            errorPointer.value?.let {
-                val appleError = NSErrorException(it)
-                println("Attempting throw NSErrorException:")
-                println(appleError.toString())
-                throw appleError
+            try {
+                val result: T = block(errorPointer.ptr)
+                errorPointer.value?.let {
+                    val appleError = NSErrorException(it)
+                    println("Attempting throw NSErrorException:")
+                    println(appleError.toString())
+                    throw appleError
+                }
+                return result
+            } finally {
+                nativeHeap.free(errorPointer)
             }
-            return result
         }
 
     }

@@ -87,7 +87,7 @@ class FileTests(testDirPath: String) {
                 val lastModDate = lastModified!!
                 val createdDate = createdTime!!
                 val lastAccessDate = lastAccessTime!!
-                Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).apply {
+                Clock.System.now().toLocalDateTime(TimeZones.default).apply {
                     assertEquals(year, lastModDate.year)
                     assertEquals(monthNumber, lastModDate.monthNumber)
                     assertEquals(dayOfMonth, lastModDate.dayOfMonth)
@@ -150,7 +150,6 @@ class FileTests(testDirPath: String) {
             val subDir = testDirectory.resolve(subDirName)
             var fil = File(subDir, "${namePrefix}Hex.utf16")
             val rc = fil.delete()
-            println("file: ${fil.fullPath} deleted: $rc")
             RawFile(fil, FileMode.Write).use { file ->
                 repeat(copyCount) { file.write(ByteBuffer(hexContent)) }
             }

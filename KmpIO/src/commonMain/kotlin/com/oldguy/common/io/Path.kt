@@ -65,7 +65,7 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
             val extIndex = name.indexOfLast { it == '.' }
             extension = if ((extIndex <= 0) || (extIndex == name.length - 1)) "" else name.substring(extIndex + 1)
             nameWithoutExtension = if (extIndex < 0) name else name.substring(0, extIndex)
-            directoryPath = up().fullPath
+            directoryPath = up()
         }
     }
 
@@ -74,14 +74,14 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
      * If the current path does not have a parent, returns the path itself.
      * If the current path is a file, then the file's parent directory is returned.
      *
-     * @return A new `Path` instance representing the parent directory, or the current path if no parent exists.
+     * @return A new `Path` instance representing the parent directory, or empty string if no parent directory.
      */
-    fun up(): Path {
+    fun up(): String {
         val index = fullPath.lastIndexOf(pathSeparator)
         return if (index > 1) {
-            Path(fullPath.substring(0, index))
+            fullPath.substring(0, index)
         } else
-            this
+            ""
     }
 
     /**

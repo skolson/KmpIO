@@ -248,7 +248,7 @@ class ZipEntry(
     companion object {
         val defaultVersion = ZipVersion(4, 5)
         const val defaultCompressionValue: Short = 8
-        val defaultDateTime get() = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val defaultDateTime get() = Clock.System.now().toLocalDateTime(TimeZones.default)
 
     }
 }

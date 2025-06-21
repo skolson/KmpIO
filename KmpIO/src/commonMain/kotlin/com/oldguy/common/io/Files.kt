@@ -3,10 +3,21 @@ package com.oldguy.common.io
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.charsets.Utf8
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
 
+/**
+ * Centralize TimeZone logic. Had an undiagnosed issue with kotlinx.datetime getting native aborts
+ * during default time zone lookups. So this initial basic version just looks up a default TimeZone
+ * in a safe native manner. If it can't find one that kotlinx supports, it uses UTC.
+ */
 expect class TimeZones {
+    val defaultId: String
+    val kotlinxTz: TimeZone
+
+    fun localFromEpochMilliseconds(epochMilliseconds: Long): LocalDateTime
+
     companion object {
-        fun getDefaultId(): String
+        val default: TimeZone
     }
 }
 
@@ -27,7 +38,7 @@ class IOException(message: String, cause: Throwable? = null): Exception(message,
 data class FileDescriptor(val code: Int = 0, val descriptor: Any)
 
 /**
- * Represents a file ID.  The filePath can be file syntax or URI or something else - actual platform
+ * Represents a file ID. The filePath can be file syntax or URI or something else - actual platform
  * implementation will parse accordingly. Does assume file name at end of string may have an extension
  * of form "<path><nameWithoutExtension>.<extension>" = fullPath.
  * Note that a File object is immutable. The properties are set from the file system only at constructor time.
@@ -44,6 +55,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val path: String
     val fullPath: String
     val directoryPath: String
+    val isParent: Boolean
     val isDirectory: Boolean
     val exists: Boolean
     val isUri: Boolean
@@ -71,6 +83,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
         fun tempDirectoryPath(): String
         fun tempDirectoryFile(): File
         fun workingDirectory(): File
+        val defaultTimeZone: TimeZones
     }
 }
 
