@@ -127,9 +127,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual suspend fun delete(): Boolean {
         return if (exists) {
             throwError {
-                val rc = fm.removeItemAtPath(fullPath, it)
-                println("delete NSError: ${it.pointed.value?.localizedDescription ?: "null"}")
-                rc
+                fm.removeItemAtPath(fullPath, it)
             }
         } else
             false

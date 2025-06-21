@@ -137,7 +137,7 @@ class ZipFileTests {
         runTest {
             val dir = tempDir()
             val f = testFile()
-            println("dir: ${f.fullPath}")
+            println("dir: ${dir.fullPath}")
             ZipFile(f).apply {
                 extractToDirectory(dir)
             }
