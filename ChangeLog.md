@@ -2,12 +2,14 @@
 
 ### 0.1.8 (in progress)
 
+*Note 6/21/2025:* a number of commits are pushed up for 0.1.8, but due to a gradle configuration issue with the Dokka V2.0.0 HTML jar task for each target, publishToMavenLocal is failing with a gradle cross-dependency error during the signing plugin.  Until this build/publish signing issue is fixed, 0.1.8 won't be tagged and published to Maven. It was pushed up as a re-creator repo for people assisting with researching this.
+
 This release is after a long period of inactivity on the author's part (family health issues). So there is a lot of change, some of which is breaking changes.
 - Gradle 8.14.2
 - Kotlin 2.1.21
 - LinuxX64 native support. This includes various basic posix functions and zlib support for zip file compression/decompression 
 - Added the beginnings of IOS-specific unit tests
-- Breaking change to Charsets and Charset support.  Now pure KMP code (no cinterop or jvm dependencies). Supported is limited to a few common charsets. New charsets are easy to add.
+- Breaking change to Charsets and Charset support.  Now pure KMP code (no cinterop or jvm dependencies). Supported is limited to a few common charsets, including UTF8 (Kotlin), UTF16LE, UTF16BE, UTF-32, ISO-8859-1, and Windows1252. New charsets are easy to add.
 - File class has had changes to make it almost entirely immutable (still one exception to this that is linux-specific). File will still need some enhancing to properly support file/directory permissions at creation time
 - A pure Kotlin TextBuffer class has replaced prior logic underlying the various TextFile implementations.
 - Made a new Directory class, also pure Kotlin, that uses the native File implementation to support directory contents lists, walking a directory tree, deleting populated directories, etc. Also moved path/name property parsing logic to a new pure Kotlin Path class. Actual FIle implementations now much more focused on the underlying native code required to provide the various File properties and functions.
@@ -15,7 +17,12 @@ This release is after a long period of inactivity on the author's part (family h
 - Native zip file inflate/deflate logic for Linux and Apple refactored to improve memory management.
 - inflate now attempts to detect zlib header bytes
 - The zipDirectory function has been re-written to use the new Directory class walkTree function. This corrects a prior problem with path-relative names. It also now enforces use of forward slash as a path separator no matter what platform it is run on.
-- Issue #15 fixed on android
+- The Apple native code base as been refactored to remove the base class usage tht was developed before Kotlin releases the default source set tree for multi-platform.  All Apple classes for file management are now in AppleMain.
+- ZipFile uses the new Directory class for walking a directory tree. This fixes issues #13 and #15.
+- Issue #12 fix - documentation example for creating a Zip64 file is updated
+- ZipFile now takes a third constructor argument that allows optionally choosing Zip64 support at constructor time. default for the argument is false. 
+- A number of new unit tests have been built to better test File and ZipFile basic functions.
+- An IOS/macOS stability issue was seen with using kotlinx.datetime library's defaultTimeZone lookup function multiple times. I never diagnosed the root cause. There is now a simple platform-specific TimeZones class in the library that uses native code to look up the default time zone.  The rest of kotlinx-datetime seems to work fine. Even the default time zone lookup worked, but sometimes after multiple usages unit tests would fail inside the lookup with an abort trap (signal 6).
 
 ### 0.1.7
 

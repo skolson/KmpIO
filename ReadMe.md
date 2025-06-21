@@ -368,31 +368,28 @@ Zip file entries can be directories only with no data, or with data of any size.
 Create a new Zip file, add an entry from a file, add same file again under new name, add entries for all files in a directory tree that match the specified filter, add an entry with 100 lines of the same text encoded with UTF-16LE that also uses a custom last modified time.
 
 ```
-      val dir = File("/anydir")
-      val sourceDirectory = File("/anyPathToaDirectoryTreeToZip")
-      val zip = File(dir, "TestFile.zip")
-      val dataFile = File("SomethingToZip.dat")
-      ZipFile(zip, FileMode.Write).use {
-          it.isZip64 = true  // default is false, but true doesn't require large content or LOTS of entries, just supports them if needed.
-          it.zipFile(dataFile)
-          it.zipFile(dataFile, "Copy${dataFile.name}")
-          it.zipDirectory(sourceDirectory,
-              shallow = false,
-          ) { name -> name.endsWith(".txt") }
-          ZipEntry(
-              name = "someData.dat",
-              comment = "Anything legal here, up to Int.MAX_VALUE length if isZip64 = false",
-              lastModTime = LocalDateTime(year = 2022, monthNumber = 1, dayOfMonth = 1, hour = 12
-          ).apply {
-              var count = 0
-              val dataLine = Charset(Charsets.Utf16Le).encode("Any old stuff from anywhere")
-              it.addEntry(this) {
-                  // this lambda will be called repeatedly until it returns an empty ByteArray()
-                  // provide uncompressed data in ByteArray instances of any size until done
-                  if (count++ < 100) dataline else ByteArray(0)
-              }
-          }
-      }
+            val dir = File("/anydir")
+            val sourceDirectory = File("/anyPathToaDirectoryTreeToZip")
+            val zip = File(dir, "TestFile.zip")
+            val dataFile = File("SomethingToZip.dat")
+            ZipFile(zip, FileMode.Write, zip64 = true).use {
+                it.zipFile(dataFile)
+                it.zipFile(dataFile, "Copy${dataFile.name}")
+                it.zipDirectory(sourceDirectory, shallow = false) { name -> name.endsWith(".txt") }
+                ZipEntry(
+                    nameArg = "someData.dat",
+                    commentArg = "Anything legal here, up to Int.MAX_VALUE length if isZip64 = false",
+                    lastModTime = LocalDateTime(year = 2022, monthNumber = 1, dayOfMonth = 1, hour = 12, minute = 0)
+                ).apply {
+                    var count = 0
+                    it.addEntry(this) {
+                        // this lambda will be called repeatedly until it returns an empty ByteArray()
+                        // provide uncompressed data in ByteArray instances of any size until done
+                        if (count++ < 100) Charset(Charsets.Utf16le).encode("Any old stuff from anywhere")
+                        else ByteArray(0)
+                    }
+                }
+            }
 ```
 
 ### Read a zip file

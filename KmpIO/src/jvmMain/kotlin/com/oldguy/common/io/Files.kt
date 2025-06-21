@@ -137,7 +137,7 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     }
 
     actual fun up(): File {
-        return File(Path(fullPath).up().fullPath)
+        return File(Path(fullPath).up())
     }
 
     actual companion object {
