@@ -54,6 +54,7 @@ java {
 
 val htmlJarTask = tasks.register<Jar>("htmlJar") {
     archiveClassifier.set("htmldoc")
+    println("htmlJarTask.configure output: ${this.destinationDirectory.get()}")
     dependsOn(tasks.dokkaGeneratePublicationHtml)
     from(project.layout.buildDirectory.dir("dokka/html"))
 }
@@ -71,9 +72,7 @@ publishing {
     }
     publications.withType(MavenPublication::class) {
         artifactId = artifactId.replace(project.name, mavenArtifactId)
-        if (name != "androidDebug" && name != "androidRelease") {
-            artifact(htmlJarTask)
-        }
+        //artifact(htmlJarTask)
 
         pom {
             name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
@@ -302,6 +301,21 @@ dokka {
         includes.from("$appleFrameworkName.md")
     }
 }
+/*
+afterEvaluate {
+    tasks.getByName("publishJvmPublicationToMavenLocal") {
+        this.inputs.files.forEach {
+            println("publishJvm input: ${it.path} ${it.name}")
+        }
+    }
+    tasks.getByName("signKotlinMultiplatformPublication") {
+        this.outputs.files.forEach {
+            println("signKMP output: ${it.path} ${it.name}")
+        }
+    }
+}
+
+ */
 
 tasks.withType<Test> {
     testLogging {
