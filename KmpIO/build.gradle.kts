@@ -1,6 +1,7 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinMultiplatform
 import java.util.Properties
 import java.io.FileInputStream
-import org.gradle.kotlin.dsl.signing
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
@@ -12,16 +13,9 @@ plugins {
         alias(it.android.library)
         alias(it.kotlinx.atomicfu)
         alias(it.dokka.base)
+        alias(it.maven.publish.vannik)
     }
     kotlin("native.cocoapods")
-    id("maven-publish")
-    id("signing")
-}
-
-repositories {
-    gradlePluginPortal()
-    google()
-    mavenCentral()
 }
 
 val localProps = Properties().apply {
@@ -31,19 +25,31 @@ val localProps = Properties().apply {
     project.extra["signing.secretKeyRingFile"] = get("signing.secretKeyRingFile")
 }
 
+repositories {
+    gradlePluginPortal()
+    google()
+    mavenCentral{
+        credentials {
+            username = localProps.getProperty("sonaTokenUser")
+            password = localProps.getProperty("sonaToken")
+        }
+    }
+}
+
 val mavenArtifactId = "kmp-io"
 val appleFrameworkName = "KmpIO"
 val githubUri = "skolson/$appleFrameworkName"
 val githubUrl = "https://github.com/$githubUri"
 
-group = "io.github.skolson"
-version = libs.versions.appVersion.get()
+val publishDomain = "io.github.skolson"
+val appVersion = libs.versions.appVersion.get()
+group = publishDomain
+version = appVersion
 
 val iosMinSdk = "14"
 val kmpPackageName = "com.oldguy.common.io"
 
 val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
-val javadocTaskName = "javadocJar"
 val javaVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
 
 java {
@@ -52,54 +58,59 @@ java {
     }
 }
 
-val htmlJarTask = tasks.register<Jar>("htmlJar") {
-    archiveClassifier.set("htmldoc")
-    println("htmlJarTask.configure output: ${this.destinationDirectory.get()}")
-    dependsOn(tasks.dokkaGeneratePublicationHtml)
-    from(project.layout.buildDirectory.dir("dokka/html"))
-}
+/*
+    For publishing to the central portal without release to maven, do this command:
+    ./gradlew publishToMavenCentral --no-configuration-cache
 
-publishing {
-    val server = localProps.getProperty("ossrhServer")
-    repositories {
-        maven {
-            url = uri("https://$server/service/local/staging/deploy/maven2/")
-            credentials {
-                username = localProps.getProperty("ossrhUsername")
-                password = localProps.getProperty("ossrhPassword")
+    For publishing to the central portal and release to maven, do this command:
+    ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
+
+    The --no-configuration-cache is required by https://github.com/gradle/gradle/issues/22779
+ */
+mavenPublishing {
+    // val sonaUser = localProps.getProperty("sonaTokenUser")
+    coordinates(publishDomain, mavenArtifactId, appVersion)
+    configure(
+        KotlinMultiplatform(
+            JavadocJar.Dokka("dokkaGeneratePublicationHtml"),
+            true,
+            listOf("debug", "release")
+        )
+    )
+
+    pom {
+        name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
+        description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android, IOS, Windows, Linux, MacOS")
+        url.set(githubUrl)
+        inceptionYear.set("2020")
+        licenses {
+            license {
+                name.set("The Apache License, Version 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
-    }
-    publications.withType(MavenPublication::class) {
-        artifactId = artifactId.replace(project.name, mavenArtifactId)
-        //artifact(htmlJarTask)
-
-        pom {
-            name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
-            description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android, IOS, Windows, Linux, MacOS")
+        developers {
+            developer {
+                id.set("oldguy")
+                name.set("Steve Olson")
+                email.set("skolson5903@gmail.com")
+                url.set("https://github.com/skolson/")
+            }
+        }
+        scm {
             url.set(githubUrl)
-            licenses {
-                license {
-                    name.set("The Apache License, Version 2.0")
-                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                }
-            }
-            developers {
-                developer {
-                    id.set("oldguy")
-                    name.set("Steve Olson")
-                    email.set("skolson5903@gmail.com")
-                }
-            }
-            scm {
-                url.set(githubUrl)
-                connection.set("scm:git:git://git@github.com:${githubUri}.git")
-                developerConnection.set("cm:git:ssh://git@github.com:${githubUri}.git")
-            }
+            connection.set("scm:git:git://git@github.com:${githubUri}.git")
+            developerConnection.set("scm:git:ssh://git@github.com:${githubUri}.git")
         }
     }
 }
-
+/*
+signing {
+    isRequired = true
+    sign(publishing.publications)
+}
+*/
 android {
     compileSdk = libs.versions.androidSdk.get().toInt()
     buildToolsVersion = libs.versions.androidBuildTools.get()
@@ -137,15 +148,6 @@ kotlin {
         languageVersion = javaVersion
     }
     androidTarget {
-        publishLibraryVariants("release", "debug")
-        mavenPublication {
-            artifactId = artifactId.replace(project.name, mavenArtifactId)
-            /*
-                causes a signing task cross-dependency problem in Dokka v2
-            if (name == "androidRelease")
-                artifact(htmlJarTask)
-             */
-        }
     }
 
     cocoapods {
@@ -240,14 +242,6 @@ kotlin {
                 implementation(libs.bundles.kotlin.test)
             }
         }
-/*
-        val androidMain by getting {
-            dependencies {
-                implementation()
-            }
-        }
-
- */
         val androidUnitTest by getting {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
@@ -301,21 +295,6 @@ dokka {
         includes.from("$appleFrameworkName.md")
     }
 }
-/*
-afterEvaluate {
-    tasks.getByName("publishJvmPublicationToMavenLocal") {
-        this.inputs.files.forEach {
-            println("publishJvm input: ${it.path} ${it.name}")
-        }
-    }
-    tasks.getByName("signKotlinMultiplatformPublication") {
-        this.outputs.files.forEach {
-            println("signKMP output: ${it.path} ${it.name}")
-        }
-    }
-}
-
- */
 
 tasks.withType<Test> {
     testLogging {
@@ -324,9 +303,4 @@ tasks.withType<Test> {
         showStandardStreams = true
         showStackTraces = true
     }
-}
-
-signing {
-    isRequired = true
-    sign(publishing.publications)
 }

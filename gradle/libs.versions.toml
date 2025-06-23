@@ -17,6 +17,7 @@ junit = "4.13.2"
 androidxTest = "1.6.1"
 androidxTestRunner = "1.6.2"
 androidxTestExt = "1.2.1"
+vannikTech = "0.33.0"
 
 [libraries]
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
@@ -40,5 +41,6 @@ kotlin-test = [ "kotlin-test", "kotlinx-coroutines-test" ]
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinx-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
+maven-publish-vannik = { id = "com.vanniktech.maven.publish", version.ref = "vannikTech" }
 
 dokka-base = { id = "org.jetbrains.dokka", version.ref = "dokkaPlugin" }
