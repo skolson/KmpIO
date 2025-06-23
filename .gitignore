@@ -11,3 +11,4 @@ local.properties
 /KmpIO/secring.gpg
 /gradle/.idea/
 /.kotlin/
+/KmpIO/.gradle/gradle.properties

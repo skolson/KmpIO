@@ -18,21 +18,26 @@ plugins {
     kotlin("native.cocoapods")
 }
 
-val localProps = Properties().apply {
+Properties().apply {
     load(FileInputStream(project.rootProject.file("local.properties")))
     project.extra["signing.keyId"] = get("signing.keyId")
     project.extra["signing.password"] = get("signing.password")
     project.extra["signing.secretKeyRingFile"] = get("signing.secretKeyRingFile")
+    project.extra["mavenCentralUsername"] = get("sonaTokenUser")
+    project.extra["mavenCentralPassword"] = get("sonaToken")
 }
 
 repositories {
     gradlePluginPortal()
     google()
     mavenCentral{
+        /**
+         * These may be usable in the Vanniktech publish plugin in the future
         credentials {
             username = localProps.getProperty("sonaTokenUser")
             password = localProps.getProperty("sonaToken")
         }
+        */
     }
 }
 
@@ -68,7 +73,6 @@ java {
     The --no-configuration-cache is required by https://github.com/gradle/gradle/issues/22779
  */
 mavenPublishing {
-    // val sonaUser = localProps.getProperty("sonaTokenUser")
     coordinates(publishDomain, mavenArtifactId, appVersion)
     configure(
         KotlinMultiplatform(
