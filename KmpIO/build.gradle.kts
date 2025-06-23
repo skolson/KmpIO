@@ -18,6 +18,7 @@ plugins {
     kotlin("native.cocoapods")
 }
 
+// These properties from local.properties file are used by the Vanniktech publish plugin
 Properties().apply {
     load(FileInputStream(project.rootProject.file("local.properties")))
     project.extra["signing.keyId"] = get("signing.keyId")
@@ -34,8 +35,8 @@ repositories {
         /**
          * These may be usable in the Vanniktech publish plugin in the future
         credentials {
-            username = localProps.getProperty("sonaTokenUser")
-            password = localProps.getProperty("sonaToken")
+            username = project.extra["mavenCentralUsername"]
+            password = project.extra["mavenCentralPassword"]
         }
         */
     }

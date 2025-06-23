@@ -1,6 +1,6 @@
 # Change Log
 
-### 0.1.8 (in progress)
+### 0.1.8 (6/23/2025)
 
 This release is after a long period of inactivity on the author's part (family health issues). So there is a lot of change, some of which is breaking.
 - Gradle 8.14.2
@@ -14,6 +14,7 @@ This release is after a long period of inactivity on the author's part (family h
 - Breaking change to Charsets and Charset support.  Charsets are implemented in pure KMP code (no cinterop or jvm dependencies). Supported is limited to a few common charsets, including UTF8 (Kotlin), UTF16LE, UTF16BE, UTF-32, ISO-8859-1, and Windows1252. New charsets are easy to add.
 - File class has had changes to make it almost entirely immutable (still one exception to this that is linux-specific). File will still need some enhancing to properly support file/directory permissions at creation time
 - A pure Kotlin Path class is added to make file path handling consistent across all targets.
+- the path property on the File class has been deprecated. directoryPath holds the owning directory of the File instance. fullPath holds the entire path string to the File instance.
 - A pure Kotlin TextBuffer class has replaced prior logic underlying the various TextFile implementations.
 - Made a new Directory class, also pure Kotlin, that uses the native File implementation to support directory contents lists, walking a directory tree, deleting populated directories, etc. Also moved path/name property parsing logic to a new pure Kotlin Path class. Actual FIle implementations now much more focused on the underlying native code required to provide the various File properties and functions.
 - Moved temporary directory support to File class companion object. The previous File extension function is gone. Added new companion methods for current working directory.
@@ -27,31 +28,7 @@ This release is after a long period of inactivity on the author's part (family h
 - A number of new unit tests have been built to better test File and ZipFile basic functions for Linux, Apple, Android, and JVM.
 - An IOS/macOS stability issue was seen with using kotlinx.datetime library's defaultTimeZone lookup function multiple times. I never diagnosed the root cause. There is now a simple platform-specific TimeZones class in the library that uses native code to look up the default time zone.  The rest of kotlinx-datetime seems to work fine. Even the default time zone lookup worked, but sometimes after multiple usages unit tests would fail inside the lookup with an abort trap (signal 6).
 - Issue #10 is fixed (new Path class support) for JVM on Windows.
-- Stopped using the publish and signing plugins directly. Now using vanniktech plugin for publishing and signing. Avoids issues with both the new HTML doc jar task and signing, as well as migrating publishing to central.sonatype.org   
-
-*Note 6/21/2025:* a number of commits are pushed up for 0.1.8, but due to a gradle configuration issue with the Dokka V2.0.0 HTML jar task for each target, publishToMavenLocal is failing with a gradle cross-dependency error during the signing plugin.  Until this build/publish signing issue is fixed, 0.1.8 won't be tagged and published to Maven. It was pushed up as a re-creator repo for people assisting with researching this. Running publishToMavenLocal on Linux will fail with different targets than a macOS run, but in any case the error from the various signing tasks looks like this:
-```
-> Task :KmpIO:signKotlinMultiplatformPublication FAILED
-> Task :KmpIO:signLinuxArm64Publication FAILED
-> Task :KmpIO:signLinuxX64Publication FAILED
-
-[Incubating] Problems report is available at: file:///mnt/Projects/KmpIO/build/reports/problems/problems-report.html
-
-FAILURE: Build completed with 3 failures.
-
-1: Task failed with an exception.
------------
-* What went wrong:
-  A problem was found with the configuration of task ':KmpIO:signKotlinMultiplatformPublication' (type 'Sign').
-  - Gradle detected a problem with the following location: '/mnt/Projects/KmpIO/KmpIO/build/libs/KmpIO-0.1.8-htmldoc.jar.asc'.
-
-    Reason: Task ':KmpIO:publishJvmPublicationToMavenLocal' uses this output of task ':KmpIO:signKotlinMultiplatformPublication' without declaring an explicit or implicit dependency. This can lead to incorrect results being produced, depending on what order the tasks are executed.
-
-    Possible solutions:
-    1. Declare task ':KmpIO:signKotlinMultiplatformPublication' as an input of ':KmpIO:publishJvmPublicationToMavenLocal'.
-    2. Declare an explicit dependency on ':KmpIO:signKotlinMultiplatformPublication' from ':KmpIO:publishJvmPublicationToMavenLocal' using Task#dependsOn.
-    3. Declare an explicit dependency on ':KmpIO:signKotlinMultiplatformPublication' from ':KmpIO:publishJvmPublicationToMavenLocal' using Task#mustRunAfter.
-```
+- Stopped using the publish and signing plugins directly. Now using vanniktech plugin for publishing and signing. Avoids issues with both the new HTML doc jar task and signing, as well as migrating publishing to central.sonatype.org   (OSSRH is gone after 6/30/2025) 
 
 *Note 6/21/2025:* Currently native unit tests run in Android Studio up to Narwhal Canary 6 fail with an error that is in the test runner infrastructure:
 
