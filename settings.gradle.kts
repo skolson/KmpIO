@@ -6,6 +6,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = "KmpIO"
+rootProject.name = "kmp-io"
 
 include(":KmpIO")

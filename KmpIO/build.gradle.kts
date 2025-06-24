@@ -42,8 +42,7 @@ repositories {
     }
 }
 
-val mavenArtifactId = "kmp-io"
-val appleFrameworkName = "KmpIO"
+val appleFrameworkName = rootProject.name
 val githubUri = "skolson/$appleFrameworkName"
 val githubUrl = "https://github.com/$githubUri"
 
@@ -70,7 +69,7 @@ val isLinux = os.startsWith("Linux", true)
     The --no-configuration-cache is required by https://github.com/gradle/gradle/issues/22779
  */
 mavenPublishing {
-    coordinates(publishDomain, mavenArtifactId, appVersion)
+    coordinates(publishDomain, rootProject.name, appVersion)
     configure(
         KotlinMultiplatform(
             JavadocJar.Dokka("dokkaGeneratePublicationHtml"),

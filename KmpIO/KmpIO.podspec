@@ -1,20 +1,20 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'KmpIO'
-    spec.version                  = '0.1.8'
-    spec.homepage                 = 'https://github.com/skolson/KmpIO'
+    spec.version                  = '0.1.9'
+    spec.homepage                 = 'https://github.com/skolson/kmp-io'
     spec.source                   = { :http=> ''}
     spec.authors                  = 'Steven Olson'
     spec.license                  = 'Apache 2.0'
     spec.summary                  = 'Kotlin Multiplatform API for basic File I/O'
-    spec.vendored_frameworks      = 'build/cocoapods/framework/KmpIO.framework'
+    spec.vendored_frameworks      = 'build/cocoapods/framework/kmp_io.framework'
     spec.libraries                = 'c++'
     spec.ios.deployment_target    = '14'
                 
                 
-    if !Dir.exist?('build/cocoapods/framework/KmpIO.framework') || Dir.empty?('build/cocoapods/framework/KmpIO.framework')
+    if !Dir.exist?('build/cocoapods/framework/kmp_io.framework') || Dir.empty?('build/cocoapods/framework/kmp_io.framework')
         raise "
 
-        Kotlin framework 'KmpIO' doesn't exist yet, so a proper Xcode project can't be generated.
+        Kotlin framework 'kmp_io' doesn't exist yet, so a proper Xcode project can't be generated.
         'pod install' should be executed after running ':generateDummyFramework' Gradle task:
 
             ./gradlew :KmpIO:generateDummyFramework
@@ -28,7 +28,7 @@ Pod::Spec.new do |spec|
                 
     spec.pod_target_xcconfig = {
         'KOTLIN_PROJECT_PATH' => ':KmpIO',
-        'PRODUCT_MODULE_NAME' => 'KmpIO',
+        'PRODUCT_MODULE_NAME' => 'kmp_io',
     }
                 
     spec.script_phases = [

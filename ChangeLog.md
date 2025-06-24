@@ -1,6 +1,15 @@
 # Change Log
 
+### 0.1.9 (6/25/2025)
+
+- rootProject.name changed to match mavenArtifactID of "kmp-io".  Turns out changing to the Vannik publishing plugin somehow uses rootProject.name (or possibly apple framework name, but that seems unllikely) instead of the maven artifact ID specified in the configuration clause. This leads to bad URLs:
+  - https://repo.maven.apache.org/maven2/io/github/skolson/KmpIO-macosx64/0.1.8/KmpIO-macosx64-0.1.8.pom gets an error and should have been
+  - https://repo.maven.apache.org/maven2/io/github/skolson/kmp-io-macosx64/0.1.8/kmp-io-macosx64-0.1.8.pom
+  - In 0.1.8 (and all prior), "KmpIO" was used as the root project name and the apple framework name.
+
 ### 0.1.8 (6/23/2025)
+
+This release is problematic due to a maven publishing issue. See 0.1.9 above.
 
 This release is after a long period of inactivity on the author's part (family health issues). So there is a lot of change, some of which is breaking.
 - Gradle 8.14.2
