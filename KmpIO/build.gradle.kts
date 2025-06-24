@@ -14,11 +14,11 @@ plugins {
         alias(it.kotlinx.atomicfu)
         alias(it.dokka.base)
         alias(it.maven.publish.vannik)
+        kotlin("native.cocoapods")
     }
-    kotlin("native.cocoapods")
 }
 
-// These properties from local.properties file are used by the Vanniktech publish plugin
+// These properties from local.properties file will hopefully be used by the Vanniktech publish plugin
 Properties().apply {
     load(FileInputStream(project.rootProject.file("local.properties")))
     project.extra["signing.keyId"] = get("signing.keyId")
@@ -56,13 +56,9 @@ val iosMinSdk = "14"
 val kmpPackageName = "com.oldguy.common.io"
 
 val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
-val javaVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
-
-java {
-    toolchain {
-        languageVersion.set(javaVersion)
-    }
-}
+val os = System.getProperty("os.name")
+val isMac = os.startsWith("Mac OS", true)
+val isLinux = os.startsWith("Linux", true)
 
 /*
     For publishing to the central portal without release to maven, do this command:
@@ -110,12 +106,13 @@ mavenPublishing {
         }
     }
 }
-/*
-signing {
-    isRequired = true
-    sign(publishing.publications)
+
+val javaVersion = JavaLanguageVersion.of(libs.versions.java.get().toInt())
+java {
+    toolchain {
+        languageVersion.set(javaVersion)
+    }
 }
-*/
 android {
     compileSdk = libs.versions.androidSdk.get().toInt()
     buildToolsVersion = libs.versions.androidBuildTools.get()
@@ -148,13 +145,11 @@ android {
     }
 }
 
+/*
+Only run apple targets on macos, so only those publish and do not overlap with linux
+builds. Linux does JVM, linux native, and android targets.
+ */
 kotlin {
-    jvmToolchain {
-        languageVersion = javaVersion
-    }
-    androidTarget {
-    }
-
     cocoapods {
         ios.deploymentTarget = iosMinSdk
         summary = "Kotlin Multiplatform API for basic File I/O"
@@ -194,7 +189,8 @@ kotlin {
             framework {
                 appleXcf.add(this)
                 isStatic = true
-                freeCompilerArgs = freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
+                freeCompilerArgs =
+                    freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
             }
         }
     }
@@ -203,7 +199,8 @@ kotlin {
             framework {
                 appleXcf.add(this)
                 isStatic = true
-                freeCompilerArgs = freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
+                freeCompilerArgs =
+                    freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
             }
         }
     }
@@ -212,9 +209,16 @@ kotlin {
             framework {
                 appleXcf.add(this)
                 isStatic = true
-                freeCompilerArgs = freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
+                freeCompilerArgs =
+                    freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
             }
         }
+    }
+    jvmToolchain {
+        languageVersion = javaVersion
+    }
+    androidTarget {
+        publishLibraryVariants("release", "debug")
     }
     jvm()
     linuxX64() {
@@ -226,9 +230,9 @@ kotlin {
                 debuggable = true
             }
         }
-
     }
     linuxArm64()
+
     // Turns off warnings about expect/actual class usage
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     compilerOptions {
@@ -247,6 +251,16 @@ kotlin {
                 implementation(libs.bundles.kotlin.test)
             }
         }
+        val iosSimulatorArm64Test by getting {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
+            }
+        }
+        val iosX64Test by getting {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
+            }
+        }
         val androidUnitTest by getting {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
@@ -259,16 +273,6 @@ kotlin {
                 implementation(libs.bundles.kotlin.test)
                 implementation(kotlin("test-junit"))
                 implementation(libs.junit)
-            }
-        }
-        val iosSimulatorArm64Test by getting {
-            dependencies {
-                implementation(libs.bundles.kotlin.test)
-            }
-        }
-        val iosX64Test by getting {
-            dependencies {
-                implementation(libs.bundles.kotlin.test)
             }
         }
         val jvmTest by getting {
