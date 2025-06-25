@@ -3,7 +3,7 @@ package com.oldguy.common.io
 import android.app.Application
 import android.net.Uri
 import com.oldguy.common.io.charsets.Charset
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
 import java.io.BufferedReader
@@ -18,7 +18,9 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
 import java.util.*
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 actual class TimeZones {
     actual val defaultId: String = TimeZone.getDefault().id
     actual val kotlinxTz: kotlinx.datetime.TimeZone = if (kotlinx.datetime.TimeZone.availableZoneIds.contains(defaultId))
@@ -39,6 +41,7 @@ actual class TimeZones {
     }
 }
 
+@OptIn(ExperimentalTime::class)
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
             this(parentDirectory + name, null)

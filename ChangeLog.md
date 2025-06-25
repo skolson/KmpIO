@@ -2,10 +2,14 @@
 
 ### 0.1.9 (6/25/2025)
 
-- rootProject.name changed to match mavenArtifactID of "kmp-io".  Turns out changing to the Vannik publishing plugin somehow uses rootProject.name (or possibly apple framework name, but that seems unllikely) instead of the maven artifact ID specified in the configuration clause. This leads to bad URLs:
-  - https://repo.maven.apache.org/maven2/io/github/skolson/KmpIO-macosx64/0.1.8/KmpIO-macosx64-0.1.8.pom gets an error and should have been
+- Gradle rootProject.name and project name changed to match mavenArtifactID of "kmp-io". See settings.gradle.  Turns out changing to the Vannik publishing plugin somehow uses project.name instead of the maven artifact ID specified in the configuration clause when it derives the "name" value in the "files" clause of each .module file created. This leads to bad URLs in any project trying to use 0.1.8 as a dependency:
+  - https://repo.maven.apache.org/maven2/io/github/skolson/KmpIO-macosx64/0.1.8/KmpIO-macosx64-0.1.8.pom gets an error since it doesn't exist. URL should have been:
   - https://repo.maven.apache.org/maven2/io/github/skolson/kmp-io-macosx64/0.1.8/kmp-io-macosx64-0.1.8.pom
-  - In 0.1.8 (and all prior), "KmpIO" was used as the root project name and the apple framework name.
+  - In 0.1.8 (and all prior), "KmpIO" was used as the root project name and the project name since that was the original directory name for the project.
+  - See [Vanniktech issue 1020](https://github.com/vanniktech/gradle-maven-publish-plugin/issues/1020)
+- For consistency, changed Apple framework name to "kmp-io" from "KmpIO"
+- Fix issue #16
+- kotlinx-datetime 0.7.0 (just released). This required changing Instant and Clock to the kotlin.time package as the ones in kotlinx-datetime are being deleted as redundant.
 
 ### 0.1.8 (6/23/2025)
 

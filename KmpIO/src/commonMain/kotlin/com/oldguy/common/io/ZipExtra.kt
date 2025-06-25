@@ -1,9 +1,9 @@
 package com.oldguy.common.io
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
 
 /**
  * The extra field ByteArray on directory records has a basic list structure. Its total length
@@ -153,6 +153,7 @@ class ZipExtraZip64(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 class ZipExtraNtfs(
     length: Short
 ): ZipExtra(

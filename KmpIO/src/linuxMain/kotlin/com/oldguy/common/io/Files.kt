@@ -1,14 +1,16 @@
 package com.oldguy.common.io
 
 import kotlinx.cinterop.*
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import platform.posix.*
 import kotlin.*
+import kotlin.time.ExperimentalTime
 
 
+@OptIn(ExperimentalTime::class)
 actual class TimeZones {
     actual val defaultId: String = TimeZone.currentSystemDefault().id
     actual val kotlinxTz: TimeZone = if (TimeZone.availableZoneIds.contains(defaultId))
@@ -64,7 +66,7 @@ actual class TimeZones {
  * @property otherPermissions File permission bits for others (Linux-specific).
  * @property newPermissions Default permissions to use for newly created files and directories, represented as an octal string.
  */
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalTime::class, ExperimentalForeignApi::class)
 actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
 {
     actual constructor(parentDirectory: String, name: String) :

@@ -1,9 +1,9 @@
 package com.oldguy.common.io
 
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 /**
  * Combines directory and local directory header [ZipExtraParser] instances. Functions:
@@ -245,6 +245,7 @@ class ZipEntry(
         ))
     }
 
+    @OptIn(ExperimentalTime::class)
     companion object {
         val defaultVersion = ZipVersion(4, 5)
         const val defaultCompressionValue: Short = 8

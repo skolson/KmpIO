@@ -1,7 +1,5 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
-import java.util.Properties
-import java.io.FileInputStream
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
@@ -18,15 +16,6 @@ plugins {
     }
 }
 
-// These properties from local.properties file will hopefully be used by the Vanniktech publish plugin
-Properties().apply {
-    load(FileInputStream(project.rootProject.file("local.properties")))
-    project.extra["signing.keyId"] = get("signing.keyId")
-    project.extra["signing.password"] = get("signing.password")
-    project.extra["signing.secretKeyRingFile"] = get("signing.secretKeyRingFile")
-    project.extra["mavenCentralUsername"] = get("sonaTokenUser")
-    project.extra["mavenCentralPassword"] = get("sonaToken")
-}
 
 repositories {
     gradlePluginPortal()
@@ -42,7 +31,7 @@ repositories {
     }
 }
 
-val appleFrameworkName = rootProject.name
+val appleFrameworkName = "KmpIO"
 val githubUri = "skolson/$appleFrameworkName"
 val githubUrl = "https://github.com/$githubUri"
 
@@ -52,14 +41,12 @@ group = publishDomain
 version = appVersion
 
 val iosMinSdk = "14"
-val kmpPackageName = "com.oldguy.common.io"
-
-val androidMainDirectory = projectDir.resolve("src").resolve("androidMain")
-val os = System.getProperty("os.name")
-val isMac = os.startsWith("Mac OS", true)
-val isLinux = os.startsWith("Linux", true)
 
 /*
+ * For the publishing and signing tasks to work properly, insure the project settings for gradle have been
+ * configured to set the Gradle User Home to /mnt/gradle where gradle.properties holds credential
+ * information.
+
     For publishing to the central portal without release to maven, do this command:
     ./gradlew publishToMavenCentral --no-configuration-cache
 
@@ -69,7 +56,7 @@ val isLinux = os.startsWith("Linux", true)
     The --no-configuration-cache is required by https://github.com/gradle/gradle/issues/22779
  */
 mavenPublishing {
-    coordinates(publishDomain, rootProject.name, appVersion)
+    coordinates(publishDomain, name, appVersion)
     configure(
         KotlinMultiplatform(
             JavadocJar.Dokka("dokkaGeneratePublicationHtml"),
@@ -79,7 +66,7 @@ mavenPublishing {
     )
 
     pom {
-        name.set("$appleFrameworkName Kotlin Multiplatform Common File I/O")
+        name.set("Kotlin Multiplatform File I/O")
         description.set("Library for simple Text, Binary, and Zip file I/O on supported 64 bit platforms; Android, IOS, Windows, Linux, MacOS")
         url.set(githubUrl)
         inceptionYear.set("2020")
@@ -150,6 +137,7 @@ builds. Linux does JVM, linux native, and android targets.
  */
 kotlin {
     cocoapods {
+        name = appleFrameworkName
         ios.deploymentTarget = iosMinSdk
         summary = "Kotlin Multiplatform API for basic File I/O"
         homepage = githubUrl

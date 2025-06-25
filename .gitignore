@@ -7,7 +7,6 @@
 /KmpIO/build/
 /TestFiles/Work/
 *.iml
-local.properties
 /KmpIO/secring.gpg
 /gradle/.idea/
 /.kotlin/

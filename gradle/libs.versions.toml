@@ -6,7 +6,7 @@ androidGradlePlugin = "8.12.0-alpha06"
 
 kotlin = "2.1.21"
 kotlinCoroutines = "1.10.2"
-kotlinx-datetime = "0.6.2"
+kotlinx-datetime = "0.7.0"
 
 androidBuildTools = "36.0.0"
 androidSdk = "36"

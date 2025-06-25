@@ -2,6 +2,7 @@ package com.oldguy.common.io
 
 import com.oldguy.common.getShortAt
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.number
 import kotlin.experimental.and
 
 /**
@@ -131,8 +132,8 @@ data class ZipTime(val modTime: UShort, val modDate: UShort) {
                     ((1 shl 21) or (1 shl 16)).toUShort()
                 else {
                     (((year - 1980) shl 9) or
-                            (monthNumber shl 5) or
-                            dayOfMonth).toUShort()
+                            (month.number shl 5) or
+                            day).toUShort()
                 }
             }
         }
