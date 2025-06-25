@@ -1,7 +1,7 @@
 package com.oldguy.common.io
 
 import kotlinx.cinterop.*
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -17,7 +17,9 @@ import platform.Foundation.temporaryDirectory
 import platform.Foundation.timeIntervalSince1970
 import platform.posix.errno
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 actual class TimeZones {
     actual val defaultId: String = NSTimeZone.defaultTimeZone.name
     actual val kotlinxTz: TimeZone = if (TimeZone.availableZoneIds.contains(defaultId))
@@ -27,7 +29,7 @@ actual class TimeZones {
         TimeZone.UTC
     }
 
-    actual fun localFromEpochMilliseconds(epochMilliseconds: Long): LocalDateTime {
+   actual fun localFromEpochMilliseconds(epochMilliseconds: Long): LocalDateTime {
         return Instant
             .fromEpochMilliseconds(epochMilliseconds)
             .toLocalDateTime(kotlinxTz)
