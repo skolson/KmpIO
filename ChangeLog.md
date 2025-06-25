@@ -7,7 +7,6 @@
   - https://repo.maven.apache.org/maven2/io/github/skolson/kmp-io-macosx64/0.1.8/kmp-io-macosx64-0.1.8.pom
   - In 0.1.8 (and all prior), "KmpIO" was used as the root project name and the project name since that was the original directory name for the project.
   - See [Vanniktech issue 1020](https://github.com/vanniktech/gradle-maven-publish-plugin/issues/1020)
-- For consistency, changed Apple framework name to "kmp-io" from "KmpIO"
 - Fix issue #16
 - kotlinx-datetime 0.7.0 (just released). This required changing Instant and Clock to the kotlin.time package as the ones in kotlinx-datetime are being deleted as redundant.
 
