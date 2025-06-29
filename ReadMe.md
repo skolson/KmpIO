@@ -19,9 +19,10 @@ Supported targets:
 - iosX64
 - iosArm64
 - iosSimulatorArm64
+- linuxX64
+- linuxArm64
 
-
-A common source set "appleMain" contains common source used by all three Apple targets. Project uses Kotlin's default hierarchy templte for source sets
+A common source set "appleMain" contains common source used by all Apple targets. Project uses Kotlin's default hierarchy template for source sets.
 
 ## Reason for Existence
 
@@ -57,7 +58,7 @@ Define the library as a gradle dependency (assumes mavenCentral() is defined as 
 
 ```
     dependencies {
-        implementation("io.github.skolson:kmp-io:0.1.5")
+        implementation("io.github.skolson:kmp-io:0.2.0")
     }  
 ```
 
@@ -74,17 +75,21 @@ These Kotlin-only implementations offer similar functionality to java.nio.ByteBu
 
 ## Charset
 
-This is a wrapper for platform-specific implementations of a few basic Charsets supporting encoding and decoding as desired. Native implementations of each Charset are used with the standard expect/actual setup. Charsets currently included are:
+These are pure Kotlin implementations of a few basic Charsets supporting encoding and decoding as desired. Charsets currently included are:
 
-- UTF-8
+- UTF-8 - built into Kotlin on all platforms
 - ISO8859_1 - similar but not identical to UTF-8
 - UTF-16LE - two bytes, little endian
 - UTF-16BE - two bytes, big endian
-- US-ASCII - I never used this one but its in there
+- UTF-32LE - four bytes, little endian
+- UTF-32BE - four bytes, big endian
+- Windows1252 - similar to ISO8859-1, used by Windows platforms
+
+Other charsets are easy to add if useful.
 
 ## Base64
 
-Pure Kotlin implementation of Base 64 encoding/decoding, without use of platform-specific implementations.
+Pure Kotlin implementation of Base 64 encoding/decoding, without use of platform-specific implementations. 
 
 ## File 
 
@@ -123,6 +128,14 @@ Used for reading or writing Zip/archive files using Kotlin-friendly, platform-in
     - End of Central Directory record
     - Zip64 End of Central Directory record and locator record
     - others
+
+## Path
+
+A simple pure Kotlin class for implementing file path string operations.
+
+## Directory
+
+A small set of Pure Kotlin helper functions for traversing a directory tree, deleting a directory tree etc. Relies on the underlying File implementations.  
 
 ## Compression
 
@@ -261,7 +274,6 @@ Examples shown exercise properties available on any platform supported by the li
                 path: String            // include file name
                 directoryPath: String   // just the path of the directory containing this file
                 isDirectory: Boolean
-                listNames: List<String>
                 exists: Boolean
                 size: ULong
                 lastModified: LocalDateTime // internal time converted to kotlinx equivalent using system TimeZone 

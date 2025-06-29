@@ -2,8 +2,8 @@
 appVersion = "0.2.0"
 java = "21"
 
-androidGradlePlugin = "8.12.0-alpha07"
-#androidGradlePlugin = "8.11.0-alpha07" Idea unit testing
+#androidGradlePlugin = "8.12.0-alpha07"
+androidGradlePlugin = "8.11.0-alpha07" #Idea unit testing
 
 kotlin = "2.2.0"
 kotlinCoroutines = "1.10.2"

@@ -198,9 +198,10 @@ class FileTests(testDirPath: String) {
         val hexContent = Utf16LE().encode(textContent)
 
         suspend fun testDirectory(): File {
-            val up = File("..")
-            assertTrue(up.exists)
-            return up.resolve("TestFiles")
+            File.workingDirectory().apply {
+                assertTrue(exists)
+                return resolve("TestFiles")
+            }
         }
     }
 }
@@ -239,6 +240,7 @@ class FileUnitTests {
     fun directoryList() {
         runTest {
             FileTests.testDirectory().apply {
+                println(fullPath)  // Use to find full path iosX64 and android tests are using.
                 directoryList().apply {
                     println(this)
                     assertEquals(7, size)

@@ -155,7 +155,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         return list
     }
 
-    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(it) }
+    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(this,it) }
     actual fun newFile() = File(fullPath)
 
     /**

@@ -1,7 +1,9 @@
 package com.oldguy.common.test
 
+import com.oldguy.common.io.FileTests
 import com.oldguy.common.io.ZipFileTests
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.time.ExperimentalTime
 
@@ -40,7 +42,9 @@ class ZipFileBasics {
 
     @Test
     fun zip64LargeFileReadTest() {
-        tests.zip64LargeFileRead()
+        runTest {
+            tests.zip64LargeFileRead(FileTests.testDirectory())
+        }
     }
 
     @Test
