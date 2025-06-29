@@ -49,8 +49,17 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     constructor(parentDirectory: File, name: String)
     constructor(fd: FileDescriptor)
 
+    /**
+     * Name of the file or directory, without the owning path
+     */
     val name: String
+    /**
+     * Name of the file or directory, without any trailing extension
+     */
     val nameWithoutExtension: String
+    /**
+     * If there is aName of the file or directory, without any trailing extension
+     */
     val extension: String
     val path: String
     val fullPath: String
@@ -71,6 +80,8 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     suspend fun makeDirectory(): File
     suspend fun resolve(directoryName: String, make: Boolean = true): File
     suspend fun directoryList(): List<String>
+    suspend fun directoryFiles(): List<File>
+
     fun up(): File
 
     /**

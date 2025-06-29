@@ -1,5 +1,12 @@
 # Change Log
 
+### 0.2.0 (2025-07)
+
+- Kotlin 2.2.0
+- Added directoryFiles() suspend function to File class, files() suspend function to Directory class
+- Make baseNames the same across all apple targets. IOS was defaulting to Gradle project name, which no longer matches the framework name.
+- Fix bug in jvm where java.io.File.pathSeparator ":" was being used, should have been java.io.File.separator which is "/" or "\" depending on platform
+
 ### 0.1.9 (6/25/2025)
 
 - Gradle rootProject.name and project name changed to match mavenArtifactID of "kmp-io". See settings.gradle.  Turns out changing to the Vannik publishing plugin somehow uses project.name instead of the maven artifact ID specified in the configuration clause when it derives the "name" value in the "files" clause of each .module file created. This leads to bad URLs in any project trying to use 0.1.8 as a dependency:

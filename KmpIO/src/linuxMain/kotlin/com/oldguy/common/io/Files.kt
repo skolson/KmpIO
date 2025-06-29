@@ -179,6 +179,8 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         return list
     }
 
+    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(this,it) }
+
     actual suspend fun delete(): Boolean {
 
         return remove(fullPath) == 0

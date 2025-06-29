@@ -12,9 +12,18 @@ class Directory(dirPath: String)
 
     }
 
+    /**
+     * Checks that the dirPath exists and is a directory
+     */
     val directory = File(dirPath).apply {
         check(this)
     }
+
+    /**
+     * Returns a list of files in the current directory.
+     */
+    suspend fun list(): List<File>  = directory.directoryFiles()
+
     /**
      * Recursively traverses the directory tree starting from the current directory and collects all files into a list.
      *
@@ -74,9 +83,9 @@ class Directory(dirPath: String)
         private fun check(dir: File) {
             dir.apply {
                 if (!exists)
-                    throw IllegalStateException("Temp directory $fullPath does not exist")
+                    throw IllegalStateException("Directory $fullPath does not exist")
                 if (!isDirectory)
-                    throw IllegalStateException("Temp directory $fullPath is not a directory")
+                    throw IllegalStateException("File $fullPath is not a directory")
             }
         }
 

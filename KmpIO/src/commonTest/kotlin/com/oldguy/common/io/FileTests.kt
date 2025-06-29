@@ -7,6 +7,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.*
 import kotlin.test.*
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 @ExperimentalCoroutinesApi
 class FileTests(testDirPath: String) {
@@ -66,6 +68,7 @@ class FileTests(testDirPath: String) {
         return lines
     }
 
+    @OptIn(ExperimentalTime::class)
     fun textFileWriteRead(charset: Charset) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
@@ -87,16 +90,17 @@ class FileTests(testDirPath: String) {
                 val lastModDate = lastModified!!
                 val createdDate = createdTime!!
                 val lastAccessDate = lastAccessTime!!
+                val x = Clock.System.now().toLocalDateTime(TimeZone.UTC)
                 Clock.System.now().toLocalDateTime(TimeZones.default).apply {
                     assertEquals(year, lastModDate.year)
-                    assertEquals(monthNumber, lastModDate.monthNumber)
-                    assertEquals(dayOfMonth, lastModDate.dayOfMonth)
+                    assertEquals(month.number, lastModDate.month.number)
+                    assertEquals(day, lastModDate.day)
                     assertEquals(year, lastAccessDate.year)
-                    assertEquals(monthNumber, lastAccessDate.monthNumber)
-                    assertEquals(dayOfMonth, lastAccessDate.dayOfMonth)
+                    assertEquals(month.number, lastAccessDate.month.number)
+                    assertEquals(day, lastAccessDate.day)
                     assertEquals(year, createdDate.year)
-                    assertEquals(monthNumber, createdDate.monthNumber)
-                    assertEquals(dayOfMonth, createdDate.dayOfMonth)
+                    assertEquals(month.number, createdDate.month.number)
+                    assertEquals(day, createdDate.day)
                 }
             }
 
@@ -148,8 +152,9 @@ class FileTests(testDirPath: String) {
     fun testRawWriteRead(namePrefix: String, copyCount: Int = 10) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
+            println("subDir: ${subDir.fullPath}, prefix: $namePrefix")
             var fil = File(subDir, "${namePrefix}Hex.utf16")
-            val rc = fil.delete()
+            fil.delete()
             RawFile(fil, FileMode.Write).use { file ->
                 repeat(copyCount) { file.write(ByteBuffer(hexContent)) }
             }
@@ -227,6 +232,29 @@ class FileUnitTests {
             tests.testRawWriteRead("Small", 1)
         } catch (e: Throwable) {
             e.printStackTrace()
+        }
+    }
+
+    @Test
+    fun directoryList() {
+        runTest {
+            FileTests.testDirectory().apply {
+                directoryList().apply {
+                    println(this)
+                    assertEquals(7, size)
+                    assertTrue { contains("ZerosZip64.zip") }
+                    assertTrue { contains("Zip64_90,000_files.zip") }
+                    assertTrue { contains("SmallTextAndBinary.zip") }
+                    assertTrue { contains("ic_help_grey600_48dp.png") }
+                    assertTrue { contains("ic_help_grey600_48dp.7zip.zip") }
+                    assertTrue { contains("dir1") }
+                    assertTrue { contains("dir2") }
+                }
+                directoryFiles().apply {
+                    assertEquals(7, size)
+                    forEach { assertTrue { it.exists } }
+                }
+            }
         }
     }
 }

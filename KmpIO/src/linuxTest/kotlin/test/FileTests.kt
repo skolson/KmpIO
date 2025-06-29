@@ -8,6 +8,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /*
 ./gradlew :KmpIO:linuxX64Test --tests "test.FileTestSuite.textUtf8Basics"
@@ -44,12 +45,7 @@ class FileTestSuite {
     @Test
     fun smallDirectoryTreeWalk() {
         runTest {
-            val work = File.workingDirectory()
-            val testDir = DirectoryTests(
-                File(work.fullPath.removeSuffix("/KmpIO"))
-                    .resolve( "TestFiles")
-                    .fullPath
-            )
+            val testDir = DirectoryTests(FileTests.testDirectory().fullPath)
             testDir.testTree()
         }
     }

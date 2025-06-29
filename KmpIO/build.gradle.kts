@@ -174,6 +174,7 @@ kotlin {
     iosX64 {
         binaries {
             framework {
+                baseName = appleFrameworkName
                 appleXcf.add(this)
                 isStatic = true
                 freeCompilerArgs =
@@ -184,6 +185,7 @@ kotlin {
     iosSimulatorArm64 {
         binaries {
             framework {
+                baseName = appleFrameworkName
                 appleXcf.add(this)
                 isStatic = true
                 freeCompilerArgs =
@@ -194,6 +196,7 @@ kotlin {
     iosArm64 {
         binaries {
             framework {
+                baseName = appleFrameworkName
                 appleXcf.add(this)
                 isStatic = true
                 freeCompilerArgs =
@@ -236,6 +239,7 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
+                implementation(libs.kotlinx.datetime)
             }
         }
         val iosSimulatorArm64Test by getting {

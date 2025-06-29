@@ -198,7 +198,7 @@ class ZipFileTests {
         ZipEntry("Any", lastModTime = d).apply {
             assertEquals(d.year, timeModified.year)
             assertEquals(d.month, timeModified.month)
-            assertEquals(d.dayOfMonth, timeModified.dayOfMonth)
+            assertEquals(d.day, timeModified.day)
             assertEquals(d.hour, timeModified.hour)
             assertEquals(d.minute, timeModified.minute)
             assertEquals(d.second, (timeModified.second - (timeModified.second % 2)))

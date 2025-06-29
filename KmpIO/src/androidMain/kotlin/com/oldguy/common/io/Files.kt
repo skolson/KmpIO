@@ -94,10 +94,12 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
         return if (isDirectory)
-            javaFile.listFiles()?.map { it.absolutePath } ?: emptyList()
+            javaFile.listFiles()?.map { it.name } ?: emptyList()
         else
             list
     }
+
+    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(it) }
 
     val fd: Uri? =
         if (platformFd != null && platformFd.code == 1)

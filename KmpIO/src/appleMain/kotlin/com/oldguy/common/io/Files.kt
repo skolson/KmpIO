@@ -50,7 +50,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
             this(Path.newPath(parentDirectory.fullPath, name, pathSeparator), null)
 
     actual constructor(fd: FileDescriptor) : this("", fd)
-    private val fm = NSFileManager.defaultManager
+    private val fm get() = NSFileManager.defaultManager
     private val p = Path(filePath, pathSeparator)
     actual val name = p.name
     actual val nameWithoutExtension = p.nameWithoutExtension
@@ -145,7 +145,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
                 names.forEach { name ->
                     name?.let { ptr ->
                         (ptr as String).apply {
-                            if (isNotEmpty() && this != DS_STORE)
+                            if (isNotEmpty() && !this.endsWith(DS_STORE, true))
                                 list.add(this)
                         }
                     }
@@ -155,6 +155,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         return list
     }
 
+    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(it) }
     actual fun newFile() = File(fullPath)
 
     /**

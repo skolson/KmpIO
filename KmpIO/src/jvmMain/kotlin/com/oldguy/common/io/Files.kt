@@ -53,7 +53,9 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     actual val nameWithoutExtension: String = javaFile.nameWithoutExtension
     actual val extension: String = if (javaFile.extension.isNotEmpty()) ".${javaFile.extension}" else ""
     actual val path: String = javaFile.path.trimEnd(pathSeparator)
-    actual val fullPath: String = javaFile.absolutePath.trimEnd(pathSeparator)
+    actual val fullPath: String = javaFile
+        .absolutePath
+        .trimEnd(pathSeparator)
     actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator)
     actual val isParent = directoryPath.isNotEmpty()
     actual val isDirectory get() = javaFile.isDirectory
@@ -87,10 +89,12 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
         return if (isDirectory)
-            javaFile.listFiles()?.map { it.absolutePath } ?: emptyList()
+            javaFile.listFiles()?.map { it.name } ?: emptyList()
         else
             list
     }
+
+    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(this,it) }
 
     val fd: URI? =
         if (platformFd != null && platformFd.code == 1)
@@ -144,7 +148,7 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     }
 
     actual companion object {
-        actual val pathSeparator = java.io.File.pathSeparator[0]
+        actual val pathSeparator = java.io.File.separator[0]
         actual fun tempDirectoryPath(): String = System.getProperty("java.io.tmpdir")
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
