@@ -1,6 +1,6 @@
 package com.oldguy.common.io
 
-import android.app.Application
+import android.content.Context
 import android.net.Uri
 import com.oldguy.common.io.charsets.Charset
 import kotlin.time.Instant
@@ -93,13 +93,14 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual suspend fun directoryList(): List<String> {
         val list = mutableListOf<String>()
-        return if (isDirectory)
-            javaFile.listFiles()?.map { it.name } ?: emptyList()
-        else
+        return if (isDirectory) {
+            val x = javaFile.listFiles()
+            x?.map { it.name } ?: emptyList()
+        } else
             list
     }
 
-    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(it) }
+    actual suspend fun directoryFiles(): List<File> = directoryList().map { File(this,it) }
 
     val fd: Uri? =
         if (platformFd != null && platformFd.code == 1)
@@ -152,7 +153,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
 
     actual companion object {
         actual val pathSeparator = '/'
-        lateinit var appContext: Application
+        lateinit var appContext: Context
 
         actual fun tempDirectoryPath(): String {
             return appContext.cacheDir.absolutePath
@@ -160,7 +161,15 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
         actual fun workingDirectory(): File {
-            return File(appContext.filesDir.absolutePath)
+            val l = appContext.filesDir
+            val n = l.resolve("TestFiles")
+            val j = n.exists()
+            val rc = n.mkdirs()
+            val x = n.listFiles()
+            val y = l.listFiles()
+            return File(appContext.filesDir.absolutePath
+                ?: throw IllegalStateException("Cannot access appContext filesDir")
+            )
         }
 
         actual val defaultTimeZone = TimeZones()

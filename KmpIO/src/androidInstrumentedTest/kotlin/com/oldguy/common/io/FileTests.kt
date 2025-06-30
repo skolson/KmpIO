@@ -1,12 +1,20 @@
 package com.oldguy.common.io
 
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.rule.GrantPermissionRule
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.charsets.Charsets
 import com.oldguy.common.io.charsets.Utf16LE
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.*
+import kotlinx.datetime.number
+import org.junit.Rule
 import kotlin.test.*
+import kotlin.test.Test
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 @ExperimentalCoroutinesApi
 class FileTests(testDirPath: String) {
@@ -71,6 +79,7 @@ class FileTests(testDirPath: String) {
         return lines
     }
 
+    @OptIn(ExperimentalTime::class)
     fun textFileWriteRead(charset: Charset) {
         runTest {
             val subDir = testDirectory.resolve(subDirName)
@@ -92,14 +101,14 @@ class FileTests(testDirPath: String) {
             val lastAccessDate = fil.lastAccessTime!!
             val nowTime = Clock.System.now().toLocalDateTime(TimeZones.default)
             assertEquals(nowTime.year, lastModDate.year)
-            assertEquals(nowTime.monthNumber, lastModDate.monthNumber)
-            assertEquals(nowTime.dayOfMonth, lastModDate.dayOfMonth)
+            assertEquals(nowTime.month.number, lastModDate.month.number)
+            assertEquals(nowTime.day, lastModDate.day)
             assertEquals(nowTime.year, lastAccessDate.year)
-            assertEquals(nowTime.monthNumber, lastAccessDate.monthNumber)
-            assertEquals(nowTime.dayOfMonth, lastAccessDate.dayOfMonth)
+            assertEquals(nowTime.month.number, lastAccessDate.month.number)
+            assertEquals(nowTime.day, lastAccessDate.day)
             assertEquals(nowTime.year, createdDate.year)
-            assertEquals(nowTime.monthNumber, createdDate.monthNumber)
-            assertEquals(nowTime.dayOfMonth, createdDate.dayOfMonth)
+            assertEquals(nowTime.month.number, createdDate.month.number)
+            assertEquals(nowTime.day, createdDate.day)
 
             val textFileIn = TextFile(
                 fil,
@@ -193,18 +202,28 @@ class FileTests(testDirPath: String) {
         val hexContent = Utf16LE().encode(textContent)
 
         suspend fun testDirectory(): File {
-            val up = File("..")
-            assertTrue(up.exists)
-            return up.resolve("TestFiles")
+            File.workingDirectory().apply {
+                assertTrue(exists)
+                return resolve("TestFiles")
+            }
         }
     }
 }
 
 @ExperimentalCoroutinesApi
 class FileUnitTests {
-    private val path = File.tempDirectoryPath()
-    private val tests = FileTests(path)
 
+    private val path: String
+    private val tests: FileTests
+
+    init {
+        //File.appContext = ApplicationProvider.getApplicationContext()
+        File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        @Rule
+        GrantPermissionRule.grant(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        path = File.tempDirectoryPath()
+        tests = FileTests(path)
+    }
     @Test
     fun textUtf8Basics() {
         tests.filesBasics()
@@ -227,6 +246,40 @@ class FileUnitTests {
             tests.testRawWriteRead("Small", 1)
         } catch (e: Throwable) {
             e.printStackTrace()
+        }
+    }
+
+    /**
+     * appContext paths
+     * getExternalDir() path:
+     *      /storage/emulated/0/Android/data/com.oldguy.iocommon.test/files/TestFiles
+     * filesDir path:
+     *      /data/data/com.oldguy.iocommon.test/files
+     *
+     * NOTE: The unit test wipes the all the subdirectories for the app every test. The only
+     * current wy to have this match real world is to breakpoint after is has retrieved the
+     * test directory, and then upload the stuff to be read by listFiles
+     */
+    @Test
+    fun directoryList() {
+        runTest {
+            FileTests.testDirectory().apply {
+                directoryList().apply {
+                    println(this)
+                    assertEquals(7, size)
+                    assertTrue { contains("ZerosZip64.zip") }
+                    assertTrue { contains("Zip64_90,000_files.zip") }
+                    assertTrue { contains("SmallTextAndBinary.zip") }
+                    assertTrue { contains("ic_help_grey600_48dp.png") }
+                    assertTrue { contains("ic_help_grey600_48dp.7zip.zip") }
+                    assertTrue { contains("dir1") }
+                    assertTrue { contains("dir2") }
+                }
+                directoryFiles().apply {
+                    assertEquals(7, size)
+                    forEach { assertTrue { it.exists } }
+                }
+            }
         }
     }
 }

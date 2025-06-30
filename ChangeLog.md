@@ -6,6 +6,7 @@
 - Added directoryFiles() suspend function to File class, files() suspend function to Directory class
 - Make baseNames the same across all apple targets. IOS was defaulting to Gradle project name, which no longer matches the framework name.
 - Fix bug in jvm where java.io.File.pathSeparator ":" was being used, should have been java.io.File.separator which is "/" or "\" depending on platform
+- Fix android to be consistent with other targets when using suspend fun listFiles(). So listFiles() now returns only the name of each entry, not the full path. Use suspend fun directoryFiles() to get a list that contains one File instance for each entry.  
 
 ### 0.1.9 (6/25/2025)
 

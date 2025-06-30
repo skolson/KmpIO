@@ -264,6 +264,7 @@ kotlin {
                 implementation(libs.bundles.kotlin.test)
                 implementation(kotlin("test-junit"))
                 implementation(libs.junit)
+                implementation(libs.androidx.test.rules)
             }
         }
         val jvmTest by getting {

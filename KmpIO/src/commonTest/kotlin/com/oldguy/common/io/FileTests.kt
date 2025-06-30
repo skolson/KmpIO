@@ -252,7 +252,9 @@ class FileUnitTests {
                 }
                 directoryFiles().apply {
                     assertEquals(7, size)
-                    forEach { assertTrue { it.exists } }
+                    forEach {
+                        assertTrue { it.exists }
+                    }
                 }
             }
         }
