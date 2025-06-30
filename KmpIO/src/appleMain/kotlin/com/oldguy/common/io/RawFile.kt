@@ -38,25 +38,36 @@ class AppleFileHandle(val file: File, mode: FileMode)
     var updating = false
         private set
     val fullPath = file.fullPath
-    val handle = when (mode) {
-        FileMode.Read ->
-            NSFileHandle.fileHandleForReadingAtPath(fullPath)
-        FileMode.Write -> {
-            updating = file.exists
-            if (updating) {
-                NSFileHandle.fileHandleForUpdatingAtPath(fullPath)
-            } else {
-                val fm = NSFileManager.defaultManager
-                if (fm.createFileAtPath(fullPath, null, null))
-                    NSFileHandle.fileHandleForWritingAtPath(fullPath)
-                else
-                    throw IllegalArgumentException("Create file failed: $fullPath ")
-            }
-        }
-    } ?: throw IllegalArgumentException("Path $fullPath mode $mode could not be opened")
+    val handle:NSFileHandle get() {
+        if (closed)
+            throw IllegalStateException("File $fullPath is closed")
+        return field
+    }
 
+    private var closed = false
+
+    init {
+        handle = when (mode) {
+            FileMode.Read ->
+                NSFileHandle.fileHandleForReadingAtPath(fullPath)
+            FileMode.Write -> {
+                updating = file.exists
+                if (updating) {
+                    NSFileHandle.fileHandleForUpdatingAtPath(fullPath)
+                } else {
+                    val fm = NSFileManager.defaultManager
+                    if (fm.createFileAtPath(fullPath, null, null))
+                        NSFileHandle.fileHandleForWritingAtPath(fullPath)
+                    else
+                        throw IllegalArgumentException("Create file failed: $fullPath ")
+                }
+            }
+        } ?: throw IllegalArgumentException("Path $fullPath mode $mode could not be opened")
+    }
     fun close() {
-        handle.closeFile()
+        if (!closed)
+            handle.closeFile()
+        closed = true
     }
 }
 
@@ -68,7 +79,7 @@ actual class RawFile actual constructor(
 ): Closeable
 {
     private val apple = AppleFileHandle(fileArg, mode)
-    private val fullPath = apple.fullPath
+    private val fullPath = fileArg.fullPath
     actual val file = fileArg
 
     /**
@@ -100,7 +111,7 @@ actual class RawFile actual constructor(
     /**
      * Current size of the file in bytes
      */
-    actual val size: ULong get() = apple.file.size
+    actual val size: ULong get() = file.newFile().size
     actual var blockSize: UInt = 4096u
 
     actual override suspend fun close() {

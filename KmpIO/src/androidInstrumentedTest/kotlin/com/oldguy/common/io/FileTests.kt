@@ -1,8 +1,6 @@
 package com.oldguy.common.io
 
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.rule.GrantPermissionRule
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.charsets.Charsets
 import com.oldguy.common.io.charsets.Utf16LE
@@ -10,7 +8,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.*
 import kotlinx.datetime.number
-import org.junit.Rule
 import kotlin.test.*
 import kotlin.test.Test
 import kotlin.time.Clock
@@ -219,8 +216,6 @@ class FileUnitTests {
     init {
         //File.appContext = ApplicationProvider.getApplicationContext()
         File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        @Rule
-        GrantPermissionRule.grant(android.Manifest.permission.READ_EXTERNAL_STORAGE)
         path = File.tempDirectoryPath()
         tests = FileTests(path)
     }

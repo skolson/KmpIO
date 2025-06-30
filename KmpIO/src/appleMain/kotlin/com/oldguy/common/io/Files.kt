@@ -197,8 +197,9 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         if (path.isEmpty() || path.isBlank())
             return false
         memScoped {
-            val isDirPointer = alloc<BooleanVar>()
-            return fm.fileExistsAtPath(path, isDirPointer.ptr)
+            alloc<BooleanVarOf<Boolean>>().also {
+                return fm.fileExistsAtPath(path, it.ptr)
+            }
         }
     }
 
@@ -220,21 +221,18 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
          * @param block lambda that typically uses the errorPointer argument in an Apple API that requires an NSError**
          */
         fun <T> throwError(block: (errorPointer: CPointer<ObjCObjectVar<NSError?>>) -> T): T {
-            val errorPointer: ObjCObjectVar<NSError?> = nativeHeap.alloc()
-            try {
-                val result: T = block(errorPointer.ptr)
-                errorPointer.value?.let {
+            memScoped {
+                val errorPtr = alloc<ObjCObjectVar<NSError?>>()
+                val result: T = block(errorPtr.ptr)
+                errorPtr.value?.let {
                     val appleError = NSErrorException(it)
                     println("Attempting throw NSErrorException:")
                     println(appleError.toString())
                     throw appleError
                 }
                 return result
-            } finally {
-                nativeHeap.free(errorPointer)
             }
         }
-
     }
 }
 
