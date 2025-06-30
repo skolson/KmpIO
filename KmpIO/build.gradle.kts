@@ -4,6 +4,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
+import org.gradle.internal.os.OperatingSystem
 
 plugins {
     libs.plugins.also {
@@ -135,6 +136,7 @@ android {
 Only run apple targets on macos, so only those publish and do not overlap with linux
 builds. Linux does JVM, linux native, and android targets.
  */
+val isLinux = OperatingSystem.current().isLinux
 kotlin {
     cocoapods {
         name = appleFrameworkName
@@ -211,17 +213,28 @@ kotlin {
         publishLibraryVariants("release", "debug")
     }
     jvm()
-    linuxX64() {
-        compilerOptions {
-            freeCompilerArgs.add("-g")
+    if (isLinux) {
+        linuxX64() {
+            compilerOptions {
+                freeCompilerArgs.add("-g")
+            }
+            binaries {
+                executable {
+                    debuggable = true
+                }
+            }
         }
-        binaries {
-            executable {
-                debuggable = true
+        linuxArm64() {
+            compilerOptions {
+                freeCompilerArgs.add("-g")
+            }
+            binaries {
+                executable {
+                    debuggable = true
+                }
             }
         }
     }
-    linuxArm64()
 
     // Turns off warnings about expect/actual class usage
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -273,9 +286,11 @@ kotlin {
                 implementation(libs.junit)
             }
         }
-        val linuxX64Test by getting {
-            dependencies {
-                implementation(libs.bundles.kotlin.test)
+        if (isLinux) {
+            val linuxX64Test by getting {
+                dependencies {
+                    implementation(libs.bundles.kotlin.test)
+                }
             }
         }
         all {
