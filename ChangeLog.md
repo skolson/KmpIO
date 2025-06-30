@@ -17,6 +17,7 @@
   - See [Vanniktech issue 1020](https://github.com/vanniktech/gradle-maven-publish-plugin/issues/1020)
 - Fix issue #16
 - kotlinx-datetime 0.7.0 (just released). This required changing Instant and Clock to the kotlin.time package as the ones in kotlinx-datetime are being deleted as redundant.
+- Fix Issue #4 that was causing an error during garbage collection on IOS and IOS Simulator (not unit tests). 
 
 ### 0.1.8 (6/23/2025)
 
