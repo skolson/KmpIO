@@ -180,19 +180,19 @@ class ZipExtraNtfs(
         lastModifiedEpoch: Long,
         lastAccessEpoch: Long,
         createdEpoch: Long
-    ): this(totalLength) {
+    ): this(ENTRY_LENGTH) {
         this.lastModifiedEpoch = lastModifiedEpoch
         this.lastAccessEpoch = lastAccessEpoch
         this.createdEpoch = createdEpoch
     }
 
     override fun encode(buffer: ByteBuffer) {
-        if (length != totalLength)
-            throw ZipException("Zip extra NTFS field length is $length, expected $totalLength")
+        if (length != ENTRY_LENGTH)
+            throw ZipException("Zip extra NTFS field length is $length, expected $ENTRY_LENGTH")
         buffer.apply {
             int = reserved
             short = tag
-            short = tagSize
+            short = TAG_SIZE
             long = lastModifiedEpoch
             long = lastAccessEpoch
             long = createdEpoch
@@ -206,8 +206,8 @@ class ZipExtraNtfs(
             if (inTag != tag)
                 throw ZipException("Zip extra NTFS tag1 is $inTag, expected $tag")
             val sz = short
-            if (sz != tagSize)
-                throw ZipException("Zip extra NTFS tag1 is $sz, expected $tagSize")
+            if (sz != TAG_SIZE)
+                throw ZipException("Zip extra NTFS tag size is $sz, expected $TAG_SIZE")
             lastModifiedEpoch = long
             lastAccessEpoch = long
             createdEpoch = long
@@ -215,7 +215,7 @@ class ZipExtraNtfs(
     }
 
     companion object {
-        const val tagSize: Short = 16
-        const val totalLength = (tagSize + 4).toShort()
+        const val TAG_SIZE: Short = 24
+        const val ENTRY_LENGTH = (TAG_SIZE + 4).toShort()
     }
 }
