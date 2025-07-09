@@ -1,5 +1,9 @@
 # Change Log
 
+### 0.2.1 (2025-07)
+
+- Fix issue #20 - the expected length for an NTFS extra field was 16 and should have been 24 bytes (three 8-byte long epoch timestamps)
+
 ### 0.2.0 (2025-07)
 
 - Kotlin 2.2.0
