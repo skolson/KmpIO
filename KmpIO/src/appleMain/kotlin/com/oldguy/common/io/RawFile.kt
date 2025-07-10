@@ -5,10 +5,12 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ULongVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocArrayOf
 import kotlinx.cinterop.convert
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.pointed
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.toLong
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import platform.Foundation.NSData
@@ -31,7 +33,7 @@ import kotlin.math.min
  * also provides help for allocating and translating an NSError required. If an error occurs,
  * a Kotlin NSErrorException is thrown.
  */
-class AppleFileHandle(val file: File, mode: FileMode)
+class AppleFileHandle(file: File, mode: FileMode)
 {
     constructor(path: String, mode: FileMode): this(File(path), mode)
 
@@ -44,7 +46,7 @@ class AppleFileHandle(val file: File, mode: FileMode)
         return field
     }
 
-    private var closed = false
+    private var closed = true
 
     init {
         handle = when (mode) {
@@ -63,6 +65,7 @@ class AppleFileHandle(val file: File, mode: FileMode)
                 }
             }
         } ?: throw IllegalArgumentException("Path $fullPath mode $mode could not be opened")
+        closed = false
     }
     fun close() {
         if (!closed)
@@ -283,9 +286,12 @@ actual class RawFile actual constructor(
         if (buf.remaining == 0) return
         File.throwError { error ->
             position = newPos
-            buf.buf.usePinned {
-                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                apple.handle.writeData(nsData, error)
+            memScoped {
+                val bytes = buf.getBytes()
+                apple.handle.writeData(
+                    NSData.create(bytes = allocArrayOf(bytes), length = bytes.size.toULong()),
+                    error
+                )
             }
         }
         buf.position += buf.remaining
@@ -299,9 +305,12 @@ actual class RawFile actual constructor(
     actual suspend fun write(buf: ByteBuffer) {
         if (buf.remaining == 0) return
         File.throwError { error ->
-            buf.buf.usePinned {
-                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                apple.handle.writeData(nsData, error)
+            memScoped {
+                val bytes = buf.getBytes()
+                apple.handle.writeData(
+                    NSData.create(bytes = allocArrayOf(bytes), length = bytes.size.toULong()),
+                    error
+                )
             }
         }
         buf.position += buf.remaining
@@ -318,9 +327,12 @@ actual class RawFile actual constructor(
         if (buf.remaining == 0) return
         File.throwError { error ->
             position = newPos
-            buf.buf.usePinned {
-                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                apple.handle.writeData(nsData, error)
+            memScoped {
+                val bytes = buf.getBytes().toByteArray()
+                apple.handle.writeData(
+                    NSData.create(bytes = allocArrayOf(bytes), length = bytes.size.toULong()),
+                    error
+                )
             }
         }
         buf.position += buf.remaining    }
@@ -333,9 +345,12 @@ actual class RawFile actual constructor(
     actual suspend fun write(buf: UByteBuffer) {
         if (buf.remaining == 0) return
         File.throwError { error ->
-            buf.buf.usePinned {
-                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                apple.handle.writeData(nsData, error)
+            memScoped {
+                val bytes = buf.getBytes().toByteArray()
+                apple.handle.writeData(
+                    NSData.create(bytes = allocArrayOf(bytes), length = bytes.size.toULong()),
+                    error
+                )
             }
         }
         buf.position += buf.remaining

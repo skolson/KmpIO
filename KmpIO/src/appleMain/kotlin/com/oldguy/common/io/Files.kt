@@ -226,8 +226,6 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
                 val result: T = block(errorPtr.ptr)
                 errorPtr.value?.let {
                     val appleError = NSErrorException(it)
-                    println("Attempting throw NSErrorException:")
-                    println(appleError.toString())
                     throw appleError
                 }
                 return result
