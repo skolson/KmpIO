@@ -198,7 +198,7 @@ class FileTests(testDirPath: String) {
         val hexContent = Utf16LE().encode(textContent)
 
         suspend fun testDirectory(): File {
-            File.workingDirectory().apply {
+            File.workingDirectory().up().apply {
                 assertTrue(exists)
                 return resolve("TestFiles")
             }

@@ -52,4 +52,9 @@ class ZipFileBasics {
         tests.zipDirectoryTest(false)
         tests.zipDirectoryTest(true)
     }
+
+    @Test
+    fun ntfsTagTest() {
+        tests.ntfsTagTest()
+    }
 }

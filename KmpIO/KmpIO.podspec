@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
     spec.name                     = 'KmpIO'
-    spec.version                  = '0.2.0'
+    spec.version                  = '0.2.1'
     spec.homepage                 = 'https://github.com/skolson/KmpIO'
     spec.source                   = { :http=> ''}
     spec.authors                  = 'Steven Olson'

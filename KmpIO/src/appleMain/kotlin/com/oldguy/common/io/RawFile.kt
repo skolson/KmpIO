@@ -280,13 +280,12 @@ actual class RawFile actual constructor(
      * @return number of bytes actually read
      */
     actual suspend fun write(buf: ByteBuffer, newPos: ULong) {
+        if (buf.remaining == 0) return
         File.throwError { error ->
             position = newPos
-            memScoped {
-                buf.buf.usePinned {
-                    val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    apple.handle.writeData(nsData, error)
-                }
+            buf.buf.usePinned {
+                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
+                apple.handle.writeData(nsData, error)
             }
         }
         buf.position += buf.remaining
@@ -298,12 +297,11 @@ actual class RawFile actual constructor(
      * @return number of bytes actually read
      */
     actual suspend fun write(buf: ByteBuffer) {
+        if (buf.remaining == 0) return
         File.throwError { error ->
-            memScoped {
-                buf.buf.usePinned {
-                    val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    apple.handle.writeData(nsData, error)
-                }
+            buf.buf.usePinned {
+                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
+                apple.handle.writeData(nsData, error)
             }
         }
         buf.position += buf.remaining
@@ -317,13 +315,12 @@ actual class RawFile actual constructor(
      * @return number of bytes actually read
      */
     actual suspend fun write(buf: UByteBuffer, newPos: ULong) {
+        if (buf.remaining == 0) return
         File.throwError { error ->
             position = newPos
-            memScoped {
-                buf.buf.usePinned {
-                    val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    apple.handle.writeData(nsData, error)
-                }
+            buf.buf.usePinned {
+                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
+                apple.handle.writeData(nsData, error)
             }
         }
         buf.position += buf.remaining    }
@@ -334,12 +331,11 @@ actual class RawFile actual constructor(
      * @return number of bytes actually read
      */
     actual suspend fun write(buf: UByteBuffer) {
+        if (buf.remaining == 0) return
         File.throwError { error ->
-            memScoped {
-                buf.buf.usePinned {
-                    val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
-                    apple.handle.writeData(nsData, error)
-                }
+            buf.buf.usePinned {
+                val nsData = NSData.create(bytesNoCopy = it.addressOf(buf.position), buf.remaining.convert())
+                apple.handle.writeData(nsData, error)
             }
         }
         buf.position += buf.remaining

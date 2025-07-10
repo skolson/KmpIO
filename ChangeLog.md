@@ -2,7 +2,9 @@
 
 ### 0.2.1 (2025-07)
 
-- Fix issue #20 - the expected length for an NTFS extra field was 16 and should have been 24 bytes (three 8-byte long epoch timestamps)
+- Fix issue #20. The expected length for an NTFS extra field was 16 and should have been 24 bytes (three 8-byte long epoch timestamps). Also the timestamps are now being properly converted from Windows FileTime to LocalDateTime. Also made timestamps available as Instant instances.
+- Gradle 8.14.3
+- kotlinx-datetime 0.7.1
 
 ### 0.2.0 (2025-07)
 

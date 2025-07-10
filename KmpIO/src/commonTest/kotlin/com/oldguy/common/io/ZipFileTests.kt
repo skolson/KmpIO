@@ -341,4 +341,29 @@ class ZipFileTests {
             }
         }
     }
+
+    /**
+     * Test decoding of an NTFS tag and its timestamps.
+     */
+    fun ntfsTagTest() {
+        val matchTs = LocalDateTime(2019, 10, 1, 12, 7, 55, 236000000 )
+        runTest {
+            ZipFile(
+                File(FileTests.testDirectory(), "ZipNtfsTags.zip")
+            ).use { zip ->
+                assertEquals(25, zip.map.size)
+                zip.entries.forEach {
+                    println("Entry: ${it.name}")
+                    it.extraParser.decode().forEach { extra ->
+                        if (extra is ZipExtraNtfs) {
+                            assertEquals("ComicInfo.xml", it.name)
+                            assertEquals(matchTs, extra.lastModified)
+                            assertEquals(matchTs, extra.lastAccess)
+                            assertEquals(matchTs, extra.created)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

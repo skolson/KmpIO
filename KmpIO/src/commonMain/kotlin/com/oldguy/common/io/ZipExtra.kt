@@ -153,6 +153,12 @@ class ZipExtraZip64(
     }
 }
 
+/**
+ * NTFS extra data consist of three timestamps that are each the number of
+ * 100-nanosecond intervals (since Jan 1, 1601 UTC). These are converted to
+ * epochMilliseconds (since Jan 1 1970), then to instants. Values are available as raw
+ * Window FileTime values, as Instant instances, and as LocalDateTime instances using the default time zone
+ */
 @OptIn(ExperimentalTime::class)
 class ZipExtraNtfs(
     length: Short
@@ -166,15 +172,12 @@ class ZipExtraNtfs(
     var createdEpoch = 0L
     var reserved = 0
 
-    val lastModified: LocalDateTime get() = Instant
-        .fromEpochMilliseconds(lastModifiedEpoch)
-        .toLocalDateTime(TimeZones.default)
-    val lastAccess: LocalDateTime get() = Instant
-        .fromEpochMilliseconds(lastAccessEpoch)
-        .toLocalDateTime(TimeZones.default)
-    val created: LocalDateTime get() = Instant
-        .fromEpochMilliseconds(createdEpoch)
-        .toLocalDateTime(TimeZones.default)
+    val lastModifiedInstant: Instant get() = windowsFileTimeToInstant(lastModifiedEpoch)
+    val lastModified: LocalDateTime get() = lastModifiedInstant.toLocalDateTime(TimeZones.default)
+    val lastAccessInstant: Instant get() = windowsFileTimeToInstant(lastAccessEpoch)
+    val lastAccess: LocalDateTime get() = lastAccessInstant.toLocalDateTime(TimeZones.default)
+    val createdInstant: Instant get() = windowsFileTimeToInstant(createdEpoch)
+    val created: LocalDateTime get() = createdInstant.toLocalDateTime(TimeZones.default)
 
     constructor(
         lastModifiedEpoch: Long,
@@ -184,6 +187,12 @@ class ZipExtraNtfs(
         this.lastModifiedEpoch = lastModifiedEpoch
         this.lastAccessEpoch = lastAccessEpoch
         this.createdEpoch = createdEpoch
+    }
+
+    private fun windowsFileTimeToInstant(fileTime: Long): Instant {
+        val intervalsBetweenEpochs = 116444736000000000L
+        return Instant.fromEpochMilliseconds(
+            (fileTime - intervalsBetweenEpochs) / 10000L)
     }
 
     override fun encode(buffer: ByteBuffer) {
