@@ -1,11 +1,11 @@
 # Change Log
 
-### 0.2.1 (2025-07 in progress)
+### 0.2.1 (2025-07-11)
 
 - Fix issue #20. The expected length for an NTFS extra field was 16 and should have been 24 bytes (three 8-byte long epoch timestamps). Also the timestamps are now being properly converted from Windows FileTime to LocalDateTime. Also made timestamps available as Instant instances.
 - Gradle 8.14.3
 - kotlinx-datetime 0.7.1
-- Fix issue #22. Apple RawFile write functions were managing buffer pointers incorrectly causing a memory error in the IOS Simulator
+- Fix issue #22. Apple RawFile write functions were managing NSData pointers incorrectly causing a memory error (double free) in the IOS Simulator during GC
 
 ### 0.2.0 (2025-07)
 
