@@ -137,6 +137,29 @@ A simple pure Kotlin class for implementing file path string operations.
 
 A small set of Pure Kotlin helper functions for traversing a directory tree, deleting a directory tree etc. Relies on the underlying File implementations.  
 
+## Uri and Uri.Builder
+
+An immutable pure Kotlin implementation of the Uri RFC. The constructor accepts a string and parses it. If errors are detected an IllegalArgumentException is thrown. Uri instances can also be build with a builder pattern. Intended for use when file (or other) URIs need to be passed in a platform neutral manner. An example of Builder usage from a unit test is:
+```
+        val uri = Uri.Builder()
+            .scheme("https")
+            .userInfo("username", "password")
+            .host("www.example.com")
+            .port(443)
+            .path("/foo/bar")
+            .parms(listOf(
+                Pair("parm1", "value1"),
+                Pair("parm2", "value2"),
+                Pair("parm3", "value3"),
+                Pair("parm4", "value4"),
+            ))
+            .fragment("frag")
+            .build()
+        assertEquals("https://username:password@www.example.com:443/foo/bar?parm1=value1&parm2=value2&parm3=value3&parm4=value4#frag", uri.uriString)
+   
+```
+See src/commonTest/kotlin/com/oldguy.common.io/UriTests.kt for a variety of examples of regular usage and Builder usage.
+
 ## Compression
 
 Compress/de-compress content using selected Algorithms. This support is using expect/actual setup. Design is similar to File support in that all compression algorithms are implemented using the same basic buffered source/sink design. Input/Source content is supplied by one or more buffers of any size.  Output/Sink content is produced using one or more buffers of any size, until Source input is complete.

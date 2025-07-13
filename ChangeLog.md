@@ -1,5 +1,10 @@
 # Change Log
 
+### 0.2.2 in progress
+
+- Added a Uri class - pure Kotlin implementation, so works the same for all targets. Thanks to https://github.com/chRyNaN/uri for the starting code. Uri class also contains a Builder class for building URI strings.
+- Issue 23 identified a zip file created with bit 3 of General Purpose bits set on an entry, but the correct per-spec data descriptor was not present.
+
 ### 0.2.1 (2025-07-11)
 
 - Fix issue #20. The expected length for an NTFS extra field was 16 and should have been 24 bytes (three 8-byte long epoch timestamps). Also the timestamps are now being properly converted from Windows FileTime to LocalDateTime. Also made timestamps available as Instant instances.
