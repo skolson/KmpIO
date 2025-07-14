@@ -191,7 +191,7 @@ class Uri(uri: String) {
      * This property will return the Query component of the [Uri] without the preceding question mark ('?') character
      * and including any delimiters between the possible attribute-value pairs.
      */
-    public val query: String
+    val query: String
 
     /**
      * A [Uri] Fragment component is the portion of the URI after the [query] component. It is an optional component
@@ -201,7 +201,7 @@ class Uri(uri: String) {
      *
      * This property will return this Fragment component of the [Uri] without the preceding hash ('#') character.
      */
-    public val fragment: String
+    val fragment: String
 
     /**
      * A [Uri] Scheme Specific Part is the portion of the [Uri] after the [scheme] and the colon (':') character that
@@ -248,6 +248,12 @@ class Uri(uri: String) {
         fragment = parseFragment()
     }
 
+    /**
+     * Create a URI from parts. Once the desired parts are set using the various functions, a uriString
+     * is built the build() function, and a Uri is constructed.  If an invalid combination of parts
+     * is used, an IllegalArgumentException is thrown during the construction. Otherwise a valid Uri()
+     * instance is returned.
+     */
     class Builder() {
         private var scheme = ""
         private var authority = ""
@@ -260,17 +266,50 @@ class Uri(uri: String) {
         private var parms = listOf<Pair<String, String>>()
         private var fragment = ""
 
+        private var usingAuthority = false
+        private var usingAuthorityParts = false
+        private var usingQuery = false
+        private var usingParms = false
+
         fun scheme(scheme: String) = apply { this.scheme = scheme }
-        fun authority(authority: String) = apply { this.authority = authority }
+        fun authority(authority: String) = apply {
+            if (usingAuthorityParts)
+                throw IllegalArgumentException(ERROR)
+            usingAuthority = true
+            this.authority = authority
+        }
         fun userInfo(user: String, password: String) = apply {
+            if (usingAuthority)
+                throw IllegalArgumentException(ERROR)
+            usingAuthorityParts = true
             this.user = user
             this.password = password
         }
-        fun host(host: String) = apply { this.host = host }
-        fun port(port: Int?) = apply { this.port = port }
+        fun host(host: String) = apply {
+            if (usingAuthority)
+                throw IllegalArgumentException(ERROR)
+            usingAuthorityParts = true
+            this.host = host
+        }
+        fun port(port: Int?) = apply {
+            if (usingAuthority)
+                throw IllegalArgumentException(ERROR)
+            usingAuthorityParts = true
+            this.port = port
+        }
         fun path(path: String) = apply { this.path = path }
-        fun query(query: String) = apply { this.query = query }
-        fun parms(parms: List<Pair<String, String>>) = apply { this.parms = parms }
+        fun query(query: String) = apply {
+            if (usingParms)
+                throw IllegalArgumentException(ERROR_QUERY)
+            usingQuery = true
+            this.query = query
+        }
+        fun parms(parms: List<Pair<String, String>>) = apply {
+            if (usingQuery)
+                throw IllegalArgumentException(ERROR_QUERY)
+            usingParms = true
+            this.parms = parms
+        }
         fun fragment(fragment: String) = apply { this.fragment = fragment }
         fun build(): Uri {
             return Uri(
@@ -298,6 +337,10 @@ class Uri(uri: String) {
                     }
                 }
             )
+        }
+        companion object {
+            private const val ERROR = "Use authority() or userInfo()/host()/port(), not both."
+            private const val ERROR_QUERY = "Use query() or parms(), not both."
         }
     }
 

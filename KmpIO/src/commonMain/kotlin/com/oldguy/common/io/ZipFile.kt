@@ -466,21 +466,21 @@ class ZipFile(
             entry.directories.apply {
                 decompress(entry, block)
                 if (generalPurpose.isDataDescriptor) {
-                    if (!hasDataDescriptor)
-                        throw ZipException("Entry ${entry.name} general purpose bits specify Data Descriptor present after data, but local record content does not")
                     ZipDataDescriptor.decode(file, isZip64).also {
-                        if (it.compressedSize != compressedSize)
-                            throw ZipException("Uncompressing file $name, data descriptor compressed: ${it.compressedSize}, expected: $compressedSize")
-                        if (it.uncompressedSize != uncompressedSize)
-                            throw ZipException("Uncompressing file $name, data descriptor uncompressed: ${it.uncompressedSize}, expected: $uncompressedSize")
-                        if (it.crc32 != entry.directory.crc32)
-                            throw ZipException(
-                                "Reading file $name, data descriptor crc: ${
-                                    it.crc32.toString(
-                                        16
-                                    )
-                                }, expected: ${entry.directory.crc32.toString(16)}"
-                            )
+                        if (!it.noneFound) {
+                            if (it.compressedSize != compressedSize)
+                                throw ZipException("Uncompressing file $name, data descriptor compressed: ${it.compressedSize}, expected: $compressedSize")
+                            if (it.uncompressedSize != uncompressedSize)
+                                throw ZipException("Uncompressing file $name, data descriptor uncompressed: ${it.uncompressedSize}, expected: $uncompressedSize")
+                            if (it.crc32 != entry.directory.crc32)
+                                throw ZipException(
+                                    "Reading file $name, data descriptor crc: ${
+                                        it.crc32.toString(
+                                            16
+                                        )
+                                    }, expected: ${entry.directory.crc32.toString(16)}"
+                                )
+                        }
                     }
                 }
             }

@@ -343,9 +343,9 @@ data class ZipEOCD64 (
 data class ZipDataDescriptor(
     val crc32: Int,
     val compressedSize: ULong,
-    val uncompressedSize: ULong
+    val uncompressedSize: ULong,
+    val noneFound: Boolean = false
 ): ZipRecord {
-
     fun allocateBuffer(isZip64: Boolean): ByteBuffer {
         return ByteBuffer(if(isZip64) zip64Length else length)
     }
@@ -371,38 +371,56 @@ data class ZipDataDescriptor(
         private const val zip64Length = 24
 
         /**
-         * Since this record, when in use, always immediately follows the uncompressed data, the
-         * current file position MUST BE at the end of the uncompressed data for decode to work.
-         * Note: see the class comment, signature of this record on decode is optional which is a pain.
+         * Verify that there is a data descriptor as sometimes there is not. Algorithm is:
+         * check next 4 bytes for data descriptor signature.
+         * If none check for next entry signature, indicating that there is no data descriptor
+         * If there is a descriptor and there is a signature, decode.
+         * If there is a descriptor and there is no signature, the 4 bytes read are the
+         * CRC32 value. Decode the rest for the compressed size and the uncompressed size.
          */
         suspend fun decode(file: RawFile, isZip64: Boolean): ZipDataDescriptor {
-            val l = if (isZip64) zip64Length else length
+            val empty = ZipDataDescriptor(0, 0u, 0u, noneFound = true)
+            val savePos = file.position
+            var crc32: Int? = null
+            var test = 0
+            ByteBuffer(4).apply {
+                val readCount = file.read(this, true)
+                if (readCount == 0u)
+                    return empty
+                else if (readCount < 4u) {
+                    file.position = savePos
+                    return empty
+                }
+                test = int
+                if (test == ZipLocalRecord.signature || test == ZipDirectoryRecord.signature) {
+                    file.position = savePos
+                    return empty
+                }
+            }
+            val l = if (test == signature) {
+                if (isZip64) zip64Length - 4 else 12
+            } else {
+                crc32 = test
+                if (isZip64) 16 else 8
+            }
             ByteBuffer(l).apply {
-                if (file.read(this) != l.toUInt())
+                if (file.read(this, true) != l.toUInt())
                     throw ZipException("Data descriptor expected length $l not found (zip64: $isZip64")
-                flip()
-                val sigFound = int == signature
-                if (!sigFound) rewind()
-                val descriptor = if (isZip64) {
+                if (crc32 == null)
+                    crc32 = int
+                return if (isZip64) {
                     ZipDataDescriptor(
-                        crc32 =  int,
+                        crc32 =  crc32,
                         compressedSize = ulong,
                         uncompressedSize = ulong
                     )
                 } else {
                     ZipDataDescriptor(
-                        crc32 = int,
+                        crc32 = crc32,
                         compressedSize = int.toULong(),
                         uncompressedSize = int.toULong()
                     )
                 }
-                if (!sigFound) {
-                    val nextSig = int
-                    if (nextSig != ZipLocalRecord.signature
-                        && nextSig != ZipDirectoryRecord.signature)
-                        throw ZipException("Failure trying to verify data descriptor with no signature. Last four bytes: ${nextSig.toString(16)}")
-                }
-                return descriptor
             }
         }
     }

@@ -2,8 +2,8 @@
 
 ### 0.2.2 in progress
 
-- Added a Uri class - pure Kotlin implementation, so works the same for all targets. Thanks to https://github.com/chRyNaN/uri for the starting code. Uri class also contains a Builder class for building URI strings.
-- Issue 23 identified a zip file created with bit 3 of General Purpose bits set on an entry, but the correct per-spec data descriptor was not present.
+- Added a Uri class - pure Kotlin implementation, so works the same for all targets. This is useful for for passing file paths as Uri instances across all platforms. Thanks to https://github.com/chRyNaN/uri for the starting code. Uri class also contains a Builder class for building URI strings.
+- Fix issue #23 affecting zip entries that have General Purpose bit 3 set. Some implementations set bit 3 in General Purpose bits indicating presence of a data descriptor record after the data in an entry, then don't add the data descriptor. Changed fun ZipDataDescriptor.decode(), see its comment for details on the new algorithm.  
 
 ### 0.2.1 (2025-07-11)
 

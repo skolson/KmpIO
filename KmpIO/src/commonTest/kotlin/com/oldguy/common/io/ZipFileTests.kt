@@ -353,7 +353,6 @@ class ZipFileTests {
             ).use { zip ->
                 assertEquals(25, zip.map.size)
                 zip.entries.forEach {
-                    println("Entry: ${it.name}")
                     it.extraParser.decode().forEach { extra ->
                         if (extra is ZipExtraNtfs) {
                             assertEquals("ComicInfo.xml", it.name)
