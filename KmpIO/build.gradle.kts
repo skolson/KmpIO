@@ -21,15 +21,7 @@ plugins {
 repositories {
     gradlePluginPortal()
     google()
-    mavenCentral{
-        /**
-         * These may be usable in the Vanniktech publish plugin in the future
-        credentials {
-            username = project.extra["mavenCentralUsername"]
-            password = project.extra["mavenCentralPassword"]
-        }
-        */
-    }
+    mavenCentral()
 }
 
 val appleFrameworkName = "KmpIO"
@@ -288,6 +280,11 @@ kotlin {
         }
         if (isLinux) {
             val linuxX64Test by getting {
+                dependencies {
+                    implementation(libs.bundles.kotlin.test)
+                }
+            }
+            val linuxArm64Test by getting {
                 dependencies {
                     implementation(libs.bundles.kotlin.test)
                 }
