@@ -1,5 +1,9 @@
 # Change Log
 
+### 0.2.3 in progress
+
+- On Android and Jvm, if the filePath is a Uri or a relative path, the fullPath attribute gets a spurious separator added as the first character. On native platforms fullPath is correct. Fix Android and jvm fullPath attribute to work consistent with native platforms.
+
 ### 0.2.2 (2025-07-15)
 
 - Added a Uri class - pure Kotlin implementation, so works the same for all targets. This is useful for for passing file paths as Uri instances across all platforms. Thanks to https://github.com/chRyNaN/uri for the starting code. Uri class also contains a Builder class for building URI strings.

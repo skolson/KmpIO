@@ -57,7 +57,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual val nameWithoutExtension: String = javaFile.nameWithoutExtension
     actual val extension: String = javaFile.extension.ifEmpty { "" }
     actual val path: String = javaFile.path.trimEnd(pathSeparator)
-    actual val fullPath: String = javaFile.absolutePath.trimEnd(pathSeparator)
+    actual val fullPath: String = filePath.trimEnd(pathSeparator)
     actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator)
     actual val isParent = directoryPath.isNotEmpty()
     actual val isDirectory get() = javaFile.isDirectory
@@ -161,12 +161,6 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
         actual fun tempDirectoryFile(): File = File(tempDirectoryPath())
 
         actual fun workingDirectory(): File {
-            val l = appContext.filesDir
-            val n = l.resolve("TestFiles")
-            val j = n.exists()
-            val rc = n.mkdirs()
-            val x = n.listFiles()
-            val y = l.listFiles()
             return File(appContext.filesDir.absolutePath
                 ?: throw IllegalStateException("Cannot access appContext filesDir")
             )
