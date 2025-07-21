@@ -53,9 +53,7 @@ actual open class File actual constructor(filePath: String, val platformFd: File
     actual val nameWithoutExtension: String = javaFile.nameWithoutExtension
     actual val extension: String = if (javaFile.extension.isNotEmpty()) ".${javaFile.extension}" else ""
     actual val path: String = javaFile.path.trimEnd(pathSeparator)
-    actual val fullPath: String = javaFile
-        .absolutePath
-        .trimEnd(pathSeparator)
+    actual val fullPath: String = filePath.trimEnd(pathSeparator)
     actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator)
     actual val isParent = directoryPath.isNotEmpty()
     actual val isDirectory get() = javaFile.isDirectory

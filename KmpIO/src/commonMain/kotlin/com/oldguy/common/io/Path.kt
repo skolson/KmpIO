@@ -99,6 +99,9 @@ open class Path(filePath: String, val pathSeparator: Char = '/') {
     }
 
     companion object {
+        /**
+         * Convenience method to create a new path with the specified parent and name.
+         */
         fun newPath(parentPath: String, name: String, pathSeparator: Char): String
             = if (parentPath.endsWith(pathSeparator))
                 "$parentPath$name"
