@@ -43,6 +43,7 @@ data class FileDescriptor(val code: Int = 0, val descriptor: Any)
  * of form "<path><nameWithoutExtension>.<extension>" = fullPath.
  * Note that a File object is immutable. The properties are set from the file system only at constructor time.
  * @param filePath string value identifying a file
+ * @param platformFd platform-specific file descriptor. For example, android content provider URIs
  */
 expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     constructor(parentDirectory: String, name: String)
@@ -67,6 +68,7 @@ expect class File(filePath: String, platformFd: FileDescriptor? = null) {
     val isParent: Boolean
     val isDirectory: Boolean
     val exists: Boolean
+    val platformFd: FileDescriptor?
     val isUri: Boolean
     val isUriString: Boolean
     val size: ULong

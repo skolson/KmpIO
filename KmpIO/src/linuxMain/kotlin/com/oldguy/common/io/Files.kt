@@ -67,7 +67,7 @@ actual class TimeZones {
  * @property newPermissions Default permissions to use for newly created files and directories, represented as an octal string.
  */
 @OptIn(ExperimentalTime::class, ExperimentalForeignApi::class)
-actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
+actual class File actual constructor(filePath: String, platformFd: FileDescriptor?)
 {
     actual constructor(parentDirectory: String, name: String) :
             this(Path.newPath(parentDirectory, name, pathSeparator), null)
@@ -85,6 +85,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual val fullPath = p.fullPath
     actual val directoryPath = p.directoryPath
     actual val isParent = directoryPath.isNotEmpty()
+    actual val platformFd: FileDescriptor? = platformFd
     actual val isUri = p.isUri
     actual val isUriString = p.isUriString
     actual val isDirectory: Boolean

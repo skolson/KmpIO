@@ -41,7 +41,7 @@ actual class TimeZones {
 }
 
 @OptIn(BetaInteropApi::class, ExperimentalForeignApi::class)
-actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?)
+actual class File actual constructor(filePath: String, platformFd: FileDescriptor?)
 {
     actual constructor(parentDirectory: String, name: String) :
             this(Path.newPath(parentDirectory, name, pathSeparator), null)
@@ -61,6 +61,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual val isParent = directoryPath.isNotEmpty()
     actual val isDirectory: Boolean
     actual val exists: Boolean
+    actual val platformFd: FileDescriptor? = platformFd
     actual val isUri: Boolean
     actual val isUriString: Boolean
     actual val size: ULong
