@@ -42,7 +42,7 @@ actual class TimeZones {
 }
 
 @OptIn(ExperimentalTime::class)
-actual class File actual constructor(filePath: String, val platformFd: FileDescriptor?) {
+actual class File actual constructor(filePath: String, platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
             this(parentDirectory + name, null)
 
@@ -62,6 +62,7 @@ actual class File actual constructor(filePath: String, val platformFd: FileDescr
     actual val isParent = directoryPath.isNotEmpty()
     actual val isDirectory get() = javaFile.isDirectory
     actual val exists get() = javaFile.exists()
+    actual val platformFd: FileDescriptor? = platformFd
     actual val isUri = platformFd?.code == 1 && platformFd.descriptor is Uri
     actual val isUriString = platformFd?.code == 2 && platformFd.descriptor is String
     actual val size: ULong get() = javaFile.length().toULong()
