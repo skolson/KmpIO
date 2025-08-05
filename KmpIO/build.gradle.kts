@@ -4,7 +4,6 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
-import org.gradle.internal.os.OperatingSystem
 
 plugins {
     libs.plugins.also {
@@ -124,11 +123,6 @@ android {
     }
 }
 
-/*
-Only run apple targets on macos, so only those publish and do not overlap with linux
-builds. Linux does JVM, linux native, and android targets.
- */
-val isLinux = OperatingSystem.current().isLinux
 kotlin {
     cocoapods {
         name = appleFrameworkName
@@ -205,25 +199,23 @@ kotlin {
         publishLibraryVariants("release", "debug")
     }
     jvm()
-    if (isLinux) {
-        linuxX64() {
-            compilerOptions {
-                freeCompilerArgs.add("-g")
-            }
-            binaries {
-                executable {
-                    debuggable = true
-                }
+    linuxX64() {
+        compilerOptions {
+            freeCompilerArgs.add("-g")
+        }
+        binaries {
+            executable {
+                debuggable = true
             }
         }
-        linuxArm64() {
-            compilerOptions {
-                freeCompilerArgs.add("-g")
-            }
-            binaries {
-                executable {
-                    debuggable = true
-                }
+    }
+    linuxArm64() {
+        compilerOptions {
+            freeCompilerArgs.add("-g")
+        }
+        binaries {
+            executable {
+                debuggable = true
             }
         }
     }
@@ -278,16 +270,14 @@ kotlin {
                 implementation(libs.junit)
             }
         }
-        if (isLinux) {
-            val linuxX64Test by getting {
-                dependencies {
-                    implementation(libs.bundles.kotlin.test)
-                }
+        val linuxX64Test by getting {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
             }
-            val linuxArm64Test by getting {
-                dependencies {
-                    implementation(libs.bundles.kotlin.test)
-                }
+        }
+        val linuxArm64Test by getting {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
             }
         }
         all {
