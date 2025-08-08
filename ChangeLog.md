@@ -7,6 +7,8 @@
 ### 0.2.3 (2025-08)
 
 - On Android and Jvm, if the filePath is a Uri or a relative path, the fullPath attribute gets a spurious separator added as the first character. On native platforms fullPath is correct. Fix Android and jvm fullPath attribute to work consistent with native platforms.
+- 0.2.2 was published incorrectly to Maven. The linuxX64 and linuxArm64 target libraries were published without the correct metadata, preventing Gradle from resolving these.
+- Gradle 9.0.0
 
 ### 0.2.2 (2025-07-15)
 
