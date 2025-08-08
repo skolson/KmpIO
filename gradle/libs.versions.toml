@@ -1,5 +1,5 @@
 [versions]
-appVersion = "0.2.3"
+appVersion = "0.3.0"
 java = "21"
 
 androidGradlePlugin = "8.13.0-alpha03"

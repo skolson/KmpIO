@@ -26,7 +26,6 @@ actual class TextFile actual constructor(
 
     actual val charset = charset
     private val apple = AppleFileHandle(file, mode)
-    private var raw: CValuesRef<__sFILE>? = null
 
     val textBuffer = TextBuffer(charset) { buffer, count ->
         if (buffer.isEmpty())
@@ -42,7 +41,6 @@ actual class TextFile actual constructor(
             }
         }
     }
-
 
     actual override suspend fun close() {
         apple.close()
@@ -111,6 +109,19 @@ actual class TextFile actual constructor(
                 )
                 if (!apple.handle.writeData(nsData, cPointer))
                     throw IllegalStateException("Write error, bytes count: ${nsData.length}")
+            }
+        }
+    }
+
+    actual suspend fun skip(bytesCount: ULong) {
+        File.throwError {
+            memScoped {
+                val result = alloc<ULongVar>()
+                apple.handle.getOffset(result.ptr, it)
+                val position = result.value + bytesCount
+                val rc = apple.handle.seekToOffset(position, it)
+                if (!rc)
+                    throw IllegalArgumentException("Could not position file to $position")
             }
         }
     }
