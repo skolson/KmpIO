@@ -73,4 +73,8 @@ actual class TextFile actual constructor(
             throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
         write(ByteBuffer(textBuffer.charset.encode(text + TextBuffer.EOL)))
     }
+
+    actual suspend fun skip(bytesCount: ULong) {
+        position = position + bytesCount
+    }
 }

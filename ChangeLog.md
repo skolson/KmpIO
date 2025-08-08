@@ -1,6 +1,10 @@
 # Change Log
 
-### 0.2.3 in progress
+### 0.3.0 (in progress)
+
+- Add skip() function to TextFile, typical use case is for skipping any detected BOM bytes. 
+
+### 0.2.3 (2025-08)
 
 - On Android and Jvm, if the filePath is a Uri or a relative path, the fullPath attribute gets a spurious separator added as the first character. On native platforms fullPath is correct. Fix Android and jvm fullPath attribute to work consistent with native platforms.
 
