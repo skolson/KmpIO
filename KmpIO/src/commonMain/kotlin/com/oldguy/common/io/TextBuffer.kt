@@ -57,27 +57,27 @@ open class TextBuffer(
             }
             buf.clear()
         }
-        val count = source(bytes, bytes.size)
+        val count = source(bytes, bytes.size).toInt()
         bytesRead += count.toLong()
-        if (count == 0u)
+        if (count == 0)
             noMoreSource = true
         else {
-            val partialBytes = charset.checkMultiByte(bytes, bytes.size, 0, false)
+            val partialBytes = charset.checkMultiByte(bytes, count, 0, false)
             if (partial.isNotEmpty()) buf.putBytes(partial)
-            val count = (count.toInt() - partialBytes) + partial.size
+            val count = (count - partialBytes) + partial.size
             buf.putBytes(bytes, length = count)
             partial = ByteArray(partialBytes)
             if (partialBytes > 0) {
                 bytes.copyInto(
                     partial,
                     0,
-                    count.toInt() - partialBytes,
-                    count.toInt()
+                    count - partialBytes,
+                    count
                 )
             }
         }
         buf.flip()
-        return count
+        return count.toUInt()
     }
 
     private fun checkBytes(position: Int): ByteArray {

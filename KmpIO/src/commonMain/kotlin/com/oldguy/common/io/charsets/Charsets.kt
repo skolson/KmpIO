@@ -135,13 +135,16 @@ abstract class Charset(
     /**
      * For the specified byte(s), determine the number of bytes required to complete the character.
      * @param bytes must be a ByteArray(charset.bytesPerChar.first) containing byte(s) to be checked.
-     * @return number of bytes required to complete a character. Between 0 and charset.bytesPerChar.last - 1
+     * @return number of bytes required to complete a character. Between charset.bytesPerChar.first
+     * and charset.bytesPerChar.last.
      */
     abstract fun byteCount(bytes: ByteArray): Int
 
     /**
      * For the specified byte, determine the number of bytes required to complete the character.
-     * To be correct must be called on an 'initial' byte
+     * @param bytes must be a ByteArray(charset.bytesPerChar.first) containing byte(s) to be checked.
+     * @return number of bytes required to complete a character. Between charset.bytesPerChar.first
+     * and charset.bytesPerChar.last.
      */
     abstract fun byteCount(bytes: UByteArray): Int
 }

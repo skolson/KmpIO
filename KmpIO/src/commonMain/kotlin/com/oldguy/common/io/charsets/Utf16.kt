@@ -133,21 +133,22 @@ open class Utf16(
                 1,
                 bytes[count + offset - 1]
             )
-        return byteCount(bytes.sliceArray(offset + count - minBytes until offset + count))
+        val slice = bytes.sliceArray(offset + count - minBytes until offset + count)
+        return byteCount(slice) - minBytes
     }
 
     override fun byteCount(bytes: ByteArray): Int {
         if (bytes.size != bytesPerChar.first)
             throw IllegalArgumentException("ByteArray must be of size ${bytesPerChar.first}")
         val code = ByteBuffer(bytes).ushort.toInt()
-        return if (code in codeRange1 || code in codeRange2) 0 else 2
+        return if (code in codeRange1 || code in codeRange2) 2 else 4
     }
 
     override fun byteCount(bytes: UByteArray): Int {
         if (bytes.size != bytesPerChar.first)
             throw IllegalArgumentException("UByteArray must be of size ${bytesPerChar.first}")
         val code = UByteBuffer(bytes).ushort.toInt()
-        return if (code in codeRange1 || code in codeRange2) 0 else 2
+        return if (code in codeRange1 || code in codeRange2) 2 else 4
     }
 
     companion object {
