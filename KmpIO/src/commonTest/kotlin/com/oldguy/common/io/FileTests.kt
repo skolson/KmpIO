@@ -116,36 +116,45 @@ class FileTests(testDirPath: String) {
         }
     }
 
-    fun biggerTextFileWriteRead(charset: Charset, copyCount: Int = 100) {
-        runTest {
-            val subDir = testDirectory.resolve(subDirName)
-            assertTrue { subDir.exists }
-            val fileName = "TextMedium${charset.name}.txt"
-            File(subDir, fileName).delete()
-            val fil = File(subDir, fileName)
-            assertEquals(false, fil.exists)
-            val textFile = TextFile(
-                fil,
+    suspend fun mediumTextFile(charset: Charset): File {
+        val subDir = testDirectory.resolve(subDirName)
+        assertTrue { subDir.exists }
+        val fileName = "TextMedium${charset.name}.txt"
+        return File(subDir, fileName)
+    }
+
+    suspend fun createMediumTextFile(charset: Charset, copyCount: Int = 100): File {
+        return mediumTextFile(charset).apply {
+            delete()
+            assertFalse(newFile().exists)
+            TextFile(
+                this,
                 charset,
                 FileMode.Write,
                 FileSource.File
-            )
-            (0 until copyCount)
-                .forEach { _ ->
-                    textFile.write(textContent)
+            ).apply {
+                repeat(copyCount) {
+                    write(textContent)
                 }
-            textFile.close()
-            assertTrue(File(subDir, fileName).exists)
+                close()
+            }
+            assertTrue(newFile().exists)
+        }
+    }
 
-            val textFileIn = TextFile(
-                fil,
-                charset,
-                FileMode.Read,
-                FileSource.File
-            )
-            val lines = checkTextLines(textFileIn)
-            assertEquals(6 * copyCount, lines)
-            fil.newFile().delete()
+    fun biggerTextFileWriteRead(charset: Charset, copyCount: Int = 100) {
+        runTest {
+            createMediumTextFile(charset, copyCount).apply {
+                val textFileIn = TextFile(
+                    this,
+                    charset,
+                    FileMode.Read,
+                    FileSource.File
+                )
+                val lines = checkTextLines(textFileIn)
+                assertEquals(6 * copyCount, lines)
+                newFile().delete()
+            }
         }
     }
 

@@ -37,9 +37,7 @@ open class TextBuffer(
     val isEndOfFile get() = endOfFile
     private var readLock = false
     val isReadLock get() = readLock
-    private var partialLine: String = ""
-    private var lines = emptyList<String>()
-    private var lineIndex = 0
+    private var lineCount = 0
     private var remainder = ByteArray(charset.bytesPerChar.last)
     private var partial = ByteArray(0)
     var bytesRead: Long = 0
@@ -66,8 +64,8 @@ open class TextBuffer(
         else {
             val partialBytes = charset.checkMultiByte(bytes, bytes.size, 0, false)
             if (partial.isNotEmpty()) buf.putBytes(partial)
-            buf.limit = (count.toInt() - partialBytes) + partial.size
-            buf.putBytes(bytes, length = buf.limit)
+            val count = (count.toInt() - partialBytes) + partial.size
+            buf.putBytes(bytes, length = count)
             partial = ByteArray(partialBytes)
             if (partialBytes > 0) {
                 bytes.copyInto(
@@ -126,25 +124,6 @@ open class TextBuffer(
     }
 
     /**
-     * Gets and decodes one block of text. If at the end of the block, a partial character is found,
-     * the partial bytes are saved and applied to the bytes from the next call to the source lambda.
-     */
-    suspend fun nextBlock(): String {
-        if (endOfFile) return ""
-        useSource()
-        return charset.decode(buf.buf, buf.limit)
-    }
-
-    private suspend fun readAndSplit() {
-        lines = (partialLine + nextBlock()).lines()
-        lineIndex = 0
-        if (!endOfFile) {
-            partialLine = lines.last()
-            lines = lines.subList(0, lines.size - 1)
-        }
-    }
-
-    /**
      * Reads next line of text, no matter how long, which has obvious implications for memory on large files with no
      * line breaks. It uses the source function to read blocks when needed and maintains state of where next line is.
      * So only use this on files with line breaks.
@@ -152,18 +131,14 @@ open class TextBuffer(
      * returned, subsequent calls will always be an empty string.
      */
     open suspend fun readLine(): String {
-        return if (lineIndex < lines.size) {
-            lines[lineIndex++]
-        } else {
-            if (endOfFile) ""
-            else {
-                readAndSplit()
-                if (lines.isNotEmpty())
-                    lines[lineIndex++]
-                else
-                    ""
+        return StringBuilder(blockSize).apply {
+            while (!isEndOfFile) {
+                val c = next()
+                if (c == '\n') break
+                append(c)
             }
-        }
+            lineCount++
+        }.toString()
     }
 
     /**
@@ -176,13 +151,11 @@ open class TextBuffer(
     open suspend fun forEachLine(
         action: (count: Int, line: String) -> Boolean
     ) {
-        var lineCount = 0
         try {
             readLock = true
             while (true) {
                 val line = readLine()
-                if (endOfFile && (lineIndex >= lines.size)) break
-                lineCount++
+                if (isEndOfFile) break
                 if (!action(lineCount, line))
                     break
             }
