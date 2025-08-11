@@ -34,14 +34,32 @@ open class TextBuffer(
         .apply { limit = 0 }
     private var endOfFile = false
     private var noMoreSource = false
-    val isEndOfFile get() = endOfFile
     private var readLock = false
-    val isReadLock get() = readLock
-    private var lineCount = 0
     private var remainder = ByteArray(charset.bytesPerChar.last)
     private var partial = ByteArray(0)
+
+    /**
+     * While processing text by line, this attribute is the current line count processed
+     */
+    var lineCount = 0
+        private set
+
+    /**
+     * Count of the number of bytes read from source, before decoding.
+     */
     var bytesRead: Long = 0
         private set
+
+    /**
+     * true if source has returned zero indicating no more data, and all characters are processed
+     */
+    val isEndOfFile get() = endOfFile
+
+    /**
+     * True if a read operation is in progress. Do not alter or close the underlying source while this is true.
+     */
+    val isReadLock get() = readLock
+
 
     private suspend fun useSource(): UInt {
         if (buf.remaining > 0) {
@@ -171,6 +189,53 @@ open class TextBuffer(
                     append(next(peek))
             }
         }.toString()
+    }
+
+    /**
+     * Verifies that the current position is a quote character. If it is, retrieves characters and
+     * builds a String until the next quote character is seen. If an escape is specified for an
+     * enclose quote, handle the escape as well. If end of input is reached before the closing quote,
+     * all characters since the last quote are returned.
+     * @param quote character to look for
+     * @param escape String to match as an escape for quote. If empty, no escape processing happens
+     * @param maxSize number of characters to read before returning.
+     * @return String containing characters between quote characters. If current position is not a quote,
+     * empty string is returned
+     */
+    suspend fun quotedString(
+        quote: Char = '"',
+        escape: String = "\\\"",
+        maxSize: Int = 1024
+    ): String {
+        if (next(true) != quote) return ""
+        var c = next()
+        if (c != quote)
+            throw IllegalStateException("Quoted string must start with quote")
+        return StringBuilder(maxSize).apply {
+            while (true) {
+                c = next()
+                if (escape.isNotEmpty()) {
+                    var match = 0
+                    var temp = ""
+                    for (m in escape) {
+                        if (c == m) {
+                            match++
+                            temp += c
+                            c = next()
+                        } else
+                            break
+                    }
+                    if (match == escape.length)
+                        append(quote)
+                    else
+                        append(temp)
+                }
+                if (c == quote) break
+                append(c)
+                if (isEndOfFile || this.length >= maxSize) break
+            }
+        }.toString()
+
     }
 
     companion object {

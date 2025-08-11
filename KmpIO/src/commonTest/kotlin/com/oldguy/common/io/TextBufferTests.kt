@@ -82,8 +82,44 @@ class TextBufferTests {
         }
     }
 
+    @Test
+    fun parseQuotedStringTest() {
+        runTest {
+            var count = 0
+            val bytes = testAttributes.encodeToByteArray()
+            TextBuffer(Utf8()) { buffer, size ->
+                bytes.copyInto(buffer)
+                count++
+                if (count > 1) 0u else bytes.size.toUInt()
+            }.apply {
+                val name = StringBuilder(32).apply {
+                    var c = next()
+                    while (c != '=') {
+                        if (!c.isWhitespace()) append(c)
+                        c = next()
+                    }
+                }.toString()
+                val value = quotedString()
+                assertEquals("name1", name)
+                assertEquals("value1", value)
+                val name2 = StringBuilder(32).apply {
+                    var c = next()
+                    while (c != '=') {
+                        if (!c.isWhitespace()) append(c)
+                        c = next()
+                    }
+                }.toString()
+                val value2 = quotedString(escape = "")
+                assertEquals("name2", name2)
+                assertEquals("value2", value2)
+            }
+        }
+    }
+
     companion object {
         val utf8 = Utf8()
         const val testString1 = "Hello, 世界"
+
+        val testAttributes = "name1=\"value1\" name2=\"value2\""
     }
 }
