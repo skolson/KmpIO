@@ -106,8 +106,8 @@ class Utf8:
         return bytesMissing
     }
 
-    override fun byteCount(byte: Byte): Int {
-        return when (byte.toUByte().toInt()) {
+    override fun byteCount(bytes: ByteArray): Int {
+        return when (bytes[0].toUByte().toInt()) {
             in twoBytes -> 2
             in threeBytes -> 3
             in fourBytes -> 4
@@ -115,8 +115,8 @@ class Utf8:
         }
     }
 
-    override fun byteCount(byte: UByte): Int {
-        return when (byte.toInt()) {
+    override fun byteCount(bytes: UByteArray): Int {
+        return when (bytes[0].toInt()) {
             in twoBytes -> 2
             in threeBytes -> 3
             in fourBytes -> 4

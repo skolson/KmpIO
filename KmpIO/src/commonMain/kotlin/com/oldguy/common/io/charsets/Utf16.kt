@@ -13,6 +13,8 @@ open class Utf16(
         2..4
     )
 {
+    private val minBytes = bytesPerChar.first
+
     override fun decode(bytes: ByteArray, count: Int, offset: Int): String {
         return buildString {
             val buf = ByteBuffer(bytes.sliceArray(0 until count), order)
@@ -123,23 +125,29 @@ open class Utf16(
         offset: Int,
         throws: Boolean
     ): Int {
-        if (count % 2 == 0 && throws)
+        if (count < minBytes || count % minBytes == 0 && throws)
             throw MultiByteDecodeException(
                 "Number of bytes to decode must be even",
                 count + offset - 1,
-                2,
+                minBytes,
                 1,
                 bytes[count + offset - 1]
             )
-        return
+        return byteCount(bytes.sliceArray(offset + count - minBytes until offset + count))
     }
 
-    override fun byteCount(byte: Byte): Int {
-        return if (byte.toUByte().toInt() in codeRange1 || byte.toUByte().toInt() in codeRange2) 2 else 4
+    override fun byteCount(bytes: ByteArray): Int {
+        if (bytes.size != bytesPerChar.first)
+            throw IllegalArgumentException("ByteArray must be of size ${bytesPerChar.first}")
+        val code = ByteBuffer(bytes).ushort.toInt()
+        return if (code in codeRange1 || code in codeRange2) 0 else 2
     }
 
-    override fun byteCount(byte: UByte): Int {
-        return if (byte.toInt() in codeRange1 || byte.toInt() in codeRange2) 2 else 4
+    override fun byteCount(bytes: UByteArray): Int {
+        if (bytes.size != bytesPerChar.first)
+            throw IllegalArgumentException("UByteArray must be of size ${bytesPerChar.first}")
+        val code = UByteBuffer(bytes).ushort.toInt()
+        return if (code in codeRange1 || code in codeRange2) 0 else 2
     }
 
     companion object {

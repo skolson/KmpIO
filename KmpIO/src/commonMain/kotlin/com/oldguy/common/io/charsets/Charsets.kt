@@ -133,14 +133,15 @@ abstract class Charset(
     abstract fun checkMultiByte(bytes: ByteArray, count: Int, offset: Int, throws: Boolean = true): Int
 
     /**
-     * For the specified byte, determine the number of bytes required to complete the character.
-     * To be correct must be called on an 'initial' byte
+     * For the specified byte(s), determine the number of bytes required to complete the character.
+     * @param bytes must be a ByteArray(charset.bytesPerChar.first) containing byte(s) to be checked.
+     * @return number of bytes required to complete a character. Between 0 and charset.bytesPerChar.last - 1
      */
-    abstract fun byteCount(byte: Byte): Int
+    abstract fun byteCount(bytes: ByteArray): Int
 
     /**
      * For the specified byte, determine the number of bytes required to complete the character.
      * To be correct must be called on an 'initial' byte
      */
-    abstract fun byteCount(byte: UByte): Int
+    abstract fun byteCount(bytes: UByteArray): Int
 }

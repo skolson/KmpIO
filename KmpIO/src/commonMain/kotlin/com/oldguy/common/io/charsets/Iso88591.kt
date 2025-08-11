@@ -65,9 +65,9 @@ class Iso88591()
         throws: Boolean
     ): Int = 0
 
-    override fun byteCount(byte: Byte): Int = 1
+    override fun byteCount(bytes: ByteArray): Int = 1
 
-    override fun byteCount(byte: UByte): Int = 1
+    override fun byteCount(bytes: UByteArray): Int = 1
 
     companion object {
         const val MAX_CODE = 0xff

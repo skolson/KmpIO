@@ -13,6 +13,8 @@ import com.oldguy.common.io.charsets.MultiByteDecodeException
  * determines there is an incomplete character at the end of the file, it will throw MultiByteDecodeException.
  *
  * @param charset specifies how to decode the incoming bytes from the underlying file.
+ * @param blockSizeArg specifies number of bytes to request from source lambda on each call. Value is
+ * rounded up to a multiple of the maximum number of bytes per character for the specified Charset.
  * @param source function should perform a read operation up to count bytes,
  * into the specified buffer which is a ByteArray. It should return the number of bytes read, or 0
  * to indicate end of file. ByteArray can be any size and does not have to end on a line break. Can
@@ -20,15 +22,18 @@ import com.oldguy.common.io.charsets.MultiByteDecodeException
  */
 open class TextBuffer(
     val charset: Charset,
-    blockSize: Int = DEFAULT_BLOCK_SIZE,
+    blockSizeArg: Int = DEFAULT_BLOCK_SIZE,
     val source: (suspend (
         buffer: ByteArray,
         count: Int
     ) -> UInt )
 ) {
+    private val blockSize = blockSizeArg + (blockSizeArg % charset.bytesPerChar.last)
     private val bytes = ByteArray(blockSize)
-    private var buf = ByteBuffer(blockSize + charset.bytesPerChar.last)
+    private var buf = ByteBuffer(blockSize + (charset.bytesPerChar.last * 2))
+        .apply { limit = 0 }
     private var endOfFile = false
+    private var noMoreSource = false
     val isEndOfFile get() = endOfFile
     private var readLock = false
     val isReadLock get() = readLock
@@ -41,12 +46,24 @@ open class TextBuffer(
         private set
 
     private suspend fun useSource(): UInt {
+        if (buf.remaining > 0) {
+            if (buf.remaining >= charset.bytesPerChar.last)
+                throw IllegalStateException("useSource called when more than ${charset.bytesPerChar.last} bytes available: ${buf.remaining}")
+            val remainder = buf.getBytes()
+            buf.clear()
+            buf.putBytes(remainder)
+        } else {
+            if (noMoreSource) {
+                endOfFile = true
+                return 0u
+            }
+            buf.clear()
+        }
         val count = source(bytes, bytes.size)
         bytesRead += count.toLong()
         if (count == 0u)
-            endOfFile = true
+            noMoreSource = true
         else {
-            buf.clear()
             val partialBytes = charset.checkMultiByte(bytes, bytes.size, 0, false)
             if (partial.isNotEmpty()) buf.putBytes(partial)
             buf.limit = (count.toInt() - partialBytes) + partial.size
@@ -60,9 +77,18 @@ open class TextBuffer(
                     count.toInt()
                 )
             }
-            buf.flip()
         }
+        buf.flip()
         return count
+    }
+
+    private fun checkBytes(position: Int): ByteArray {
+        var pos = position
+        return ByteArray(charset.bytesPerChar.first).apply {
+            repeat(charset.bytesPerChar.first) {
+                this[it] = buf.get(pos++)
+            }
+        }
     }
 
     /**
@@ -71,13 +97,11 @@ open class TextBuffer(
      * @return decoded character. if isEndOfFile is true, returns code 0x00 character.
      */
     suspend fun next(peek: Boolean = false): Char {
-        if (bytesRead == 0L && !isEndOfFile)
-            useSource()    // initial read
-        else if (!isEndOfFile && buf.remaining == 0)
+        if (!isEndOfFile && buf.remaining < charset.bytesPerChar.last)
             useSource()
         if (buf.remaining == 0) return Char(0)
         val pos = buf.position
-        val byteCount = charset.byteCount(buf.get(pos))
+        val byteCount = charset.byteCount(checkBytes(pos))
         if (byteCount > buf.remaining)
             throw MultiByteDecodeException(
                 "Missing bytes to complete indicated character at position in last block $pos, ",

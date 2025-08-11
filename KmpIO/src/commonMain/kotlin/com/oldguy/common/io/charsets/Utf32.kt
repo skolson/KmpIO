@@ -3,7 +3,6 @@ package com.oldguy.common.io.charsets
 import com.oldguy.common.io.Buffer
 import com.oldguy.common.io.ByteBuffer
 import com.oldguy.common.io.UByteBuffer
-import kotlinx.datetime.ZoneOffset
 
 open class Utf32(
     name: String = "UTF-32",
@@ -70,9 +69,9 @@ open class Utf32(
         return count % 4
     }
 
-    override fun byteCount(byte: Byte): Int = 4
+    override fun byteCount(bytes: ByteArray): Int = 4
 
-    override fun byteCount(byte: UByte): Int = 4
+    override fun byteCount(bytes: UByteArray): Int = 4
 }
 
 class Utf32LE():
