@@ -3,6 +3,7 @@ package com.oldguy.common.io.charsets
 import com.oldguy.common.io.Buffer
 import com.oldguy.common.io.ByteBuffer
 import com.oldguy.common.io.UByteBuffer
+import kotlinx.datetime.ZoneOffset
 
 open class Utf32(
     name: String = "UTF-32",
@@ -12,21 +13,27 @@ open class Utf32(
     4..4
 )
 {
-    override fun decode(bytes: ByteArray, count: Int): String {
+    override fun decode(bytes: ByteArray, count: Int, offset: Int): String {
         return buildString {
-            val buf = ByteBuffer(bytes.sliceArray(0 until count), order)
-            while (buf.remaining > 0) {
-                append(buf.int.toChar())
-            }
+            ByteBuffer(bytes.sliceArray(0 until count), order)
+                .apply {
+                    position = offset
+                    while (remaining > 0) {
+                        append(int.toChar())
+                    }
+                }
         }
     }
 
-    override fun decode(bytes: UByteArray, count: Int): String {
+    override fun decode(bytes: UByteArray, count: Int, offset: Int): String {
         return buildString {
-            val buf = UByteBuffer(bytes.sliceArray(0 until count), order)
-            while (buf.remaining > 0) {
-                append(buf.int.toChar())
-            }
+            UByteBuffer(bytes.sliceArray(0 until count), order)
+                .apply {
+                    position = offset
+                    while (remaining > 0) {
+                        append(int.toChar())
+                    }
+                }
         }
     }
 
@@ -45,6 +52,27 @@ open class Utf32(
         }
         return bytes.flip().getBytes()
     }
+
+    override fun checkMultiByte(
+        bytes: ByteArray,
+        count: Int,
+        offset: Int,
+        throws: Boolean
+    ): Int {
+        if (count % 4 == 0 && throws)
+            throw MultiByteDecodeException(
+                "Number of bytes to decode must be divisible by 4",
+                count + offset - 1,
+                4,
+                count % 4,
+                bytes[count + offset - 1]
+            )
+        return count % 4
+    }
+
+    override fun byteCount(byte: Byte): Int = 4
+
+    override fun byteCount(byte: UByte): Int = 4
 }
 
 class Utf32LE():

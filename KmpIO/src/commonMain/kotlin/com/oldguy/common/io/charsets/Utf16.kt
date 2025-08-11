@@ -13,9 +13,10 @@ open class Utf16(
         2..4
     )
 {
-    override fun decode(bytes: ByteArray, count: Int): String {
+    override fun decode(bytes: ByteArray, count: Int, offset: Int): String {
         return buildString {
             val buf = ByteBuffer(bytes.sliceArray(0 until count), order)
+            buf.position = offset
             while (buf.remaining > 0) {
                 val code = buf.ushort.toInt()
                 when (code) {
@@ -44,9 +45,10 @@ open class Utf16(
         }
     }
 
-    override fun decode(bytes: UByteArray, count: Int): String {
+    override fun decode(bytes: UByteArray, count: Int, offset: Int): String {
         return buildString {
             val buf = UByteBuffer(bytes.sliceArray(0 until count), order)
+            buf.position = offset
             while (buf.remaining > 0) {
                 val code = buf.ushort.toInt()
                 when (code) {
@@ -113,6 +115,31 @@ open class Utf16(
             }
         }
         return bytes.flip().getBytes()
+    }
+
+    override fun checkMultiByte(
+        bytes: ByteArray,
+        count: Int,
+        offset: Int,
+        throws: Boolean
+    ): Int {
+        if (count % 2 == 0 && throws)
+            throw MultiByteDecodeException(
+                "Number of bytes to decode must be even",
+                count + offset - 1,
+                2,
+                1,
+                bytes[count + offset - 1]
+            )
+        return
+    }
+
+    override fun byteCount(byte: Byte): Int {
+        return if (byte.toUByte().toInt() in codeRange1 || byte.toUByte().toInt() in codeRange2) 2 else 4
+    }
+
+    override fun byteCount(byte: UByte): Int {
+        return if (byte.toInt() in codeRange1 || byte.toInt() in codeRange2) 2 else 4
     }
 
     companion object {

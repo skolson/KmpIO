@@ -6,13 +6,13 @@ class Iso88591()
     1..1
 )
 {
-    override fun decode(bytes: ByteArray, count: Int): String {
+    override fun decode(bytes: ByteArray, count: Int, offset: Int): String {
         return buildString {
             var read = 0
-            for (byte in bytes) {
-                val c = byte.toInt()
+            for (i in offset until offset + count) {
+                val c = bytes[i].toInt()
                 if (c > MAX_CODE) {
-                    throw IllegalStateException("Invalid $name encoding. byte found ${byte.toString(16)}")
+                    throw IllegalStateException("Invalid $name encoding. byte found ${bytes[i].toString(16)}")
                 }
                 append(Char(c))
                 read++
@@ -21,13 +21,13 @@ class Iso88591()
         }
     }
 
-    override fun decode(bytes: UByteArray, count: Int): String {
+    override fun decode(bytes: UByteArray, count: Int, offset: Int): String {
         return buildString {
-            for (byte in bytes) {
+            for (i in offset until offset + count) {
                 var read = 0
-                val c = byte.toInt()
+                val c = bytes[i].toInt()
                 if (c > MAX_CODE) {
-                    throw IllegalStateException("Invalid $name encoding. byte found ${byte.toString(16)}")
+                    throw IllegalStateException("Invalid $name encoding. byte found ${bytes[i].toString(16)}")
                 }
                 append(Char(c))
                 read++
@@ -57,6 +57,17 @@ class Iso88591()
         }
         return bytes
     }
+
+    override fun checkMultiByte(
+        bytes: ByteArray,
+        count: Int,
+        offset: Int,
+        throws: Boolean
+    ): Int = 0
+
+    override fun byteCount(byte: Byte): Int = 1
+
+    override fun byteCount(byte: UByte): Int = 1
 
     companion object {
         const val MAX_CODE = 0xff

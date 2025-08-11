@@ -2,7 +2,10 @@
 
 ### 0.3.0 (in progress)
 
-- Add skip() function to TextFile, typical use case is for skipping any detected BOM bytes. 
+- Add skip() function to TextFile, typical use case is for skipping any detected BOM bytes.
+- Charsets have new functions to better support decoding of multi-byte characters. Now properly handles partial multi-byte characters at the end of a ByteArray.
+- Significant enhancements to TextBuffer to support reading by Character or String (x number of Character), useful with complex parsers.
+  - Read line functions now properly handle multi-byte characters split across source calls.
 
 ### 0.2.3 (2025-08)
 

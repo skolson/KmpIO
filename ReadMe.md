@@ -342,6 +342,12 @@ Example of creating a text file with ISO-8859-1 encoding, then reading. Same bas
 
 ```
 
+### TextBuffer
+
+For more complex text processing of a TextFile, like for parsers, etc. Provides operations on decoded bytes as Characters or Strings, with optional peek capability for look-ahead before processing. A source can be a text file or any source of bytes to be decoded by a Charset.
+
+TextBuffer accepts blocks of bytes from a source lambda. Any partial character at the end of a block when using a MultiByte Charset will be handled during the next block from source. So text operations can be used without concern for byte handling.
+
 ## ZipFiles
 
 Zip file entries can be directories only with no data, or with data of any size.  Content sizes > Int.MAX_VALUE require setting `isZip64 = true`. Properties are available for accessing all zip metadata; directory records, local directory records, Zip64 metadata. Support for custom extra data encoding/decoding.
