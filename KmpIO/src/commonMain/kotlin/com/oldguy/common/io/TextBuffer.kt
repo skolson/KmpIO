@@ -2,7 +2,6 @@ package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.charsets.MultiByteDecodeException
-import kotlin.properties.Delegates
 
 /**
  * Platform-neutral text buffering for simple text file read (or other source) operations, using blocks of
