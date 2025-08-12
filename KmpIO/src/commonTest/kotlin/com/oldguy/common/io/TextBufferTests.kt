@@ -109,9 +109,9 @@ class TextBufferTests {
                         c = next()
                     }
                 }.toString()
-                val value2 = quotedString(escape = "")
+                val value2 = quotedString()
                 assertEquals("name2", name2)
-                assertEquals("value2", value2)
+                assertEquals("val\"ue2", value2)
             }
         }
     }
@@ -120,6 +120,6 @@ class TextBufferTests {
         val utf8 = Utf8()
         const val testString1 = "Hello, 世界"
 
-        val testAttributes = "name1=\"value1\" name2=\"value2\""
+        val testAttributes = "name1=\"value1\" name2=\"val\\\"ue2\""
     }
 }

@@ -214,6 +214,7 @@ open class TextBuffer(
         return StringBuilder(maxSize).apply {
             while (true) {
                 c = next()
+                if (escape.isEmpty() && c == quote) break
                 if (escape.isNotEmpty()) {
                     var match = 0
                     var temp = ""
@@ -227,10 +228,11 @@ open class TextBuffer(
                     }
                     if (match == escape.length)
                         append(quote)
-                    else
+                    else {
                         append(temp)
+                        if (c == quote) break
+                    }
                 }
-                if (c == quote) break
                 append(c)
                 if (isEndOfFile || this.length >= maxSize) break
             }
