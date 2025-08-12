@@ -5,9 +5,9 @@ class Windows1252()
     "Windows-1252",
     1..1
 ) {
-    override fun decode(bytes: ByteArray, count: Int): String {
+    override fun decode(bytes: ByteArray, count: Int, offset: Int): String {
         return buildString {
-            for(i in 0 until count) {
+            for(i in offset until offset + count) {
                 val key = bytes[i].toInt()
                 checkCode(key)
                 val c = byteToCode[key] ?: key
@@ -16,9 +16,9 @@ class Windows1252()
         }
     }
 
-    override fun decode(bytes: UByteArray, count: Int): String {
+    override fun decode(bytes: UByteArray, count: Int, offset: Int): String {
         return buildString {
-            for(i in 0 until count) {
+            for(i in offset until offset + count) {
                 val key = bytes[i].toInt()
                 checkCode(key)
                 val c = byteToCode[key] ?: key
@@ -44,6 +44,17 @@ class Windows1252()
         }
         return bytes
     }
+
+    override fun checkMultiByte(
+        bytes: ByteArray,
+        count: Int,
+        offset: Int,
+        throws: Boolean
+    ): Int = 0
+
+    override fun byteCount(bytes: ByteArray): Int = 1
+
+    override fun byteCount(bytes: UByteArray): Int = 1
 
     private fun checkCode(code: Int) {
         if (code > MAX_CODE && !codeToByte.containsKey(code)) {

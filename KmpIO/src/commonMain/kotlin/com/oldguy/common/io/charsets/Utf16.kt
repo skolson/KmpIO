@@ -13,9 +13,12 @@ open class Utf16(
         2..4
     )
 {
-    override fun decode(bytes: ByteArray, count: Int): String {
+    private val minBytes = bytesPerChar.first
+
+    override fun decode(bytes: ByteArray, count: Int, offset: Int): String {
         return buildString {
             val buf = ByteBuffer(bytes.sliceArray(0 until count), order)
+            buf.position = offset
             while (buf.remaining > 0) {
                 val code = buf.ushort.toInt()
                 when (code) {
@@ -44,9 +47,10 @@ open class Utf16(
         }
     }
 
-    override fun decode(bytes: UByteArray, count: Int): String {
+    override fun decode(bytes: UByteArray, count: Int, offset: Int): String {
         return buildString {
             val buf = UByteBuffer(bytes.sliceArray(0 until count), order)
+            buf.position = offset
             while (buf.remaining > 0) {
                 val code = buf.ushort.toInt()
                 when (code) {
@@ -113,6 +117,38 @@ open class Utf16(
             }
         }
         return bytes.flip().getBytes()
+    }
+
+    override fun checkMultiByte(
+        bytes: ByteArray,
+        count: Int,
+        offset: Int,
+        throws: Boolean
+    ): Int {
+        if (count < minBytes || count % minBytes == 0 && throws)
+            throw MultiByteDecodeException(
+                "Number of bytes to decode must be even",
+                count + offset - 1,
+                minBytes,
+                1,
+                bytes[count + offset - 1]
+            )
+        val slice = bytes.sliceArray(offset + count - minBytes until offset + count)
+        return byteCount(slice) - minBytes
+    }
+
+    override fun byteCount(bytes: ByteArray): Int {
+        if (bytes.size != bytesPerChar.first)
+            throw IllegalArgumentException("ByteArray must be of size ${bytesPerChar.first}")
+        val code = ByteBuffer(bytes).ushort.toInt()
+        return if (code in codeRange1 || code in codeRange2) 2 else 4
+    }
+
+    override fun byteCount(bytes: UByteArray): Int {
+        if (bytes.size != bytesPerChar.first)
+            throw IllegalArgumentException("UByteArray must be of size ${bytesPerChar.first}")
+        val code = UByteBuffer(bytes).ushort.toInt()
+        return if (code in codeRange1 || code in codeRange2) 2 else 4
     }
 
     companion object {

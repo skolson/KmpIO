@@ -12,21 +12,27 @@ open class Utf32(
     4..4
 )
 {
-    override fun decode(bytes: ByteArray, count: Int): String {
+    override fun decode(bytes: ByteArray, count: Int, offset: Int): String {
         return buildString {
-            val buf = ByteBuffer(bytes.sliceArray(0 until count), order)
-            while (buf.remaining > 0) {
-                append(buf.int.toChar())
-            }
+            ByteBuffer(bytes.sliceArray(0 until count), order)
+                .apply {
+                    position = offset
+                    while (remaining > 0) {
+                        append(int.toChar())
+                    }
+                }
         }
     }
 
-    override fun decode(bytes: UByteArray, count: Int): String {
+    override fun decode(bytes: UByteArray, count: Int, offset: Int): String {
         return buildString {
-            val buf = UByteBuffer(bytes.sliceArray(0 until count), order)
-            while (buf.remaining > 0) {
-                append(buf.int.toChar())
-            }
+            UByteBuffer(bytes.sliceArray(0 until count), order)
+                .apply {
+                    position = offset
+                    while (remaining > 0) {
+                        append(int.toChar())
+                    }
+                }
         }
     }
 
@@ -45,6 +51,27 @@ open class Utf32(
         }
         return bytes.flip().getBytes()
     }
+
+    override fun checkMultiByte(
+        bytes: ByteArray,
+        count: Int,
+        offset: Int,
+        throws: Boolean
+    ): Int {
+        if (count % 4 == 0 && throws)
+            throw MultiByteDecodeException(
+                "Number of bytes to decode must be divisible by 4",
+                count + offset - 1,
+                4,
+                count % 4,
+                bytes[count + offset - 1]
+            )
+        return count % 4
+    }
+
+    override fun byteCount(bytes: ByteArray): Int = 4
+
+    override fun byteCount(bytes: UByteArray): Int = 4
 }
 
 class Utf32LE():

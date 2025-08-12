@@ -1,15 +1,11 @@
 package com.oldguy.common.io
 
-import com.oldguy.common.io.charsets.Charset
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.io.InputStream
-import java.io.OutputStream
 import java.net.URI
-import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
@@ -51,7 +47,7 @@ actual open class File actual constructor(filePath: String, platformFd: FileDesc
 
     actual val name: String = javaFile.name
     actual val nameWithoutExtension: String = javaFile.nameWithoutExtension
-    actual val extension: String = if (javaFile.extension.isNotEmpty()) ".${javaFile.extension}" else ""
+    actual val extension: String = javaFile.extension.ifEmpty { "" }
     actual val path: String = javaFile.path.trimEnd(pathSeparator)
     actual val fullPath: String = filePath.trimEnd(pathSeparator)
     actual val directoryPath: String = path.replace(name, "").trimEnd(pathSeparator)

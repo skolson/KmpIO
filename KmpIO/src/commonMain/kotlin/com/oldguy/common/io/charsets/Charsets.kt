@@ -3,6 +3,21 @@ package com.oldguy.common.io.charsets
 import com.oldguy.common.containsIgnoreCase
 
 /**
+ * Thrown if a partial multi-byte character is found at the end of a ByteArray.
+ * @param message error text
+ * @param offset offset of the partial character
+ * @param bytesMissing number of bytes missing to complete the character
+ * @param byte the 'header' byte of the character indicating number of bytes required to complete it
+ */
+class MultiByteDecodeException(
+    message: String,
+    val offset: Int,
+    val bytesRequired: Int,
+    val bytesMissing: Int,
+    val byte: Byte
+): Exception(message)
+
+/**
  * Supported charsets, requires each target to supply an "actual" implementation, typically using
  * target's native charsets.
  */
@@ -71,19 +86,22 @@ abstract class Charset(
      * Using the current character set, decode the entire ByteArray into a String
      * @param bytes For 8 bit character sets, has the same size as the number of characters. For 16-bit character sets,
      * bytes.size is double the number of String characters. Entire content is decoded.
+     * To verify a complete multi-byte character at the end of the selected bytes, use checkMultiByte()
      * @param count number of bytes to decode
+     * @param offset offset into bytes to start decoding from
      * @return decoded String
      */
-    abstract fun decode(bytes: ByteArray, count: Int = bytes.size): String
+    abstract fun decode(bytes: ByteArray, count: Int = bytes.size, offset: Int = 0): String
 
     /**
      * Using the current character set, decode the ByteArray into a String
      * @param bytes For 8 bit character sets, has the same size as the number of characters. For 16-bit character sets,
      * bytes.size is double the number of String characters. Entire content is decoded.
+     * To verify a complete multi-byte character at the end of the selected bytes, use checkMultiByte()
      * @param count number of bytes to decode
      * @return decoded String
      */
-    abstract fun decode(bytes: UByteArray, count: Int = bytes.size): String
+    abstract fun decode(bytes: UByteArray, count: Int = bytes.size, offset: Int = 0): String
 
     /**
      * Using the current character set, encode the entire String into a ByteArray.
@@ -101,4 +119,32 @@ abstract class Charset(
      */
     abstract fun UEencode(inString: String): UByteArray
 
+    /**
+     * Use to verify that a decode operation on selected bytes will not have a partial character at the end.
+     * If the selected bytes end with a partial character, either return false or throw an exception.
+     * @param bytes to be decoded
+     * @param count number of bytes to decode
+     * @param offset offset into bytes to start decoding from
+     * @param throws true if partial character detection at end of bytes should throw an exception.
+     * False if it should return false. Exception thrown
+     * @return 0 if no incomplete characters at end of selected bytes, otherwise the number of bytes
+     * required to complete the character.
+     */
+    abstract fun checkMultiByte(bytes: ByteArray, count: Int, offset: Int, throws: Boolean = true): Int
+
+    /**
+     * For the specified byte(s), determine the number of bytes required to complete the character.
+     * @param bytes must be a ByteArray(charset.bytesPerChar.first) containing byte(s) to be checked.
+     * @return number of bytes required to complete a character. Between charset.bytesPerChar.first
+     * and charset.bytesPerChar.last.
+     */
+    abstract fun byteCount(bytes: ByteArray): Int
+
+    /**
+     * For the specified byte, determine the number of bytes required to complete the character.
+     * @param bytes must be a ByteArray(charset.bytesPerChar.first) containing byte(s) to be checked.
+     * @return number of bytes required to complete a character. Between charset.bytesPerChar.first
+     * and charset.bytesPerChar.last.
+     */
+    abstract fun byteCount(bytes: UByteArray): Int
 }
