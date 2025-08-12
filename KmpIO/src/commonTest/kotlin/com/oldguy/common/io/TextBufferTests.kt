@@ -99,6 +99,7 @@ class TextBufferTests {
                         c = next()
                     }
                 }.toString()
+                next()
                 val value = quotedString()
                 assertEquals("name1", name)
                 assertEquals("value1", value)
@@ -109,9 +110,102 @@ class TextBufferTests {
                         c = next()
                     }
                 }.toString()
+                next()
                 val value2 = quotedString()
                 assertEquals("name2", name2)
                 assertEquals("val\"ue2", value2)
+            }
+        }
+    }
+
+    @Test
+    fun parseTokenTest() {
+        runTest {
+            var count = 0
+            val bytes = tokenTest.encodeToByteArray()
+            TextBuffer(Utf8()) { buffer, size ->
+                bytes.copyInto(buffer)
+                count++
+                if (count > 1) 0u else bytes.size.toUInt()
+            }.apply {
+                tokenSeparators = simpleXmlTokenSeparators
+                var token = token()
+                assertEquals("<?", token.leadingSeparator)
+                assertEquals("xml", token.value)
+                token = token()
+                assertTrue(token.leadingSeparator.isEmpty())
+                assertEquals("version", token.value)
+                token = token()
+                assertEquals("=", token.leadingSeparator)
+                assertEquals("1.0", token.value)
+                token = token()
+                assertEquals("?>", token.leadingSeparator)
+                assertTrue(token.value.isEmpty())
+                assertTrue(isEndOfFile)
+            }
+        }
+    }
+
+    @Test
+    fun parseSimpleXmlTest() {
+        runTest {
+            var count = 0
+            val bytes = tokenXmlTest.encodeToByteArray()
+            TextBuffer(Utf8()) { buffer, size ->
+                bytes.copyInto(buffer)
+                count++
+                if (count > 1) 0u else bytes.size.toUInt()
+            }.apply {
+                tokenSeparators = simpleXmlTokenSeparators
+                var token = token()
+                assertEquals("<?", token.leadingSeparator)
+                assertEquals("xml", token.value)
+                token = token()
+                assertTrue(token.leadingSeparator.isEmpty())
+                assertEquals("version", token.value)
+                token = token()
+                assertEquals("=", token.leadingSeparator)
+                assertEquals("1.0", token.value)
+                token = token()
+                assertEquals("?>", token.leadingSeparator)
+                assertTrue(token.value.isEmpty())
+                token = token()
+                assertEquals("<", token.leadingSeparator)
+                assertEquals("Test", token.value)
+                token = token()
+                assertEquals(">", token.leadingSeparator)
+                assertTrue(token.value.isEmpty())
+                token = token()
+                assertEquals("<", token.leadingSeparator)
+                assertEquals("el1", token.value)
+                token = token()
+                assertEquals("/>", token.leadingSeparator)
+                assertTrue(token.value.isEmpty())
+                token = token()
+                assertEquals("<", token.leadingSeparator)
+                assertEquals("el2", token.value)
+                token = token()
+                assertTrue(token.leadingSeparator.isEmpty())
+                assertEquals("att1", token.value)
+                token = token()
+                assertEquals("=", token.leadingSeparator)
+                assertEquals("val1", token.value)
+                token = token()
+                assertTrue(token.leadingSeparator.isEmpty())
+                assertEquals("att2", token.value)
+                token = token()
+                assertEquals("=", token.leadingSeparator)
+                assertEquals("val2", token.value)
+                token = token()
+                assertEquals("/>", token.leadingSeparator)
+                assertTrue(token.value.isEmpty())
+                token = token()
+                assertEquals("</", token.leadingSeparator)
+                assertEquals("Test", token.value)
+                token = token()
+                assertEquals(">", token.leadingSeparator)
+                assertTrue(token.value.isEmpty())
+                assertTrue(isEndOfFile)
             }
         }
     }
@@ -121,5 +215,10 @@ class TextBufferTests {
         const val testString1 = "Hello, 世界"
 
         const val testAttributes = "name1=\"value1\" name2=\"val\\\"ue2\""
+
+        const val tokenTest = "<?xml version=\"1.0\"?>"
+        const val tokenXmlTest = "<?xml version=\"1.0\"?><Test><el1/><el2 att1=\"val1\" att2=\"val2\"/></Test>"
+        val simpleXmlTokenSeparators = listOf("<", ">", "/>", "<?", "?>", "<!--", "--!>", "=")
+
     }
 }

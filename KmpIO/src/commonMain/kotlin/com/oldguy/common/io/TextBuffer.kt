@@ -2,6 +2,7 @@ package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.charsets.MultiByteDecodeException
+import kotlin.properties.Delegates
 
 /**
  * Platform-neutral text buffering for simple text file read (or other source) operations, using blocks of
@@ -60,6 +61,46 @@ open class TextBuffer(
      */
     val isReadLock get() = readLock
 
+    private var _lastChar = false
+    /**
+     * Last character read from the source. If used before the first call to next(), an exception is
+     * thrown.
+     */
+    var lastChar = Char(0)
+        get() {
+            if (_lastChar) return field
+            throw IllegalStateException("Last character not available before first call to next()")
+        }
+        private set
+
+    /**
+     * The remaining vars are configuration for the various parsing operators. Useful for manual
+     * configuration, or for a builder DSL that produces configured TextBuffers
+     */
+
+    /**
+     * Character used to enclose quoted strings. See quotedString()
+     */
+    var quote: Char = '"'
+
+    /**
+     * String pattern, if matched in quotedString(), is replaced by quote. If empty, no escaping
+     * happens
+     */
+    var escapedQuote: String = "\\\""
+
+    /**
+     * List of separator character Strings, used in token(). See fun token() for details.
+     */
+    var tokenSeparators = emptyList<String>()
+    val separatorChars get() = tokenSeparators.flatMap { it.toCharArray().toList() }.distinct()
+
+    /**
+     * If true, and a token value starts with a quote character, then use fun quotedString() to read.
+     * If false, treat quote like any other character.
+     */
+    val tokenValueQuotedString = true
+
 
     private suspend fun useSource(): UInt {
         if (buf.remaining > 0) {
@@ -109,12 +150,16 @@ open class TextBuffer(
 
     /**
      * Use this to read decoded character by decoded character, until isEndOfFile is true.
+     *
+     * the most recent character read is available in lastChar
+     *
      * @param peek true if decoded character should be returned without advancing to the next character.
      * @return decoded character. if isEndOfFile is true, returns code 0x00 character.
      */
     suspend fun next(peek: Boolean = false): Char {
         if (!isEndOfFile && buf.remaining < charset.bytesPerChar.last)
             useSource()
+        _lastChar = true
         if (buf.remaining == 0) return Char(0)
         val pos = buf.position
         val byteCount = charset.byteCount(checkBytes(pos))
@@ -137,6 +182,7 @@ open class TextBuffer(
                 -1,
                 remainder[0]
             )
+        lastChar = s[0]
         if (!peek) buf.position = buf.position + byteCount
         return s[0]
     }
@@ -192,33 +238,44 @@ open class TextBuffer(
     }
 
     /**
+     * Reads the next character, skips any whitespace characters
+     * @return number of whitespace characters skipped
+     */
+    suspend fun skipWhitespace(): Int {
+        var count = 0
+        while (!isEndOfFile && next().isWhitespace()) {
+            count++
+        }
+        return count
+    }
+
+    /**
      * Verifies that the current position is a quote character. If it is, retrieves characters and
      * builds a String until the next quote character is seen. If an escape is specified for an
      * enclose quote, handle the escape as well. If end of input is reached before the closing quote,
      * all characters since the last quote are returned.
-     * @param quote character to look for
-     * @param escape String to match as an escape for quote. If empty, no escape processing happens
+     *
+     * See variable "quote" for quote character to look for. defaults to '"'
+     * See variable escapedQuote String to match as an escape for quote. If empty, no escape processing happens
+     *
      * @param maxSize number of characters to read before returning.
-     * @return String containing characters between quote characters. If current position is not a quote,
-     * empty string is returned
+     * @return String containing characters between quote characters. If previous call to next()
+     * is not a quote, throw an exception.
      */
     suspend fun quotedString(
-        quote: Char = '"',
-        escape: String = "\\\"",
         maxSize: Int = 1024
     ): String {
-        if (next(true) != quote) return ""
-        var c = next()
+        var c = lastChar
         if (c != quote)
             throw IllegalStateException("Quoted string must start with quote")
         return StringBuilder(maxSize).apply {
             while (true) {
                 c = next()
-                if (escape.isEmpty() && c == quote) break
-                if (escape.isNotEmpty()) {
+                if (escapedQuote.isEmpty() && c == quote) break
+                if (escapedQuote.isNotEmpty()) {
                     var match = 0
                     var temp = ""
-                    for (m in escape) {
+                    for (m in escapedQuote) {
                         if (c == m) {
                             match++
                             temp += c
@@ -226,7 +283,7 @@ open class TextBuffer(
                         } else
                             break
                     }
-                    if (match == escape.length)
+                    if (match == escapedQuote.length)
                         append(quote)
                     else {
                         append(temp)
@@ -236,8 +293,68 @@ open class TextBuffer(
                 append(c)
                 if (isEndOfFile || this.length >= maxSize) break
             }
+            if (!isEndOfFile) next()
         }.toString()
+    }
 
+    /**
+     * A Token instance is one or more leading separator characters (a separator string)
+     * followed by all non-separator, non-whitespace characters as the token value.
+     */
+    data class Token(
+        val leadingSeparator: String,
+        val value: String,
+    )
+
+    /**
+     * Reads next token of text, up to maxSize characters.
+     *
+     * A Token instance is one or more leading separator characters or whitespace, followed by all non-separator,
+     * non-whitespace characters as the token value. Separator characters are specified in the tokenSeparators
+     * variable, and consist of all the distinct characters across all the separator strings in the list.
+     *
+     * An example of a partial tokenSeparators list for parsing an XML document would include the following:
+     * tokenSeparators = listOf("<", ">", "/>", "<?", "?>", "<!--", "--!>", "=")
+     *
+     * If the first sequence of separator characters is followed by whitespace and another separator,
+     * the Token returned will contain the first separators with an empty value
+     *
+     * Whitespace between the separator and the token value (or the next separator) is ignored.
+     *
+     * @param maxSize maximum number of characters in a Token instance leadingSeparators. Also the
+     * maximum number of characters in the Token value
+     * @return Token instance containing any separator string found, and a token value that contains
+     * all non-separator, non-whitespace characters after the separator string. If no value is found,
+     * due to another separator or end of file, value is empty
+     */
+    suspend fun token(
+        maxSize: Int = 1024
+    ) : Token {
+        if (!_lastChar) next()
+        val leading = StringBuilder(maxSize)
+        if (lastChar.isWhitespace()) skipWhitespace()
+        var c = lastChar
+        while (!isEndOfFile && separatorChars.contains(c)) {
+            leading.append(c)
+            c = next()
+            val m = tokenSeparators.count { it.startsWith(leading.toString()) }
+            if (m == 0) break
+            if (m == 1 && tokenSeparators.contains(leading.toString())) break
+        }
+        if (c.isWhitespace()) {
+            skipWhitespace()
+            c = lastChar
+        }
+        val value = if (tokenValueQuotedString && c == quote) {
+            quotedString(maxSize)
+        } else
+            StringBuilder(maxSize).apply {
+                while (!isEndOfFile && !separatorChars.contains(c) && !c.isWhitespace()) {
+                    append(c)
+                    c = next()
+                }
+            }.toString()
+        return Token(leading.toString(), value)
     }
 
     companion object {
