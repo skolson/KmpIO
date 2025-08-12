@@ -148,6 +148,18 @@ open class TextBuffer(
     }
 
     /**
+     * Use to retrieve blocks of decoded text with no parsing functionality. To ensure proper
+     * decoding of multi-byte character sets, each block saves any incomplete character bytes at the end
+     * of the block for processing during the next call to nextBlock().
+     */
+    suspend fun nextBlock(): String {
+        useSource()
+        return if (buf.remaining == 0) ""
+        else
+            charset.decode(buf.getBytes())
+    }
+
+    /**
      * Use this to read decoded character by decoded character, until isEndOfFile is true.
      *
      * the most recent character read is available in lastChar
