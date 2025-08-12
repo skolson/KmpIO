@@ -120,6 +120,6 @@ class TextBufferTests {
         val utf8 = Utf8()
         const val testString1 = "Hello, 世界"
 
-        val testAttributes = "name1=\"value1\" name2=\"val\\\"ue2\""
+        const val testAttributes = "name1=\"value1\" name2=\"val\\\"ue2\""
     }
 }
