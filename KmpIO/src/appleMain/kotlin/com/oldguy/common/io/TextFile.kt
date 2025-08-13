@@ -14,20 +14,22 @@ actual class TextFile actual constructor(
     actual val file: File,
     charset: Charset,
     mode: FileMode,
-    source: FileSource
+    source: FileSource,
+    bufferSize: Int
 ) : Closeable
 {
     actual constructor(
         filePath: String,
         charset: Charset,
         mode: FileMode,
-        source: FileSource
+        source: FileSource,
+        bufferSize: Int
     ) : this(File(filePath, null), charset, mode, source)
 
     actual val charset = charset
     private val apple = AppleFileHandle(file, mode)
 
-    val textBuffer = TextBuffer(charset) { buffer, count ->
+    actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->
         if (buffer.isEmpty())
             0u
         else {

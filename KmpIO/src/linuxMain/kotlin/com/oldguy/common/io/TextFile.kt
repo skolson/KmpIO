@@ -6,14 +6,16 @@ actual class TextFile actual constructor(
     file: File,
     charset: Charset,
     mode: FileMode,
-    source: FileSource
+    source: FileSource,
+    bufferSize: Int
 ) : LinuxFile(file, mode, source)
 {
     actual constructor(
         filePath: String,
         charset: Charset,
         mode: FileMode,
-        source: FileSource
+        source: FileSource,
+        bufferSize: Int
     ) : this(
         File(filePath),
         charset,
@@ -22,8 +24,12 @@ actual class TextFile actual constructor(
     )
 
     actual val charset = charset
-    val textBuffer = TextBuffer(charset) { buffer, count ->
+    actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->
         read(buffer, count)
+    }
+
+    actual override suspend fun close() {
+        super.close()
     }
 
     actual suspend fun readLine(): String {

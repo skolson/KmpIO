@@ -7,7 +7,8 @@ expect class TextFile(
     file: File,
     charset: Charset = Utf8(),
     mode: FileMode = FileMode.Read,
-    source: FileSource = FileSource.File
+    source: FileSource = FileSource.File,
+    bufferSize: Int = TextBuffer.DEFAULT_BLOCK_SIZE
 ) : Closeable {
     val file: File
     val charset: Charset
@@ -16,8 +17,11 @@ expect class TextFile(
         filePath: String,
         charset: Charset = Utf8(),
         mode: FileMode = FileMode.Read,
-        source: FileSource = FileSource.File
+        source: FileSource = FileSource.File,
+        bufferSize: Int = TextBuffer.DEFAULT_BLOCK_SIZE
     )
+
+    val textBuffer: TextBuffer
 
     override suspend fun close()
 
@@ -36,7 +40,7 @@ expect class TextFile(
     /**
      * Convenience method for reading a file by text block. Lambda is invoked once for each block read until end of file,
      * when the file is closed and the function returns.
-     * @param maxSizeBytes number of bytes, before character set decoding, to be read from the file in one operation
+     * @param maxSizeBytes current implementations ignore this parameter, use the bufferSize constructor parameter instead.
      * @param action will be invoked once for each block read. The bytes read are decoded using [Charset] and the
      * resulting String is the value of the argument. Function should return true to continue reading, or false to
      * close file and complete. Note that file will be closed on return, even if some exception is thrown during
@@ -46,7 +50,7 @@ expect class TextFile(
 
     /**
      * Read one block of text decoded using [Charset]. Caller is responsible for closing file when done.
-     * @param maxSizeBytes number of bytes, before character set decoding, to be read from the file.
+     * @param maxSizeBytes current implementations ignore this parameter, use the bufferSize constructor parameter instead.
      * @return decoded String. Will be empty if end of file has been reached.
      */
     suspend fun read(maxSizeBytes: Int): String

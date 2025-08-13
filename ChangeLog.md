@@ -3,9 +3,11 @@
 ### 0.3.0 (in progress)
 
 - Add skip() function to TextFile, typical use case is for skipping any detected BOM bytes.
+- Add optional bufferSize argument to TextFile constructor. Specifies the minimum size of TextBuffer. Uses TextBuffer.DEFAULT_BUFFER_SIZE (4k bytes) if not specified. Previously the default of 4k on the Linux and Apple implementations was not changeable.
 - Charsets have new functions to better support decoding of multi-byte characters. Now properly handles partial multi-byte characters at the end of a ByteArray.
 - Significant enhancements to TextBuffer to support reading by Character or String (x number of Character), useful with complex parsers.
   - Read line functions now properly handle multi-byte characters split across source calls.
+- JVM and Android TextFile internal implementations have changed from java's BufferedReader to TextBuffer. Functionally no change. All targets now use TextBuffer the same way for block, line-based, or next-based (parsing) operations.
 
 ### 0.2.3 (2025-08)
 
