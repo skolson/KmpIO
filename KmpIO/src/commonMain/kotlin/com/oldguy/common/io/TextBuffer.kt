@@ -384,29 +384,33 @@ open class TextBuffer(
      * Reads text until one of the separators is found, or end of file. Typical use is to extract
      * unparsed text verbatim until a separator is found.
      * @param separators list of one or more non-empty separator strings.
-     * @return all characters, not including the end separator, found. If end of file is reached,
-     * all remaining characters are returned.
+     * @return a Pair of strings, first is all characters, not including the end separator, found.
+     * If end of file is reached, all remaining characters are returned. Second is the separator
+     * string matched at the end, if any
      */
     suspend fun nextUntil(
         separators: List<String>,
         maxSize: Int = 1024
-    ): String {
-        return StringBuilder(maxSize).apply {
-            var c = lastChar
-            var separatorBuf = ""
-            while (!isEndOfFile && length < maxSize) {
-                if (separatorChars.contains(c)) separatorBuf += c
-                when (matchSeparators(separatorBuf, separators)) {
-                    MatchResult.Matching -> {}
-                    MatchResult.NoMatch -> separatorBuf = ""
-                    MatchResult.Match -> break
+    ): Pair<String, String> {
+        var separatorBuf = ""
+        return Pair (
+            StringBuilder(maxSize).apply {
+                var c = lastChar
+                while (!isEndOfFile && length < maxSize) {
+                    if (separatorChars.contains(c)) separatorBuf += c
+                    when (matchSeparators(separatorBuf, separators)) {
+                        MatchResult.Matching -> {}
+                        MatchResult.NoMatch -> separatorBuf = ""
+                        MatchResult.Match -> break
+                    }
+                    c = next()
                 }
-                c = next()
-            }
-            if (endsWith(separatorBuf)) {
-                deleteRange(length - separatorBuf.length, length)
-            }
-        }.toString()
+                if (endsWith(separatorBuf)) {
+                    deleteRange(length - separatorBuf.length, length)
+                }
+            }.toString(),
+            separatorBuf
+        )
     }
 
     enum class MatchResult { Matching, Match, NoMatch }
