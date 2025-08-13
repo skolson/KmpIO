@@ -5,6 +5,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import kotlin.IllegalStateException
 
 /**
  * Read a text file, and provide both character set translation as well as line-based processing
@@ -14,11 +15,22 @@ actual class TextFile actual constructor(
     actual val file: File,
     actual val charset: Charset,
     val mode: FileMode,
-    source: FileSource
+    source: FileSource,
+    bufferSize: Int
 ) : Closeable {
 
-    var javaReader: java.io.BufferedReader? = null
     var javaWriter: java.io.BufferedWriter? = null
+
+    private var stream = when (source) {
+        FileSource.Asset -> null
+        FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
+        FileSource.File -> FileInputStream(file.fullPath)
+    }
+
+    actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->
+        stream?.read(buffer)?.toUInt()
+            ?: throw IllegalStateException("InputStream is null")
+    }
 
     constructor(
         file: File,
@@ -26,7 +38,7 @@ actual class TextFile actual constructor(
         mode: FileMode,
         stream: InputStream
     ) : this(file, charset, mode, FileSource.Asset) {
-        javaReader = stream.bufferedReader(java.nio.charset.Charset.forName(charset.name))
+        this.stream = stream
     }
 
     constructor(
@@ -39,17 +51,6 @@ actual class TextFile actual constructor(
     }
 
     init {
-        if (javaReader == null && mode == FileMode.Read) {
-            val stream = when (source) {
-                FileSource.Asset -> null
-                FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
-                FileSource.File -> FileInputStream(file.fullPath)
-            }
-            if (stream != null)
-                javaReader =
-                    java.io.BufferedReader(java.io.InputStreamReader(stream, java.nio.charset.Charset.forName(charset.name)))
-        }
-
         if (javaWriter == null && mode == FileMode.Write) {
             val stream = when (source) {
                 FileSource.Asset -> null
@@ -65,18 +66,19 @@ actual class TextFile actual constructor(
         filePath: String,
         charset: Charset,
         mode: FileMode,
-        source: FileSource
+        source: FileSource,
+        bufferSize: Int
     ) : this(File(filePath, null), charset, mode, source)
 
     actual override suspend fun close() {
-        javaReader?.close()
         javaWriter?.close()
+        stream?.close()
     }
 
     actual suspend fun readLine(): String {
         if (mode == FileMode.Write)
             throw IllegalStateException("Mode is write, cannot read")
-        return javaReader?.readLine() ?: ""
+        return textBuffer.readLine()
     }
 
     actual suspend fun write(text: String) {
@@ -93,43 +95,42 @@ actual class TextFile actual constructor(
     actual suspend fun forEachLine(action: (count: Int, line: String) -> Boolean) {
         if (mode == FileMode.Write)
             throw IllegalStateException("Mode is write, cannot read")
-        val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
-        var count = 1
         try {
-            rdr.forEachLine { if (!action(count++, it)) throw IllegalStateException("ignore") }
-        } catch (_: IllegalStateException) {
+            textBuffer.forEachLine() { count, line ->
+                action(count, line)
+            }
+        } finally {
+            close()
         }
     }
 
     actual suspend fun forEachBlock(maxSizeBytes: Int, action: (text: String) -> Boolean) {
         if (mode == FileMode.Write)
             throw IllegalStateException("Mode is write, cannot read")
-        val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
-        val chars = CharArray(maxSizeBytes)
-        var count = rdr.read(chars)
-        while (count > 0) {
-            if (!action(String(chars, 0, count)))
-                break
-            count = rdr.read(chars)
+        try {
+            val str = textBuffer.nextBlock()
+            while (str.isNotEmpty()) {
+                if (action(str))
+                    textBuffer.nextBlock()
+                else
+                    break
+            }
+        } finally {
+            close()
         }
     }
 
     actual suspend fun read(maxSizeBytes: Int): String {
-        if (mode == FileMode.Write)
-            throw IllegalStateException("Mode is write, cannot read")
-        val rdr = javaReader ?: throw IllegalStateException("Reader is invalid")
-        val chars = CharArray(maxSizeBytes)
-        val count = rdr.read(chars)
-        return if (count > 0)
-            String(chars, 0, count)
-        else
-            ""
+        if (textBuffer.isReadLock)
+            throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
+        if (textBuffer.isEndOfFile) return ""
+        return textBuffer.nextBlock()
     }
 
     actual suspend fun skip(bytesCount: ULong) {
         if (mode != FileMode.Read)
             throw IllegalStateException("Mode must be Read to use skip()")
-        val count = javaReader?.skip(bytesCount.toLong())
+        val count = stream?.skip(bytesCount.toLong()) ?: 0L
         if (count != bytesCount.toLong())
             throw IllegalStateException("skip($bytesCount) attempted, $count bytes skipped")
     }

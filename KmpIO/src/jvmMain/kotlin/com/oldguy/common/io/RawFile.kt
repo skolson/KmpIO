@@ -36,7 +36,7 @@ actual class RawFile actual constructor(
         javaFile.channel.close()
     }
 
-    private fun acceptRead(buf: com.oldguy.common.io.ByteBuffer,
+    private fun acceptRead(buf: ByteBuffer,
                            bytesRead: Int,
                            javaBuf: java.nio.ByteBuffer,
                            reuseBuffer: Boolean
