@@ -7,6 +7,7 @@
 - Charsets have new functions to better support decoding of multi-byte characters. Now properly handles partial multi-byte characters at the end of a ByteArray.
 - Significant enhancements to TextBuffer to support reading by Character or String (x number of Character), useful with complex parsers.
   - Read line functions now properly handle multi-byte characters split across source calls.
+  - New properties lineCount and linePosition for tracking current position in file during parsing
 - JVM and Android TextFile internal implementations have changed from java's BufferedReader to TextBuffer. Functionally no change. All targets now use TextBuffer the same way for block, line-based, or next-based (parsing) operations.
 - TextFile now makes previously internal TextBuffer as an accessible property. Allows use of TextBuffer parsing functions in a consistent way across all platforms. For now there are no TextFile convenience wrappers for TextBuffer parsing functions. 
 
