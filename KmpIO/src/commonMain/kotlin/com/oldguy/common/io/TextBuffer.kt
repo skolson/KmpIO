@@ -358,9 +358,11 @@ open class TextBuffer(
         while (!isEndOfFile && separatorChars.contains(c)) {
             leading.append(c)
             c = next()
-            val m = tokenSeparators.count { it.startsWith(leading.toString()) }
-            if (m == 0) break
-            if (m == 1 && tokenSeparators.contains(leading.toString())) break
+           when (matchSeparators(leading.toString(), tokenSeparators)) {
+               MatchResult.Matching -> {}
+               MatchResult.NoMatch,
+               MatchResult.Match -> break
+           }
         }
         if (c.isWhitespace()) {
             skipWhitespace()
@@ -378,9 +380,49 @@ open class TextBuffer(
         return Token(leading.toString(), value)
     }
 
+    /**
+     * Reads text until one of the separators is found, or end of file. Typical use is to extract
+     * unparsed text verbatim until a separator is found.
+     * @param separators list of one or more non-empty separator strings.
+     * @return all characters, not including the end separator, found. If end of file is reached,
+     * all remaining characters are returned.
+     */
+    suspend fun nextUntil(
+        separators: List<String>,
+        maxSize: Int = 1024
+    ): String {
+        return StringBuilder(maxSize).apply {
+            var c = lastChar
+            var separatorBuf = ""
+            while (!isEndOfFile && length < maxSize) {
+                if (separatorChars.contains(c)) separatorBuf += c
+                when (matchSeparators(separatorBuf, separators)) {
+                    MatchResult.Matching -> {}
+                    MatchResult.NoMatch -> separatorBuf = ""
+                    MatchResult.Match -> break
+                }
+                c = next()
+            }
+            if (endsWith(separatorBuf)) {
+                deleteRange(length - separatorBuf.length, length)
+            }
+        }.toString()
+    }
+
+    enum class MatchResult { Matching, Match, NoMatch }
+    private fun matchSeparators(chars: String, separators: List<String>): MatchResult {
+        val m = separators.count { it.startsWith(chars) }
+        return if (m == 0)
+            MatchResult.NoMatch
+        else if (m == 1 && separators.contains(chars))
+            MatchResult.Match
+        else
+            MatchResult.Matching
+    }
+
     companion object {
         const val EOL = "\n"
-        val EOL_CHAR = EOL[0]
+        const val EOL_CHAR = EOL[0]
         const val DEFAULT_BLOCK_SIZE = 4096
     }
 }
