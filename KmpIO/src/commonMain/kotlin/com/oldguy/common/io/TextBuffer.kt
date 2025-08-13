@@ -45,6 +45,12 @@ open class TextBuffer(
         private set
 
     /**
+     * While using parsing functions, this attribute is the current position on the current line, one-relative
+     */
+    var linePosition = 0
+        private set
+
+    /**
      * Count of the number of bytes read from source, before decoding.
      */
     var bytesRead: Long = 0
@@ -194,6 +200,11 @@ open class TextBuffer(
                 remainder[0]
             )
         lastChar = s[0]
+        if (lastChar == EOL_CHAR) {
+            linePosition = 0
+            lineCount++
+        } else
+            linePosition++
         if (!peek) buf.position = buf.position + byteCount
         return s[0]
     }
@@ -209,10 +220,9 @@ open class TextBuffer(
         return StringBuilder(blockSize).apply {
             while (!isEndOfFile) {
                 val c = next()
-                if (c == '\n') break
+                if (c == EOL_CHAR) break
                 append(c)
             }
-            lineCount++
         }.toString()
     }
 
@@ -370,6 +380,7 @@ open class TextBuffer(
 
     companion object {
         const val EOL = "\n"
+        val EOL_CHAR = EOL[0]
         const val DEFAULT_BLOCK_SIZE = 4096
     }
 }
