@@ -106,6 +106,13 @@ open class TextBuffer(
      */
     val tokenValueQuotedString = true
 
+    /**
+     * If true, whitespace is retained while parsing tokens. This allows whitespace to be included
+     * in separators for matching. It also allows Token values to contain white space. Does not affect
+     * readLine or quotedString functions which never skip whitespace. Explicit calls to skipWhitespace()
+     * will still skip whitespace.
+     */
+    val retainWhitespace = false
 
     private suspend fun useSource(): UInt {
         if (buf.remaining > 0) {
@@ -362,7 +369,7 @@ open class TextBuffer(
     ) : Token {
         if (!_lastChar) next()
         val leading = StringBuilder(maxSize)
-        if (lastChar.isWhitespace()) skipWhitespace()
+        if (lastChar.isWhitespace() && !retainWhitespace) skipWhitespace()
         var c = lastChar
         val l = lineCount
         val lp = linePosition
@@ -375,7 +382,7 @@ open class TextBuffer(
                MatchResult.Match -> break
            }
         }
-        if (c.isWhitespace()) {
+        if (c.isWhitespace() && !retainWhitespace) {
             skipWhitespace()
             c = lastChar
         }
@@ -383,7 +390,11 @@ open class TextBuffer(
             quotedString(maxSize)
         } else
             StringBuilder(maxSize).apply {
-                while (!isEndOfFile && !separatorChars.contains(c) && !c.isWhitespace()) {
+                while (
+                    !isEndOfFile &&
+                    !separatorChars.contains(c) &&
+                    (retainWhitespace || !c.isWhitespace())
+                ) {
                     append(c)
                     c = next()
                 }
