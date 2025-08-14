@@ -321,10 +321,19 @@ open class TextBuffer(
     /**
      * A Token instance is one or more leading separator characters (a separator string)
      * followed by all non-separator, non-whitespace characters as the token value.
+     * @property leadingSeparator if the first string seen matches one of the separators in the
+     * configured list, the match value is set to this property. Otherwise empty.
+     * @property value if non-separator, non whitespace character(s) are found after the token,
+     * they are set to this property. Otherwise empty
+     * @property line the line number where this token was located. From instance property 'lineCount;
+     * @property position the number of the character, one relative, in the current line. From
+     * instance property 'linePosition'
      */
     data class Token(
         val leadingSeparator: String,
         val value: String,
+        val line: Int,
+        val position: Int
     )
 
     /**
@@ -355,6 +364,8 @@ open class TextBuffer(
         val leading = StringBuilder(maxSize)
         if (lastChar.isWhitespace()) skipWhitespace()
         var c = lastChar
+        val l = lineCount
+        val lp = linePosition
         while (!isEndOfFile && separatorChars.contains(c)) {
             leading.append(c)
             c = next()
@@ -377,7 +388,7 @@ open class TextBuffer(
                     c = next()
                 }
             }.toString()
-        return Token(leading.toString(), value)
+        return Token(leading.toString(), value, l, lp)
     }
 
     /**
@@ -405,7 +416,7 @@ open class TextBuffer(
                     }
                     c = next()
                 }
-                if (endsWith(separatorBuf)) {
+                if (separatorBuf.isNotEmpty() && endsWith(separatorBuf)) {
                     deleteRange(length - separatorBuf.length, length)
                 }
             }.toString(),
