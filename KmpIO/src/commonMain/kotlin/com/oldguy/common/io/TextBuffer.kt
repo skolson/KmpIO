@@ -473,6 +473,7 @@ open class TextBuffer(
             StringBuilder(maxSize).apply {
                 var c = lastChar
                 while (!isEndOfFile && length < maxSize) {
+                    append(c)
                     if (separatorChars.contains(c)) separatorBuf += c
                     when (matchSeparators(separatorBuf, separators)) {
                         MatchResult.Matching -> {}
