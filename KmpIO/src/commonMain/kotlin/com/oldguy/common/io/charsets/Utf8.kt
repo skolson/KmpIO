@@ -42,6 +42,11 @@ class Utf8:
     }
 
     override fun checkMultiByte(bytes: ByteArray, count: Int, offset: Int, throws: Boolean): Int {
+        if (offset < 0 || count < 0 || count + offset > bytes.size)
+            throw IndexOutOfBoundsException(
+                "checkMultiBytes arguments illegal. offset: $offset, count: $count, bytes.size: ${bytes.size}"
+            )
+        if (count == 0) return 0
         var bytesMissing = 0
         bytes[count+offset-1].toUByte().toInt().also {
             if (it in twoBytes ||

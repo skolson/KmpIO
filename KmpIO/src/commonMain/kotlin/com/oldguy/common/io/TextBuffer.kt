@@ -176,7 +176,7 @@ open class TextBuffer(
         }
         val count = source(bytes, bytes.size).toInt()
         bytesRead += count.toLong()
-        if (count == 0)
+        if (count <= 0)
             noMoreSource = true
         else {
             val partialBytes = charset.checkMultiByte(bytes, count, 0, false)
