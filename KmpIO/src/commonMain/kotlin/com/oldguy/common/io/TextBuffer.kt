@@ -135,7 +135,7 @@ open class TextBuffer(
      * If true, and a token value starts with a quote character, then use fun quotedString() to read.
      * If false, treat quote like any other character.
      */
-    val tokenValueQuotedString = true
+    var tokenValueQuotedString = true
 
     /**
      * If true, whitespace is retained while parsing tokens. This allows whitespace to be included
