@@ -84,20 +84,51 @@ open class TextBuffer(
      */
 
     /**
+     * Type of quote characters used in quotedString()
+     * Single uses singleQuote
+     * Double uses doubleQuote
+     * Both looks for either, but does not support both at the same time. Whichever quote character
+     * is seen first is the one that must terminate the string.
+     */
+    enum class QuoteType { Single, Double, Either, None }
+
+    /**
+     * Set this for the type of quote characters used in quotedString()
+     */
+    var quoteType = QuoteType.Either
+
+    /**
      * Character used to enclose quoted strings. See quotedString()
      */
     var quote: Char = '"'
+    var singleQuote: Char = '\''
 
     /**
      * String pattern, if matched in quotedString(), is replaced by quote. If empty, no escaping
      * happens
      */
     var escapedQuote: String = "\\\""
+    var escapedSingleQuote: String = "\\'"
 
+    val isQuoteChar get() = when (quoteType) {
+        QuoteType.Single -> lastChar == singleQuote
+        QuoteType.Double -> lastChar == quote
+        QuoteType.Either -> lastChar == quote || lastChar == singleQuote
+        QuoteType.None -> false
+    }
     /**
-     * List of separator character Strings, used in token(). See fun token() for details.
+     * List of separator character Strings, used in token(). See fun token() for details. Note that
+     * contents can be changed at will if one ore more separator Strings are desired only in
+     * specific contexts. Changes are used in subsequent calls to next().
+     *
+     * A private backing field is used to not expose the mutable list.
      */
-    var tokenSeparators = emptyList<String>()
+    private val _tokenSeparators = emptyList<String>().toMutableList()
+    var tokenSeparators get() = _tokenSeparators.toList()
+        set(value) {
+            _tokenSeparators.clear()
+            _tokenSeparators.addAll(value)
+        }
     val separatorChars get() = tokenSeparators.flatMap { it.toCharArray().toList() }.distinct()
 
     /**
@@ -113,6 +144,21 @@ open class TextBuffer(
      * will still skip whitespace.
      */
     val retainWhitespace = false
+
+    /**
+     * Add a separator, typically for a specific context. If the separator is already in the list,
+     * no change is made. If the separator is not in the list, it is added.
+     */
+    fun addTokenSeparator(separator: String) {
+        if (!_tokenSeparators.contains(separator))
+            _tokenSeparators.add(separator)
+    }
+
+    /**
+     * Remove a separator, typically when the specific context it was added for is no longer needed.
+     */
+    fun removeTokenSeparator(separator: String): Boolean =
+        _tokenSeparators.remove(separator)
 
     private suspend fun useSource(): UInt {
         if (buf.remaining > 0) {
@@ -285,6 +331,8 @@ open class TextBuffer(
      *
      * See variable "quote" for quote character to look for. defaults to '"'
      * See variable escapedQuote String to match as an escape for quote. If empty, no escape processing happens
+     * See variable "singleQuote" for quote character to look for. defaults to "'"
+     * See variable escapedSingleQuote String to match as an escape for singleQuote. If empty, no escape processing happens
      *
      * @param maxSize number of characters to read before returning.
      * @return String containing characters between quote characters. If previous call to next()
@@ -294,16 +342,20 @@ open class TextBuffer(
         maxSize: Int = 1024
     ): String {
         var c = lastChar
-        if (c != quote)
-            throw IllegalStateException("Quoted string must start with quote")
+        if (quoteType == QuoteType.None)
+            throw IllegalStateException("QuoteType is None, fun quotedString is not usable")
+        if (!isQuoteChar)
+            throw IllegalStateException("Quoted string must start with $quoteType")
+        val q = c
+        val esc = if (q == singleQuote) escapedSingleQuote else escapedQuote
         return StringBuilder(maxSize).apply {
             while (true) {
                 c = next()
-                if (escapedQuote.isEmpty() && c == quote) break
-                if (escapedQuote.isNotEmpty()) {
+                if (esc.isEmpty() && c == q) break
+                if (esc.isNotEmpty()) {
                     var match = 0
                     var temp = ""
-                    for (m in escapedQuote) {
+                    for (m in esc) {
                         if (c == m) {
                             match++
                             temp += c
@@ -311,11 +363,11 @@ open class TextBuffer(
                         } else
                             break
                     }
-                    if (match == escapedQuote.length)
-                        append(quote)
+                    if (match == esc.length)
+                        append(q)
                     else {
                         append(temp)
-                        if (c == quote) break
+                        if (c == q) break
                     }
                 }
                 append(c)
@@ -351,7 +403,9 @@ open class TextBuffer(
      * variable, and consist of all the distinct characters across all the separator strings in the list.
      *
      * An example of a partial tokenSeparators list for parsing an XML document would include the following:
-     * tokenSeparators = listOf("<", ">", "/>", "<?", "?>", "<!--", "--!>", "=")
+     * tokenSeparators = listOf("<", ">", "/>", "<?", "?>", "<!--", "--!>"). Note that for xml, "="
+     * is only a separator during node tags for parsing attributes. So it would be added for parsing
+     * attributes, and removed at end of tag. See the addTokenSeparator and removeTokenSeparator functions.
      *
      * If the first sequence of separator characters is followed by whitespace and another separator,
      * the Token returned will contain the first separators with an empty value
