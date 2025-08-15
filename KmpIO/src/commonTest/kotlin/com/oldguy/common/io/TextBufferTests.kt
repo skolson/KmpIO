@@ -218,7 +218,7 @@ class TextBufferTests {
 
         const val tokenTest = "<?xml version=\"1.0\"?>"
         const val tokenXmlTest = "<?xml version=\"1.0\"?><Test><el1/><el2 att1=\"val1\" att2=\"val2\"/></Test>"
-        val simpleXmlTokenSeparators = listOf("<", ">", "/>", "</", "<?", "?>", "<!--", "--!>", "=")
+        val simpleXmlTokenSeparators = listOf("<", ">", "/>", "</", "<?", "?>", "<!--", "-->", "=")
 
     }
 }

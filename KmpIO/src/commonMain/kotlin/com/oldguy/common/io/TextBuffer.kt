@@ -143,7 +143,7 @@ open class TextBuffer(
      * readLine or quotedString functions which never skip whitespace. Explicit calls to skipWhitespace()
      * will still skip whitespace.
      */
-    val retainWhitespace = false
+    var retainWhitespace = false
 
     /**
      * Add a separator, typically for a specific context. If the separator is already in the list,
@@ -440,7 +440,7 @@ open class TextBuffer(
             skipWhitespace()
             c = lastChar
         }
-        val value = if (tokenValueQuotedString && c == quote) {
+        val value = if (tokenValueQuotedString && isQuoteChar) {
             quotedString(maxSize)
         } else
             StringBuilder(maxSize).apply {
