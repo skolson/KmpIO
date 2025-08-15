@@ -28,8 +28,9 @@ actual class TextFile actual constructor(
     }
 
     actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->
-        stream?.read(buffer)?.toUInt()
+        val bytes = stream?.read(buffer)
             ?: throw IllegalStateException("InputStream is null")
+        if (bytes < 0) 0u else bytes.toUInt()
     }
 
     constructor(
