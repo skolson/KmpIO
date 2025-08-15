@@ -67,7 +67,7 @@ enum class Charsets(
          */
         fun fromName(name: String): Charset {
             return entries.first() {
-                it.charsetName == name ||
+                it.charsetName.lowercase() == name.lowercase() ||
                 it.charsetAliases.containsIgnoreCase(name)
             }.charset
         }
