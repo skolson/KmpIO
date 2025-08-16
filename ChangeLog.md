@@ -2,6 +2,7 @@
 
 ### 0.3.0 (in progress)
 
+- Kotlin 2.2.10
 - Add skip() function to TextFile, typical use case is for skipping any detected BOM bytes.
 - Add optional bufferSize argument to TextFile constructor. Specifies the minimum size of TextBuffer. Uses TextBuffer.DEFAULT_BUFFER_SIZE (4k bytes) if not specified. Previously the default of 4k on the Linux and Apple implementations was not changeable.
 - Charsets have new functions to better support decoding of multi-byte characters. Now properly handles partial multi-byte characters at the end of a ByteArray.
