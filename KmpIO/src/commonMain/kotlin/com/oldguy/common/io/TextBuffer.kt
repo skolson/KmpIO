@@ -410,6 +410,7 @@ open class TextBuffer(
      * @property separator the separator string found. Empty if the special case stopOnWhitespace is true
      * @property value if non-separator character(s) are found before the separator,
      * they are set to this property. Otherwise empty
+     * @property quotesFound true if value was from a call to quotedString(). false if not
      * @property line the line number where this token was located. From instance property 'lineCount;
      * @property position the number of the character, one relative, in the current line. From
      * instance property 'linePosition'
@@ -417,6 +418,7 @@ open class TextBuffer(
     data class Token(
         val separator: String,
         val value: String,
+        val quotesFound: Boolean,
         val line: Int,
         val position: Int
     )
@@ -454,12 +456,14 @@ open class TextBuffer(
                 return Token(
                     "",
                     match.chars,
+                    match.quotesFound,
                     lineCount,
                     linePosition)
             MatchResult.Match ->
                 return Token(
                     match.separator,
                     match.chars,
+                    match.quotesFound,
                     lineCount,
                     linePosition
                 )
@@ -468,6 +472,7 @@ open class TextBuffer(
                 return Token(
                     "",
                     match.chars,
+                    match.quotesFound,
                     lineCount,
                     linePosition)
             }
@@ -478,7 +483,8 @@ open class TextBuffer(
     data class Match(
         val result: MatchResult,
         val separator: String,
-        val chars: String
+        val chars: String,
+        val quotesFound: Boolean
     )
 
     /**
@@ -511,7 +517,8 @@ open class TextBuffer(
                             return Match(
                                 MatchResult.Match,
                                 separatorBuf,
-                                toString()
+                                toString(),
+                                false
                             )
                         }
                         if (tokenValueQuotedString && isQuoteChar) {
@@ -519,7 +526,8 @@ open class TextBuffer(
                             return Match(
                                 MatchResult.NoMatch,
                                 "",
-                                toString()
+                                toString(),
+                                true
                             )
                         } else {
                             append(c)
@@ -533,7 +541,8 @@ open class TextBuffer(
                         return Match(
                             MatchResult.Match,
                             separatorBuf,
-                            toString()
+                            toString(),
+                            false
                         )
                         } else {
                                 c = next()
@@ -549,7 +558,8 @@ open class TextBuffer(
                             return Match(
                                 MatchResult.Match,
                                 separatorBuf,
-                                toString()
+                                toString(),
+                                false
                             )
                     }
                 }
@@ -557,7 +567,8 @@ open class TextBuffer(
             return Match(
                 MatchResult.NoMatch,
                 "",
-                toString()
+                toString(),
+                false
             )
         }
 
