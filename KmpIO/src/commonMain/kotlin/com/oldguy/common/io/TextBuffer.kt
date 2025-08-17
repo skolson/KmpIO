@@ -512,6 +512,8 @@ open class TextBuffer(
             while (!isEndOfFile && length < maxSize) {
                 when (separators.count { it.startsWith(separatorBuf) }) {
                     0 -> {
+                        if (separatorBuf.length > 1)
+                            append(separatorBuf.substring(0, separatorBuf.length - 1))
                         if (c.isWhitespace() && stopOnWhitespace) {
                             skipWhitespace()
                             return Match(
