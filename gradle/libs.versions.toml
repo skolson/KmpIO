@@ -2,7 +2,7 @@
 appVersion = "0.3.0"
 java = "21"
 
-androidGradlePlugin = "8.13.0-alpha04"
+androidGradlePlugin = "9.0.0-alpha02"
 #androidGradlePlugin = "8.11.0-alpha07" #Idea unit testing
 
 kotlin = "2.2.10"

@@ -298,7 +298,7 @@ open class TextBuffer(
         return StringBuilder(blockSize).apply {
             while (!isEndOfFile) {
                 val c = next()
-                if (c == EOL_CHAR) break
+                if (c == EOL_CHAR || endOfFile) break
                 append(c)
             }
         }.toString()

@@ -11,6 +11,7 @@
   - New properties lineCount and linePosition for tracking current position in file during parsing
 - JVM and Android TextFile internal implementations have changed from java's BufferedReader to TextBuffer. Functionally no change. All targets now use TextBuffer the same way for block, line-based, or next-based (parsing) operations.
 - TextFile now makes previously internal TextBuffer as an accessible property. Allows use of TextBuffer parsing functions in a consistent way across all platforms. For now there are no TextFile convenience wrappers for TextBuffer parsing functions, just the readLine stuff.
+- TextBuffer now has various new parsing-related configuration properties and parsing functions.
 - Charset.fromName is now case insensitive on name and alias matches
 
 ### 0.2.3 (2025-08)

@@ -111,6 +111,37 @@ For random access reading/writing by byte position, with no help for encoding. T
 
 Similar to RawFile, with support for reading/decoding and/or writing/encoding text-only files using a specified Charset and standard line separators.  Platform-specific implementations using expect/actual setup are used to provide basic text processing with kotlin-friendly syntax.
 
+## TextBuffer
+
+All implementations of TextFile use this pure KMP (no native/cinterop code) implementation for various types of text processing. It accepts blocks of bytes from a source lambda, and manages all decoding and buffer management for the parsing and line-based reading functions.
+
+There will likely in the future be a flavor of this that accepts collections of Strings as source input for the parsing functions.
+
+Note - over the years I've become a fan of an old aphorism I heard somewhere. "If you have a string problem, and solve it with a regular expression, now you have two problems.". The TextBuffer parsing functions do not use Regex.
+
+As an example of potential use, this TextBuffer implementation is the foundation of another library (KmpMarkup) that is a pure Kotlin XML parser (both pull parsing and DOM parsing). 
+
+Functions available include:
+- constructor specifies the Charset to use for decoding to text. It also expects a lambda that is the source of bytes to be decoded.
+- readLine reads one line of text using a line separator.
+- forEachLine invokes a lambda for each line of text read. Lambda returns false to stop reading.
+- next reads next character of decoded text. If peek is true, does not advance position.
+- skipWhitespace reads until next non-whitespace character, returns number of whitespace characters skipped.
+- quotedString reads content of a quoted string based on the configured properties, no other parsing is applied to content.
+- token - main parsing function, reads until a tokenSeparator is encountered, returns the Token data class with the results. See the function do for details.
+- nextUntil - the token function uses this in its implementation. Basic function is to read until one of the separators is encountered. A Match instance is returned with the result.
+
+Properties available include:
+- lineCount: number of lines processed (1-based) 
+- linePosition: one-based position on the current line
+- bytesRead: number of bytes read from source lambda
+- quoteType: type of quote characters used in quotedString(). 
+- quote: character used to enclose quoted strings. Default is double quote character '"'. 
+- escapedQuote: String pattern, if matched in quotedString(), is replaced by quote. If empty, no escaping happens
+- singleQuote: character used to enclose quoted strings. Default is apostrophe character '\''. 
+- escapedSingleQuote: String pattern, if matched in quotedString(), is replaced by singleQuote. If empty, no escaping happens
+- tokenSeparators: List of separator character Strings, used with the token() and nextUntil() functions. Note that contents can be changed at will during parsing to adapt to different parsing requirements.
+
 ## ZipFile
 
 Used for reading or writing Zip/archive files using Kotlin-friendly, platform-independent syntax. Most of the code is pure Kotlin multi-platform. Platform-specific implementations of Compression schemes use expect/actual setup. Features include:
@@ -187,7 +218,7 @@ Also note that the Kotlin Native support in this library is using the new memory
 - commonMain has most of the code in one package.
 - commonTest has the unit tests that are platform-independent
 - androidMain has the platform-specific implementations using Android's java support. Depends on commonMain
-- androidTest has the platform-specific unit tests using Android's java support. For example, the KMP ByteBuffer functionality is compared to the equivalenyt usage of Android's java.nio.ByteBuffer. Depends on commonTest
+- androidTest has the platform-specific unit tests using Android's java support. For example, the KMP ByteBuffer functionality is compared to the equivalent usage of Android's java.nio.ByteBuffer. Depends on commonTest
 - appleNativeMain has the apple-specific implementations that are common across Mac, IOS and IOS Simulator,  invoked with Kotlin Native
 - iosArm64Main and iosX64Main has IOS-specific code invoked with Kotlin Native. Depends on appleNativeMain and commonMain
 - macosX64Main has any mac-specific code invoked with Kotlin Native. Depends on appleNativeMain and commonMain
