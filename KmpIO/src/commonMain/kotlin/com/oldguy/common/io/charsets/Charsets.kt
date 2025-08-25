@@ -51,7 +51,7 @@ enum class Charsets(
     ),
     Iso88591(
         "ISO-8859-1",
-        listOf("iso-ir-100", "ISO_8859-1", "latin1", "l1", "IBM819", "cp819", "csISOLatin1", "819", "IBM-819", "ISO8859_1", "ISO_8859-1:1987", "ISO_8859_1", "8859_1", "ISO8859-1"),
+        listOf("iso-ir-100", "ISO_8859-1", "latin1", "l1", "IBM819", "cp819", "csISOLatin1", "819", "IBM-819", "ISO8859_1", "ISO_8859-1:1987", "ISO_8859_1", "8859_1", "ISO8859-1", "ASCII", "USASCII"),
         Iso88591()
     ),
     Window1252(
