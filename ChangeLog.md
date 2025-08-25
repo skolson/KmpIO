@@ -14,6 +14,7 @@
 - TextBuffer now has various new parsing-related configuration properties and parsing functions.
 - Charset.fromName is now case insensitive on name and alias matches
 - TextFile gets rewind() function for resetting to beginning of file. The file position is set to zero and the TextBuffer state is reset
+- Charset ISO8859_1 has added ASCII and USASCII as aliases
 
 ### 0.2.3 (2025-08)
 
