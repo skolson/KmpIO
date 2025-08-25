@@ -272,7 +272,10 @@ open class TextBuffer(
         if (!isEndOfFile && buf.remaining < charset.bytesPerChar.last)
             useSource()
         _lastChar = true
-        if (buf.remaining == 0) return Char(0)
+        if (buf.remaining == 0) {
+            endOfFile = true
+            return Char(0)
+        }
         val pos = buf.position
         val byteCount = charset.byteCount(checkBytes(pos))
         if (byteCount > buf.remaining)
