@@ -21,7 +21,7 @@ import com.oldguy.common.io.charsets.MultiByteDecodeException
  * also end in the middle of a multi-byte character, see above comments.
  */
 open class TextBuffer(
-    val charset: Charset,
+    charset: Charset,
     blockSizeArg: Int = DEFAULT_BLOCK_SIZE,
     val source: (suspend (
         buffer: ByteArray,
@@ -38,6 +38,8 @@ open class TextBuffer(
     private var remainder = ByteArray(charset.bytesPerChar.last)
     private var partial = ByteArray(0)
 
+    var charset = charset
+        private set
     /**
      * While processing text by line, this attribute is the current line count processed
      */
@@ -169,6 +171,16 @@ open class TextBuffer(
     fun addTokenSeparator(separator: String) {
         if (!_tokenSeparators.contains(separator))
             _tokenSeparators.add(separator)
+    }
+
+    /**
+     * Any subsequent characters read from the TextBuffer will be decoded using the new Charset.
+     * Typical usage is using the constructor Charset to read enough text from a TextFile to determine
+     * the encoding of the remainder of the TextFile.
+     * @param newCharset replaces the constructor Charset
+     */
+    fun changeCharset(newCharset: Charset) {
+        charset = newCharset
     }
 
     /**
