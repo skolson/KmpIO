@@ -592,6 +592,7 @@ open class TextBuffer(
 
     fun reset() {
         buf.clear()
+        buf.limit = 0
         endOfFile = false
         noMoreSource = false
         readLock = false
