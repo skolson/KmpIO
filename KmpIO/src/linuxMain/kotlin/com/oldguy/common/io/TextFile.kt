@@ -83,4 +83,9 @@ actual class TextFile actual constructor(
     actual suspend fun skip(bytesCount: ULong) {
         position = position + bytesCount
     }
+
+    actual suspend fun rewind() {
+        position = 0uL
+        textBuffer.reset()
+    }
 }

@@ -65,6 +65,11 @@ expect class TextFile(
     suspend fun readLine(): String
 
     /**
+     * Changes the file position back to the beginning of the file. Only usable on FileMode.Read. Also
+     * resets the state of the associated TextBuffer
+     */
+    suspend fun rewind()
+    /**
      * Skips a specified number of bytes from the current position of the file. Only usable on FileMode.Read
      */
     suspend fun skip(bytesCount: ULong)

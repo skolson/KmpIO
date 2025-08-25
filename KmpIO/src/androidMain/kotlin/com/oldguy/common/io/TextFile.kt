@@ -17,7 +17,7 @@ actual class TextFile actual constructor(
     actual val file: File,
     actual val charset: Charset,
     val mode: FileMode,
-    source: FileSource,
+    private val source: FileSource,
     bufferSize: Int
 ) : Closeable {
 
@@ -25,10 +25,14 @@ actual class TextFile actual constructor(
     val javaCharset: java.nio.charset.Charset =
         java.nio.charset.Charset.forName(charset.name)
 
-    private var stream = when (source) {
-        FileSource.Asset -> null
-        FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
-        FileSource.File -> FileInputStream(file.fullPath)
+    private var stream = newStream()
+
+    private fun newStream(): InputStream? {
+        return when (source) {
+            FileSource.Asset -> null
+            FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
+            FileSource.File -> FileInputStream(file.fullPath)
+        }
     }
 
     actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->
@@ -140,5 +144,13 @@ actual class TextFile actual constructor(
         val count = stream?.skip(bytesCount.toLong()) ?: 0L
         if (count != bytesCount.toLong())
             throw IllegalStateException("skip($bytesCount) attempted, $count bytes skipped")
+    }
+
+    actual suspend fun rewind() {
+        if (mode != FileMode.Read)
+            throw IllegalStateException("Mode must be Read to use rewind()")
+        stream?.close()
+        stream = newStream()
+        textBuffer.reset()
     }
 }

@@ -127,4 +127,15 @@ actual class TextFile actual constructor(
             }
         }
     }
+
+    actual suspend fun rewind() {
+        File.throwError {
+            memScoped {
+                val rc = apple.handle.seekToOffset(0UL, it)
+                if (!rc)
+                    throw IllegalArgumentException("Could not position file to beginning")
+            }
+        }
+        textBuffer.reset()
+    }
 }

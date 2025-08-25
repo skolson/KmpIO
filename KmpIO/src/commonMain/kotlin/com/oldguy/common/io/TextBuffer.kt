@@ -573,7 +573,20 @@ open class TextBuffer(
                 false
             )
         }
+    }
 
+    fun reset() {
+        buf.clear()
+        endOfFile = false
+        noMoreSource = false
+        readLock = false
+        remainder = ByteArray(charset.bytesPerChar.last)
+        partial = ByteArray(0)
+        lineCount = 1
+        linePosition = 0
+        bytesRead = 0
+        _lastChar = false
+        separatorBuf = ""
     }
 
     companion object {
