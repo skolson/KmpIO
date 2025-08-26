@@ -333,9 +333,9 @@ open class TextBuffer(
             readLock = true
             while (true) {
                 val line = readLine()
-                if (isEndOfFile) break
                 if (!action(lineCount, line))
                     break
+                if (isEndOfFile) break
             }
         } finally {
             readLock = false
