@@ -7,3 +7,7 @@ fun Array<String>.containsIgnoreCase(s: String): Boolean {
 fun List<String>.containsIgnoreCase(s: String): Boolean {
     return any { it.equals(s, ignoreCase = true) }
 }
+
+fun String.getBufferLength(): Int {
+    return encodeToByteArray().size
+}

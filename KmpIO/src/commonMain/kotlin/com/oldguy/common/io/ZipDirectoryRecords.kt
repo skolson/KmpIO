@@ -1,5 +1,7 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.getBufferLength
+
 /**
  * Common properties and logic shared by ZipLocalDirectory and ZipDirectory. Intent of this is for
  * subclasses to be used as if they are immutable, even though [name] and [extra] properties are
@@ -29,7 +31,7 @@ open class ZipDirectoryCommon(
      */
     fun encodeSignature(buffer: ByteBuffer, signature: Int) {
         super.encodeSignature(signature, buffer)
-        if (name.length > Short.MAX_VALUE)
+        if (name.getBufferLength() > Short.MAX_VALUE)
             throw IllegalArgumentException("Zip file name must be < ${Short.MAX_VALUE}>")
         if (extra.size > Short.MAX_VALUE)
             throw IllegalArgumentException("Zip file extra data length must be < ${Short.MAX_VALUE}>")
@@ -49,7 +51,7 @@ open class ZipDirectoryCommon(
             int = crc32
             int = intCompressedSize
             int = intUncompressedSize
-            short = name.length.toShort()
+            short = name.getBufferLength().toShort()
             short = extra.size.toShort()
         }
     }
@@ -190,7 +192,7 @@ class ZipDirectoryRecord(
     )
 
     override fun allocateBuffer(): ByteBuffer {
-        return ByteBuffer(minimumLength + name.length + extra.size + comment.length)
+        return ByteBuffer(minimumLength + name.getBufferLength() + extra.size + comment.getBufferLength())
     }
 
     /**
@@ -204,10 +206,10 @@ class ZipDirectoryRecord(
             super.encodeSignature(this, signature)
             short = version.version
             super.encode(buffer)
-            if (comment.length > Short.MAX_VALUE)
+            if (comment.getBufferLength() > Short.MAX_VALUE)
                 throw IllegalArgumentException("Zip file comment must be < ${Short.MAX_VALUE}>")
 
-            short = comment.length.toShort()
+            short = comment.getBufferLength().toShort()
             short = diskNumber
             short = internalAttributes
             int = externalAttributes
@@ -372,7 +374,7 @@ class ZipLocalRecord(
     val hasDataDescriptor = crc32 == 0 && intCompressedSize == 0 && intUncompressedSize == 0
 
     override fun allocateBuffer(): ByteBuffer {
-        return ByteBuffer(minimumLength + name.length + extra.size)
+        return ByteBuffer(minimumLength + name.getBufferLength() + extra.size)
     }
 
     /**
