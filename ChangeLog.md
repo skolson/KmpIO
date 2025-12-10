@@ -1,12 +1,19 @@
 # Change Log
 
-### 0.3.0 (in progress)
+### 0.3.0-SNAPSHOT (in progress)
 
-- Kotlin 2.2.10
+Note: current published commit is experiencing Google issue https://issuetracker.google.com/issues/449505050 with android unit tests. Likely 0.3.0 won't be published until there is a work-around or fix for this issue, 
+
+- Kotlin 2.2.21
+- Android Gradle Plugin 9.0.0-beta04
+- Android Gradle Library Plugin for KMP replacing deprecated Android Library Plugin
+  - This required renaming the android testing source sets to the new convention
+  - Android release builds isMinifyEnabled (proguard) is now true
+- Gradle 9.2.1
 - Add skip() function to TextFile, typical use case is for skipping any detected BOM bytes.
 - Add optional bufferSize argument to TextFile constructor. Specifies the minimum size of TextBuffer. Uses TextBuffer.DEFAULT_BUFFER_SIZE (4k bytes) if not specified. Previously the default of 4k on the Linux and Apple implementations was not changeable.
 - Charsets have new functions to better support decoding of multi-byte characters. Now properly handles partial multi-byte characters at the end of a ByteArray.
-- Significant enhancements to TextBuffer to support reading by Character or String (x number of Character), useful with complex parsers.
+- Significant enhancements to TextBuffer to support reading by Character or String (x number of Character), useful with parsers.
   - Read line functions now properly handle multi-byte characters split across source calls.
   - New properties lineCount and linePosition for tracking current position in file during parsing
 - JVM and Android TextFile internal implementations have changed from java's BufferedReader to TextBuffer. Functionally no change. All targets now use TextBuffer the same way for block, line-based, or next-based (parsing) operations.
@@ -15,6 +22,8 @@
 - Charset.fromName is now case insensitive on name and alias matches
 - TextFile gets rewind() function for resetting to beginning of file. The file position is set to zero and the TextBuffer state is reset
 - Charset ISO8859_1 has added ASCII and USASCII as aliases
+- Merged PR #26 "fix archiving of files with non-ASCII filenames" uses length of encoded file names and comments in ZipDirectoryRecord and ZipLocalRecord to avoid truncating Unicode strings that contain characters that encode to multi-bytes.  
+- Fix Issue #25 - no longer throw a datetime exception when encountering an invalid timestamp in a Zip file (from some other creator). If timestamp is unparsable, ZipTime will return LocalDateTime value of 1980-01-01T00:00:00. 
 
 ### 0.2.3 (2025-08)
 

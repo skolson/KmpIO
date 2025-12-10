@@ -1,4 +1,4 @@
-package com.oldguy.common.io.java
+package com.oldguy.common.io.kotlin
 
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.File

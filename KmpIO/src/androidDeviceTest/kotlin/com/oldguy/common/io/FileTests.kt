@@ -214,7 +214,6 @@ class FileUnitTests {
     private val tests: FileTests
 
     init {
-        //File.appContext = ApplicationProvider.getApplicationContext()
         File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
         path = File.tempDirectoryPath()
         tests = FileTests(path)
