@@ -131,11 +131,12 @@ data class ZipTime(val modTime: UShort, val modDate: UShort) {
                 ((t shl 1) and 0x3e)
             )
         } catch (_: IllegalArgumentException) {
-            LocalDateTime(1980, 1, 1, 0, 0, 0)
+            BAD_DATETIME_REPLACEMENT
         }
     }
 
     companion object {
+        val BAD_DATETIME_REPLACEMENT = LocalDateTime(1980, 1, 1, 0, 0, 0)
         fun convertDate(time: LocalDateTime): UShort {
             time.apply {
                 return if (year < 1980)
