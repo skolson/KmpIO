@@ -40,7 +40,7 @@ androidx-test = [ "androidx-test-core", "androidx-test-runner", "androidx-test-e
 kotlin-test = [ "kotlin-test", "kotlinx-coroutines-test" ]
 
 [plugins]
-android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
+android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinx-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
 maven-publish-vannik = { id = "com.vanniktech.maven.publish", version.ref = "vannikTech" }
