@@ -29,6 +29,11 @@ class ZipFileBasics {
     }
 
     @Test
+    fun saveTwoFilesTest() {
+        tests.saveTwoFiles()
+    }
+
+    @Test
     fun unzipToDirectoryTest() {
         tests.unzipToDirectoryTest()
     }

@@ -209,6 +209,7 @@ class ZipFileTests {
 
     fun saveTwoFiles() {
         runTest {
+            val testImageFileName = "あ.png"
             val dir = tempDir()
             val oneFileZip = File(dir, "saveOne.zip")
             oneFileZip.delete()

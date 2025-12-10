@@ -8,7 +8,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 plugins {
     libs.plugins.also {
         alias(it.kotlin.multiplatform)
-        alias(it.android.library)
+        alias(it.android.kmp.library)
         alias(it.kotlinx.atomicfu)
         alias(it.dokka.base)
         alias(it.maven.publish.vannik)
@@ -91,39 +91,26 @@ java {
         languageVersion.set(javaVersion)
     }
 }
-android {
-    compileSdk = libs.versions.androidSdk.get().toInt()
-    buildToolsVersion = libs.versions.androidBuildTools.get()
-    namespace = "com.oldguy.iocommon"
+kotlin {
+    android {
+        compileSdk = libs.versions.androidSdk.get().toInt()
+        buildToolsVersion = libs.versions.androidBuildTools.get()
+        namespace = "com.oldguy.iocommon"
 
-    defaultConfig {
         minSdk = libs.versions.androidSdkMinimum.get().toInt()
 
-        buildFeatures {
-            buildConfig = false
+        withHostTest {}
+        withDeviceTest {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+            execution = "ANDROIDX_TEST_ORCHESTRATOR"
         }
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("proguard-rules.pro")
-    }
-
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
+        optimization {
+            consumerKeepRules.publish = true
+            consumerKeepRules.files.add(project.file("proguard-rules.pro"))
         }
     }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-    }
-
-    dependencies {
-        testImplementation(libs.junit)
-        androidTestImplementation(libs.bundles.androidx.test)
-    }
-}
-
-kotlin {
     cocoapods {
         name = appleFrameworkName
         ios.deploymentTarget = iosMinSdk
@@ -141,8 +128,10 @@ kotlin {
     }
 
     val appleXcf = XCFramework()
-    macosX64 {
-        binaries {
+    listOf(
+        macosX64(), macosArm64()
+    ).forEach {
+        it.binaries {
             framework {
                 baseName = appleFrameworkName
                 appleXcf.add(this)
@@ -150,39 +139,10 @@ kotlin {
             }
         }
     }
-    macosArm64 {
-        binaries {
-            framework {
-                baseName = appleFrameworkName
-                appleXcf.add(this)
-                isStatic = true
-            }
-        }
-    }
-    iosX64 {
-        binaries {
-            framework {
-                baseName = appleFrameworkName
-                appleXcf.add(this)
-                isStatic = true
-                freeCompilerArgs =
-                    freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
-            }
-        }
-    }
-    iosSimulatorArm64 {
-        binaries {
-            framework {
-                baseName = appleFrameworkName
-                appleXcf.add(this)
-                isStatic = true
-                freeCompilerArgs =
-                    freeCompilerArgs + listOf("-Xoverride-konan-properties=osVersionMin=$iosMinSdk")
-            }
-        }
-    }
-    iosArm64 {
-        binaries {
+    listOf(
+        iosX64(), iosArm64(), iosSimulatorArm64()
+    ).forEach {
+        it.binaries {
             framework {
                 baseName = appleFrameworkName
                 appleXcf.add(this)
@@ -194,9 +154,6 @@ kotlin {
     }
     jvmToolchain {
         languageVersion = javaVersion
-    }
-    androidTarget {
-        publishLibraryVariants("release", "debug")
     }
     jvm()
     linuxX64() {
@@ -227,55 +184,54 @@ kotlin {
     }
     applyDefaultHierarchyTemplate()
     sourceSets {
-        val commonMain by getting {
+        getByName("commonMain") {
             dependencies {
                 implementation(libs.kotlinx.datetime)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
-        val commonTest by getting {
+        getByName("commonTest") {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
                 implementation(libs.kotlinx.datetime)
             }
         }
-        val iosSimulatorArm64Test by getting {
+        getByName("iosSimulatorArm64Test") {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
             }
         }
-        val iosX64Test by getting {
+        getByName("iosX64Test") {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
             }
         }
-        val androidUnitTest by getting {
+        getByName("androidHostTest") {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
+                implementation(libs.kotlin.test.junit)
+                implementation(libs.junit)
+            }
+        }
+        getByName("androidDeviceTest") {
+            dependencies {
+                implementation(libs.bundles.kotlin.test)
+                implementation(libs.bundles.androidx.test)
+                implementation(libs.junit)
+            }
+        }
+        getByName("jvmTest") {
+            dependencies {
                 implementation(kotlin("test-junit"))
                 implementation(libs.junit)
             }
         }
-        val androidInstrumentedTest by getting {
-            dependencies {
-                implementation(libs.bundles.kotlin.test)
-                implementation(kotlin("test-junit"))
-                implementation(libs.junit)
-                implementation(libs.androidx.test.rules)
-            }
-        }
-        val jvmTest by getting {
-            dependencies {
-                implementation(kotlin("test-junit"))
-                implementation(libs.junit)
-            }
-        }
-        val linuxX64Test by getting {
+        getByName("linuxX64Test") {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
             }
         }
-        val linuxArm64Test by getting {
+        getByName("linuxArm64Test") {
             dependencies {
                 implementation(libs.bundles.kotlin.test)
             }

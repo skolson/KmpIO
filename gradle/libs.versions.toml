@@ -1,24 +1,24 @@
 [versions]
-appVersion = "0.3.0"
+appVersion = "0.3.0-SNAPSHOT"
 java = "21"
 
-androidGradlePlugin = "9.0.0-alpha02"
-#androidGradlePlugin = "8.11.0-alpha07" #Idea unit testing
+androidGradlePlugin = "9.0.0-beta04"
 
-kotlin = "2.2.10"
+kotlin = "2.2.21"
 kotlinCoroutines = "1.10.2"
 kotlinx-datetime = "0.7.1"
 
-androidBuildTools = "36.0.0"
+androidBuildTools = "36.1.0"
 androidSdk = "36"
 androidSdkMinimum = "26"
 
-dokkaPlugin = "2.0.0"
+dokkaPlugin = "2.1.0"
 junit = "4.13.2"
 androidxTest = "1.7.0"
 androidxTestRunner = "1.7.0"
 androidxTestExt = "1.3.0"
-vannikTech = "0.34.0"
+androidxTestServices = "1.6.0"
+vannikTech = "0.35.0"
 
 [libraries]
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
@@ -40,7 +40,7 @@ androidx-test = [ "androidx-test-core", "androidx-test-runner", "androidx-test-e
 kotlin-test = [ "kotlin-test", "kotlinx-coroutines-test" ]
 
 [plugins]
-android-library = { id = "com.android.library", version.ref = "androidGradlePlugin" }
+android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinx-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
 maven-publish-vannik = { id = "com.vanniktech.maven.publish", version.ref = "vannikTech" }
