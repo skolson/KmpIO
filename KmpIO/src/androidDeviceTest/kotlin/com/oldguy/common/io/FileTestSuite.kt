@@ -9,13 +9,13 @@ import kotlin.test.Test
 
 
 @ExperimentalCoroutinesApi
-class FileTestSuite {
+class AndroidFileTestSuite {
 
-    val tests: FileTests
+    val tests: AndroidFileTests
 
     init {
         File.appContext = ApplicationProvider.getApplicationContext()
-        tests = FileTests(File.tempDirectoryPath())
+        tests = AndroidFileTests(File.tempDirectoryPath())
     }
 
     @Test
@@ -46,7 +46,7 @@ class FileTestSuite {
     fun smallDirectoryTreeWalk() {
         runTest {
             val work = File.workingDirectory()
-            val testDir = DirectoryTests(
+            val testDir = AndroidDirectoryTests(
                 File(work.fullPath.removeSuffix("/KmpIO"))
                     .resolve( "TestFiles")
                     .fullPath

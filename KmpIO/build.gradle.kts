@@ -100,7 +100,15 @@ kotlin {
         minSdk = libs.versions.androidSdkMinimum.get().toInt()
 
         withHostTest {}
+        /*
         withDeviceTest {
+            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+            execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        }
+         */
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test"
+        }.configure {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             execution = "ANDROIDX_TEST_ORCHESTRATOR"
         }

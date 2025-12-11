@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 class UriTests {
 
     @Test
-    fun `valid uri parses correctly`() {
+    fun validUriParsesCorrectly() {
         val test = "https://john.doe@www.example.com:123/forum/questions/?tag=networking&order=newest#top"
         val uri = Uri(test)
 
@@ -17,7 +17,7 @@ class UriTests {
     }
 
     @Test
-    fun `uri with user info parses correctly`() {
+    fun uriWithNoPortParsesCorrectly() {
         val test = "https://username:password@example.com"
         val uri = Uri(test)
         assertEquals(
@@ -27,7 +27,7 @@ class UriTests {
     }
 
     @Test
-    fun uri_with_all_components_parses_correctly() {
+    fun uriWithAllComponentsParsesCorrectly() {
         assertUri(
             uri = "https://john.doe@www.example.com:123/forum/questions/?tag=networking&order=newest#top",
             scheme = "https",
@@ -42,7 +42,7 @@ class UriTests {
     }
 
     @Test
-    fun uri_without_scheme_and_with_authority_parses_correctly() {
+    fun uriWithoutSchemeAndWithAuthorityParsesCorrectly() {
         assertUri(
             uri = "//john.doe@www.example.com:123/forum/questions/?tag=networking&order=newest#top",
             scheme = "",
@@ -57,7 +57,7 @@ class UriTests {
     }
 
     @Test
-    fun uri_without_scheme_and_authority_parses_correctly() {
+    fun uriWithoutSchemeAndAuthorityParsesCorrectly() {
         assertUri(
             uri = "/john.doe@www.example.com:123/forum/questions/?tag=networking&order=newest#top",
             scheme = "",
@@ -72,7 +72,7 @@ class UriTests {
     }
 
     @Test
-    fun uri_without_scheme_and_authority_and_query_parses_correctly() {
+    fun uriWithoutSchemeAndAuthorityAndQueryParsesCorrectly() {
         assertUri(
             uri = "/john.doe@www.example.com:123/forum/questions/#top",
             scheme = "",
@@ -87,7 +87,7 @@ class UriTests {
     }
 
     @Test
-    fun uri_only_with_path_parses_correctly() {
+    fun uriOnlyWithPathParsesCorrectly() {
         assertUri(
             uri = "/john.doe@www.example.com:123/forum/questions/",
             scheme = "",
@@ -102,7 +102,7 @@ class UriTests {
     }
 
     @Test
-    fun https_uri_parses_correctly() {
+    fun httpsUriParsesCorrectly() {
         assertUri(
             uri = "https://john.doe@www.example.com:123/forum/questions/?tag=networking&order=newest#top",
             scheme = "https",
@@ -117,7 +117,7 @@ class UriTests {
     }
 
     @Test
-    fun ldap_uri_parses_correctly() {
+    fun ldapUriParsesCorrectly() {
         assertUri(
             uri = "ldap://[2001:db8::7]/c=GB?objectClass?one",
             scheme = "ldap",
