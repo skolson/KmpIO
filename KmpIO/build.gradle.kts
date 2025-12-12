@@ -49,13 +49,6 @@ val iosMinSdk = "14"
  */
 mavenPublishing {
     coordinates(publishDomain, name, appVersion)
-    configure(
-        KotlinMultiplatform(
-            JavadocJar.Dokka("dokkaGeneratePublicationHtml"),
-            true,
-            listOf("debug", "release")
-        )
-    )
 
     pom {
         name.set("Kotlin Multiplatform File I/O")
@@ -91,6 +84,12 @@ java {
         languageVersion.set(javaVersion)
     }
 }
+
+dependencies {
+    add("androidTestUtil", "androidx.test:orchestrator:1.6.1")
+    add("androidTestUtil", "androidx.test.services:test-services:1.6.0")
+}
+
 kotlin {
     android {
         compileSdk = libs.versions.androidSdk.get().toInt()

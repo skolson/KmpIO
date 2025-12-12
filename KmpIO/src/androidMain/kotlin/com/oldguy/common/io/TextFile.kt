@@ -1,12 +1,10 @@
 package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charset
-import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.io.OutputStream
 
 /**
@@ -28,11 +26,13 @@ actual class TextFile actual constructor(
     private var stream = newStream()
 
     private fun newStream(): InputStream? {
-        return when (source) {
-            FileSource.Asset -> null
-            FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
-            FileSource.File -> FileInputStream(file.fullPath)
-        }
+        return if (mode == FileMode.Read)
+            when (source) {
+                FileSource.Asset -> null
+                FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
+                FileSource.File -> FileInputStream(file.fullPath)
+            }
+        else null
     }
 
     actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->

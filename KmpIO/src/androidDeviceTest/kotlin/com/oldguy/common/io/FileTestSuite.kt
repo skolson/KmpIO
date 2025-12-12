@@ -1,22 +1,15 @@
 package com.oldguy.common.io
 
-import androidx.test.core.app.ApplicationProvider
 import com.oldguy.common.io.charsets.Utf16LE
 import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 
-
 @ExperimentalCoroutinesApi
 class AndroidFileTestSuite {
 
-    val tests: AndroidFileTests
-
-    init {
-        File.appContext = ApplicationProvider.getApplicationContext()
-        tests = AndroidFileTests(File.tempDirectoryPath())
-    }
+    val tests = AndroidFileTests()
 
     @Test
     fun textUtf8Basics() {
