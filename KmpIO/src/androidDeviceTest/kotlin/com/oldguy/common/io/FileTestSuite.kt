@@ -1,22 +1,15 @@
 package com.oldguy.common.io
 
-import androidx.test.core.app.ApplicationProvider
 import com.oldguy.common.io.charsets.Utf16LE
 import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 
-
 @ExperimentalCoroutinesApi
-class FileTestSuite {
+class AndroidFileTestSuite {
 
-    val tests: FileTests
-
-    init {
-        File.appContext = ApplicationProvider.getApplicationContext()
-        tests = FileTests(File.tempDirectoryPath())
-    }
+    val tests = AndroidFileTests()
 
     @Test
     fun textUtf8Basics() {
@@ -46,7 +39,7 @@ class FileTestSuite {
     fun smallDirectoryTreeWalk() {
         runTest {
             val work = File.workingDirectory()
-            val testDir = DirectoryTests(
+            val testDir = AndroidDirectoryTests(
                 File(work.fullPath.removeSuffix("/KmpIO"))
                     .resolve( "TestFiles")
                     .fullPath

@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @ExperimentalCoroutinesApi
-class DirectoryTests(testDirPath: String) {
+class AndroidDirectoryTests(testDirPath: String) {
     private val dir = Directory(testDirPath)
 
     suspend fun testTree() {

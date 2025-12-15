@@ -6,7 +6,7 @@
 
     <instrumentation
         android:name="androidx.test.runner.AndroidJUnitRunner"
-        android:targetPackage="com.oldguy.common.io"
+        android:targetPackage="com.oldguy.iocommon"
         tools:ignore="ManifestTargetPackage"
         />
 </manifest>

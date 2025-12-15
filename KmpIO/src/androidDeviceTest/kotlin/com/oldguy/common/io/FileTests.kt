@@ -14,9 +14,16 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @ExperimentalCoroutinesApi
-class FileTests(testDirPath: String) {
-    private val testDirectory = File(testDirPath)
+class AndroidFileTests() {
+    private val testDirectory: File
     private val subDirName = "kmpIOtestDir"
+
+    init {
+        File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val path = File.tempDirectoryPath()
+        testDirectory = File(path)
+    }
+
 
     fun filesBasics() {
         assertTrue(testDirectory.isDirectory)
@@ -208,16 +215,10 @@ class FileTests(testDirPath: String) {
 }
 
 @ExperimentalCoroutinesApi
-class FileUnitTests {
+class AndroidFileUnitTests {
 
-    private val path: String
-    private val tests: FileTests
+    private val tests = AndroidFileTests()
 
-    init {
-        File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        path = File.tempDirectoryPath()
-        tests = FileTests(path)
-    }
     @Test
     fun textUtf8Basics() {
         tests.filesBasics()
@@ -257,7 +258,7 @@ class FileUnitTests {
     @Test
     fun directoryList() {
         runTest {
-            FileTests.testDirectory().apply {
+            AndroidFileTests.testDirectory().apply {
                 directoryList().apply {
                     println(this)
                     assertEquals(7, size)
