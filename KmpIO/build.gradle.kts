@@ -99,6 +99,15 @@ kotlin {
 
         minSdk = libs.versions.androidSdkMinimum.get().toInt()
 
+        packaging {
+            // Added to address a version issue with Netty only used on android device tests
+            resources.excludes.add("META-INF/INDEX.LIST")
+            resources.excludes.add("META-INF/io.netty.versions.properties")
+            resources.excludes.add("META-INF/license/LICENSE.*")
+            resources.excludes.add("META-INF/license/NOTICE.*")
+            resources.excludes.add("META-INF/native-image/io.netty/**")
+        }
+
         withHostTest {}
         withDeviceTest {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -218,6 +227,8 @@ kotlin {
                 implementation(libs.bundles.kotlin.test)
                 implementation(libs.bundles.androidx.test)
                 implementation(libs.junit)
+                // added to fix a unit test missing class issue, likely a bug in the test runner
+                implementation(libs.netty.all)
             }
         }
         getByName("jvmTest") {
