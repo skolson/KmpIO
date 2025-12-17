@@ -19,11 +19,9 @@ actual class TextFile actual constructor(
     bufferSize: Int
 ) : Closeable {
 
-    var javaWriter: BufferedWriter? = null
-    val javaCharset: java.nio.charset.Charset =
-        java.nio.charset.Charset.forName(charset.name)
-
     private var stream = newStream()
+    private var outStream: FileOutputStream? = null
+    private val lineSeparator: String = "\n"
 
     private fun newStream(): InputStream? {
         return if (mode == FileMode.Read)
@@ -35,7 +33,7 @@ actual class TextFile actual constructor(
         else null
     }
 
-    actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->
+    actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, _ ->
         val bytes = stream?.read(buffer)
             ?: throw IllegalStateException("InputStream is null")
         if (bytes < 0) 0u else bytes.toUInt()
@@ -55,19 +53,15 @@ actual class TextFile actual constructor(
         charset: Charset,
         mode: FileMode,
         stream: OutputStream
-    ) : this(file, charset, mode, FileSource.Asset) {
-        javaWriter = stream.bufferedWriter(javaCharset)
-    }
+    ) : this(file, charset, mode, FileSource.Asset)
 
     init {
-        if (javaWriter == null && mode == FileMode.Write) {
-            val stream = when (source) {
+        if (outStream == null && mode == FileMode.Write) {
+            outStream = when (source) {
                 FileSource.Asset -> null
                 FileSource.Classpath -> throw IllegalArgumentException("cannot write to a file on classpath")
                 FileSource.File -> FileOutputStream(file.fullPath)
             }
-            if (stream != null)
-                javaWriter = stream.bufferedWriter(javaCharset)
         }
     }
 
@@ -80,7 +74,7 @@ actual class TextFile actual constructor(
     ) : this(File(filePath, null), charset, mode, source)
 
     actual override suspend fun close() {
-        javaWriter?.close()
+        outStream?.close()
         stream?.close()
     }
 
@@ -93,12 +87,12 @@ actual class TextFile actual constructor(
     actual suspend fun write(text: String) {
         if (mode == FileMode.Read)
             throw IllegalStateException("Mode is read, cannot write")
-        javaWriter!!.write(text)
+        outStream!!.write(charset.encode(text))
     }
 
     actual suspend fun writeLine(text: String) {
         write(text)
-        javaWriter!!.newLine()
+        outStream!!.write(charset.encode(lineSeparator))
     }
 
     actual suspend fun forEachLine(action: (count: Int, line: String) -> Boolean) {
