@@ -2,18 +2,11 @@ package com.oldguy.common.io
 
 import android.content.Context
 import android.net.Uri
-import com.oldguy.common.io.charsets.Charset
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toLocalDateTime
-import java.io.BufferedReader
-import java.io.BufferedWriter
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.io.InputStream
-import java.io.InputStreamReader
-import java.io.OutputStream
-import java.io.RandomAccessFile
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
@@ -66,25 +59,28 @@ actual class File actual constructor(filePath: String, platformFd: FileDescripto
     actual val isUri = platformFd?.code == 1 && platformFd.descriptor is Uri
     actual val isUriString = platformFd?.code == 2 && platformFd.descriptor is String
     actual val size: ULong get() = javaFile.length().toULong()
-    actual val lastModifiedEpoch: Long = javaFile.lastModified()
+    actual val lastModifiedEpoch: Long get() {
+        if (!exists)
+            throw IllegalStateException("File $fullPath does not exist")
+        return Files.getLastModifiedTime(Paths.get(fullPath)).toMillis()
+    }
 
     private val defaultTimeZone = TimeZones.default
-    actual val lastModified = if (lastModifiedEpoch == 0L)
-            null
-        else Instant.fromEpochMilliseconds(lastModifiedEpoch)
+    actual val lastModified: LocalDateTime? get() =
+        Instant.fromEpochMilliseconds(lastModifiedEpoch)
             .toLocalDateTime(defaultTimeZone)
     actual val createdTime: LocalDateTime? get() {
         if (!exists)
-            throw IllegalStateException("File $path does not exist")
-        val fileTime = Files.getAttribute(Paths.get(path), "creationTime") as FileTime
+            throw IllegalStateException("File $fullPath does not exist")
+        val fileTime = Files.getAttribute(Paths.get(fullPath), "creationTime") as FileTime
         return Instant
             .fromEpochMilliseconds(fileTime.toMillis())
             .toLocalDateTime(defaultTimeZone)
     }
     actual val lastAccessTime: LocalDateTime? get() {
         if (!exists)
-            throw IllegalStateException("File $path does not exist")
-        val fileTime = Files.getAttribute(Paths.get(path), "lastAccessTime") as FileTime
+            throw IllegalStateException("File $fullPath does not exist")
+        val fileTime = Files.getAttribute(Paths.get(fullPath), "lastAccessTime") as FileTime
         return Instant
             .fromEpochMilliseconds(fileTime.toMillis())
             .toLocalDateTime(TimeZones.default)

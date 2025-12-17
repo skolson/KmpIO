@@ -85,17 +85,6 @@ java {
     }
 }
 
-/**
- * Using the new android.kmp.library caused a unit test problem.
- * Added this, similar to https://developer.android.com/kotlin/multiplatform/plugin#compose-preview-dependencies
- * for device test only dependencies. Without this, issue https://issuetracker.google.com/issues/449505050
- * occurs causing all tests to fail due to an abort in the emulator of the test process.
- */
-dependencies {
-    add("androidTestUtil", libs.androidx.test.orchestrator)
-    add("androidTestUtil", libs.androidx.test.services)
-}
-
 kotlin {
     android {
         compileSdk = libs.versions.androidSdk.get().toInt()
@@ -114,17 +103,9 @@ kotlin {
         }
 
         withHostTest {}
-        /*
         withDeviceTest {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-            execution = "ANDROIDX_TEST_ORCHESTRATOR"
-        }
-         */
-        withDeviceTestBuilder {
-            sourceSetTreeName = "test"
-        }.configure {
-            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-            execution = "ANDROIDX_TEST_ORCHESTRATOR"
+            execution = "HOST"
         }
 
         optimization {

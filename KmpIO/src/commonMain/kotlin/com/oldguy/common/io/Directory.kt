@@ -69,14 +69,23 @@ class Directory(dirPath: String)
      * @throws IllegalStateException If deletion of any file or directory within the hierarchy fails.
      */
     suspend fun deleteDirectoryAndContents() {
+        empty()
+        if (!directory.delete())
+            throw IllegalStateException("Attempt to delete ${directory.fullPath} failed")
+    }
+
+    /**
+     * Empties the current directory by deleting all its contents, including nested files and subdirectories.
+     * Directory itself remains, just no contents.
+     * @throws IllegalStateException If deletion of any file or directory within the hierarchy fails.
+     */
+    suspend fun empty() {
         directoryTree().apply {
-            for ( i in lastIndex downTo 0) {
+            for (i in lastIndex downTo 0) {
                 if (!this[i].delete())
                     throw IllegalStateException("Attempt to delete ${this[i].fullPath} failed")
             }
         }
-        if (!directory.delete())
-            throw IllegalStateException("Attempt to delete ${directory.fullPath} failed")
     }
 
     companion object {
