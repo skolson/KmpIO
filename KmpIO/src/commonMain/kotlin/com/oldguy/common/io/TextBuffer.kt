@@ -43,7 +43,7 @@ open class TextBuffer(
     /**
      * While processing text by line, this attribute is the current line count processed
      */
-    var lineCount = 1
+    var lineCount = 0
         private set
 
     /**
@@ -274,6 +274,7 @@ open class TextBuffer(
         _lastChar = true
         if (buf.remaining == 0) {
             endOfFile = true
+            lineCount++
             return Char(0)
         }
         val pos = buf.position
@@ -298,7 +299,7 @@ open class TextBuffer(
                 remainder[0]
             )
         char(s[0])
-        if (!peek) buf.position = buf.position + byteCount
+        if (!peek) buf.position += byteCount
         return lastChar
     }
 
@@ -313,7 +314,8 @@ open class TextBuffer(
         return StringBuilder(blockSize).apply {
             while (!isEndOfFile) {
                 val c = next()
-                if (c == EOL_CHAR || endOfFile) break
+                if (c == EOL_CHAR || endOfFile)
+                    break
                 append(c)
             }
         }.toString()
@@ -333,6 +335,7 @@ open class TextBuffer(
             readLock = true
             while (true) {
                 val line = readLine()
+                if (line.isEmpty() && isEndOfFile) break
                 if (!action(lineCount, line))
                     break
                 if (isEndOfFile) break

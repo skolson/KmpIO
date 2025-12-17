@@ -11,6 +11,7 @@ import kotlinx.datetime.number
 import kotlin.test.*
 import kotlin.test.Test
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 @ExperimentalCoroutinesApi
@@ -32,6 +33,10 @@ class AndroidFileTests() {
             val subDir = testDirectory.resolve(subDirName)
             assertTrue(subDir.exists)
             assertTrue(subDir.isDirectory)
+            Directory(subDir).apply {
+                assertTrue(directory.exists)
+                empty()
+            }
 
             val testFileName = "Test.txt"
             val testFilePath = "${testDirectory.fullPath}/$subDirName/$testFileName"
@@ -51,10 +56,10 @@ class AndroidFileTests() {
                 TextFile(this, mode = FileMode.Write).use {
                     it.write(testText)
                 }
-                val tmpList2 = subDir.directoryList()
+                val tmpList2 = subDir.directoryFiles()
                 assertTrue(tmpList2.isNotEmpty(), "tmpList2 Not empty")
                 assertEquals(1, tmpList2.size)
-                assertEquals(testFilePath, tmpList2.first())
+                assertEquals(testFilePath, tmpList2.first().fullPath)
                 TextFile(this).forEachLine { count, line ->
                     assertEquals(1, count)
                     assertEquals(testText,line)
@@ -85,13 +90,14 @@ class AndroidFileTests() {
 
     @OptIn(ExperimentalTime::class)
     fun textFileWriteRead(charset: Charset) {
-        runTest {
+        runTest(timeout = 5.minutes) {
             val subDir = testDirectory.resolve(subDirName)
-            val fil = File(subDir, "Text${charset.name}.txt")
+            var fil = File(subDir, "Text${charset.name}.txt")
             fil.delete()
-            assertEquals(false, fil.newFile().exists)
+            fil = fil.newFile()
+            assertEquals(false, fil.exists)
             TextFile(
-                fil.newFile(),
+                fil,
                 charset,
                 FileMode.Write,
                 FileSource.File
@@ -99,7 +105,7 @@ class AndroidFileTests() {
                 it.write(textContent)
             }
 
-            assertEquals(true, fil.newFile().exists)
+            assertEquals(true, fil.exists)
             val lastModDate = fil.lastModified!!
             val createdDate = fil.createdTime!!
             val lastAccessDate = fil.lastAccessTime!!

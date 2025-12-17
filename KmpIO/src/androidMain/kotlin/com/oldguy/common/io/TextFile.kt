@@ -105,7 +105,7 @@ actual class TextFile actual constructor(
         if (mode == FileMode.Write)
             throw IllegalStateException("Mode is write, cannot read")
         try {
-            textBuffer.forEachLine() { count, line ->
+            textBuffer.forEachLine { count, line ->
                 action(count, line)
             }
         } finally {
