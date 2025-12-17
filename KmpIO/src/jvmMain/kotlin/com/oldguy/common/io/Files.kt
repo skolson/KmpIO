@@ -34,7 +34,7 @@ actual class TimeZones {
 }
 
 @OptIn(ExperimentalTime::class)
-actual open class File actual constructor(filePath: String, platformFd: FileDescriptor?) {
+actual class File actual constructor(filePath: String, platformFd: FileDescriptor?) {
     actual constructor(parentDirectory: String, name: String) :
             this(parentDirectory + name, null)
 

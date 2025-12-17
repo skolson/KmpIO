@@ -20,15 +20,19 @@ actual class TextFile actual constructor(
 ) : Closeable {
 
     var javaWriter: java.io.BufferedWriter? = null
+    val javaCharset: java.nio.charset.Charset =
+        java.nio.charset.Charset.forName(charset.name)
 
     private var stream = newStream()
 
     private fun newStream(): InputStream? {
-        return when (source) {
-            FileSource.Asset -> null
-            FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
-            FileSource.File -> FileInputStream(file.fullPath)
-        }
+        return if (mode == FileMode.Read)
+            when (source) {
+                FileSource.Asset -> null
+                FileSource.Classpath -> TextFile::class.java.getResourceAsStream(file.fullPath)
+                FileSource.File -> FileInputStream(file.fullPath)
+            }
+        else null
     }
 
     actual val textBuffer = TextBuffer(charset, bufferSize) { buffer, count ->
@@ -52,7 +56,7 @@ actual class TextFile actual constructor(
         mode: FileMode,
         stream: OutputStream
     ) : this(file, charset, mode, FileSource.Asset) {
-        javaWriter = stream.bufferedWriter(java.nio.charset.Charset.forName(charset.name))
+        javaWriter = stream.bufferedWriter(javaCharset)
     }
 
     init {
@@ -63,7 +67,7 @@ actual class TextFile actual constructor(
                 FileSource.File -> FileOutputStream(file.fullPath)
             }
             if (stream != null)
-                javaWriter = stream.bufferedWriter(java.nio.charset.Charset.forName(charset.name))
+                javaWriter = stream.bufferedWriter(javaCharset)
         }
     }
 
@@ -126,6 +130,8 @@ actual class TextFile actual constructor(
     }
 
     actual suspend fun read(maxSizeBytes: Int): String {
+        if (mode == FileMode.Write)
+            throw IllegalStateException("Mode is write, cannot read")
         if (textBuffer.isReadLock)
             throw IllegalStateException("Invoking read during existing forEach operation is not allowed ")
         if (textBuffer.isEndOfFile) return ""
