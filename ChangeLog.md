@@ -2,10 +2,8 @@
 
 ### 0.3.0-SNAPSHOT (in progress)
 
-Note: current published commit is experiencing Google issue https://issuetracker.google.com/issues/449505050 with android unit tests. Likely 0.3.0 won't be published until there is a work-around or fix for this issue, 
-
-- Kotlin 2.2.21
-- Android Gradle Plugin 9.0.0-beta04
+- Kotlin 2.3.0
+- Android Gradle Plugin 9.0.0-beta05
 - Android Gradle Library Plugin for KMP replacing deprecated Android Library Plugin
   - This required renaming the android testing source sets to the new convention
   - Android release builds isMinifyEnabled (proguard) is now true

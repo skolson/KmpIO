@@ -159,26 +159,8 @@ kotlin {
         languageVersion = javaVersion
     }
     jvm()
-    linuxX64() {
-        compilerOptions {
-            freeCompilerArgs.add("-g")
-        }
-        binaries {
-            executable {
-                debuggable = true
-            }
-        }
-    }
-    linuxArm64() {
-        compilerOptions {
-            freeCompilerArgs.add("-g")
-        }
-        binaries {
-            executable {
-                debuggable = true
-            }
-        }
-    }
+    linuxArm64()
+    linuxX64()
 
     // Turns off warnings about expect/actual class usage
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
