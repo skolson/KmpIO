@@ -20,6 +20,7 @@ class FileTests(testDirPath: String) {
         val testText = "Test text"
         runTest {
             val subDir = testDirectory.resolve(subDirName)
+            println("subDir: ${subDir.fullPath}")
             assertTrue(subDir.exists)
             assertTrue(subDir.isDirectory)
 
@@ -252,7 +253,7 @@ class FileUnitTests {
                 println(fullPath)  // Use to find full path iosX64 and android tests are using.
                 directoryList().apply {
                     println(this)
-                    assertEquals(7, size)
+                    assertEquals(8, size)
                     assertTrue { contains("ZerosZip64.zip") }
                     assertTrue { contains("Zip64_90,000_files.zip") }
                     assertTrue { contains("SmallTextAndBinary.zip") }
@@ -260,6 +261,7 @@ class FileUnitTests {
                     assertTrue { contains("ic_help_grey600_48dp.7zip.zip") }
                     assertTrue { contains("dir1") }
                     assertTrue { contains("dir2") }
+                    assertTrue { contains("あ.png") }
                 }
                 directoryFiles().apply {
                     assertEquals(7, size)

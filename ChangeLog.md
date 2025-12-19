@@ -3,7 +3,7 @@
 ### 0.3.0-SNAPSHOT (in progress)
 
 - Kotlin 2.3.0
-- Android Gradle Plugin 9.0.0-beta05
+- Android Gradle Plugin 9.0.0-rc01
 - Android Gradle Library Plugin for KMP replacing deprecated Android Library Plugin
   - This required renaming the android testing source sets to the new convention
   - Android release builds isMinifyEnabled (proguard) is now true
@@ -22,6 +22,8 @@
 - Charset ISO8859_1 has added ASCII and USASCII as aliases
 - Merged PR #26 "fix archiving of files with non-ASCII filenames" uses length of encoded file names and comments in ZipDirectoryRecord and ZipLocalRecord to avoid truncating Unicode strings that contain characters that encode to multi-bytes.  
 - Fix Issue #25 - no longer throw a datetime exception when encountering an invalid timestamp in a Zip file (from some other creator). If timestamp is unparsable, ZipTime will return LocalDateTime value of 1980-01-01T00:00:00. 
+
+Note: the library has no dependency on Netty, but Android's gradle plugin does. Due to issue https://issuetracker.google.com/issues/460692346, a change was added to the build to force use of Netty 4.1x. This allows android emulator tests to build and run without getting a noclassdeffounderror on a Netty class.
 
 ### 0.2.3 (2025-08)
 
