@@ -257,9 +257,9 @@ class AndroidFileUnitTests {
      * filesDir path:
      *      /data/data/com.oldguy.iocommon.test/files
      *
-     * NOTE: The unit test wipes the all the subdirectories for the app every test. The only
-     * current wy to have this match real world is to breakpoint after is has retrieved the
-     * test directory, and then upload the stuff to be read by listFiles
+     * NOTE: The Android emulator unit test wipes all the subdirectories for the app every test.
+     * The only current wy to have this match real world is to breakpoint after is has retrieved the
+     * test directory, and then upload the stuff to be read by directoryList
      */
     @Test
     fun directoryList() {
