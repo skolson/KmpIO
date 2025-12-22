@@ -386,7 +386,7 @@ actual class RawFile actual constructor(
     ): ULong {
         position = startIndex
         val blkSize = 4096
-        val buffer = ByteBuffer(blkSize.toInt(), isReadOnly = true)
+        val buffer = ByteBuffer(blkSize, isReadOnly = true)
         var readCount = source.read(buffer)
         val fileSize = size
         var bytesWritten = 0L

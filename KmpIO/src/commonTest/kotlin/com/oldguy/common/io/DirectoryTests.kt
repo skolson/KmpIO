@@ -29,7 +29,8 @@ class DirectoryTests(testDirPath: String) {
             "ic_help_grey600_48dp.png",
             "SmallTextAndBinary.zip",
             "ZerosZip64.zip",
-            "Zip64_90,000_files.zip"
+            "Zip64_90,000_files.zip",
+            "あ.png"
         )
     }
 }
