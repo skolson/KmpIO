@@ -137,8 +137,9 @@ class TextBufferTests {
                 assertEquals("=", token.separator)
                 assertEquals("version", token.value)
                 token = token()
-                assertEquals("?>", token.separator)
                 assertEquals("1.0", token.value)
+                token = token()
+                assertEquals("?>", token.separator)
                 assertTrue(isEndOfFile)
             }
         }
