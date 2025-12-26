@@ -278,6 +278,10 @@ class BitSet(val numberOfBits: Int) {
         }
     }
 
+    fun size(): Int {
+        return words.size * BITS_PER_WORD
+    }
+
     private fun expandTo(wordIndex: Int) {
         val wordsRequired = wordIndex + 1
         if (wordsInUse < wordsRequired) {
