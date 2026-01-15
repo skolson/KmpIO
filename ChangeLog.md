@@ -1,9 +1,9 @@
 # Change Log
 
-### 0.3.0-SNAPSHOT (in progress)
+### 0.3.0 (2026-01)
 
 - Kotlin 2.3.0
-- Android Gradle Plugin 9.1.0-alph04
+- Android Gradle Plugin 9.1.0-alpha04
 - Android Gradle Library Plugin for KMP replacing deprecated Android Library Plugin
   - This required renaming the android testing source sets to the new convention
   - Android release builds isMinifyEnabled (proguard) is now true
