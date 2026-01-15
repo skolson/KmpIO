@@ -21,6 +21,7 @@
 - TextFile gets rewind() function for resetting to beginning of file. The file position is set to zero and the TextBuffer state is reset
 - Charset ISO8859_1 has added ASCII and USASCII as aliases
 - Merged PR #26 "fix archiving of files with non-ASCII filenames" uses length of encoded file names and comments in ZipDirectoryRecord and ZipLocalRecord to avoid truncating Unicode strings that contain characters that encode to multi-bytes.  
+- Merged PR #27 which added a size() function to BitSet equivalent to the JVM version
 - Fix Issue #25 - no longer throw a datetime exception when encountering an invalid timestamp in a Zip file (from some other creator). If timestamp is unparsable, ZipTime will return LocalDateTime value of 1980-01-01T00:00:00. 
 - Android JUnit tests now using JUnit 6.0.2 and de.mannodermaus plugin 2.0.1
   - See the gradle version catalog for comment - the library is published with android minSdk=26. But this causes a desugaring error when running JUnit 6 instrumented tests.  To run the tests, android minSdk=35 works.

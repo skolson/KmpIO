@@ -278,6 +278,11 @@ class BitSet(val numberOfBits: Int) {
         }
     }
 
+    /**
+     * When iterating over a BitSet, the size of the BitSet is needed. Should be equivalent to
+     * the JVM BitSet size function
+     * @return size of BitSet, may be larger than numberOfBits
+     */
     fun size(): Int {
         return words.size * BITS_PER_WORD
     }
