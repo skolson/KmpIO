@@ -1,5 +1,3 @@
-import com.vanniktech.maven.publish.JavadocJar
-import com.vanniktech.maven.publish.KotlinMultiplatform
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
@@ -10,9 +8,10 @@ plugins {
         alias(it.kotlin.multiplatform)
         alias(it.android.kmp.library)
         alias(it.kotlinx.atomicfu)
+        alias(it.kotlin.cocoapods)
         alias(it.dokka.base)
         alias(it.maven.publish.vannik)
-        kotlin("native.cocoapods")
+        // alias(it.android.jupiter) // this currently causes a sync error ClassCastException
     }
 }
 
@@ -93,19 +92,18 @@ kotlin {
 
         minSdk = libs.versions.androidSdkMinimum.get().toInt()
 
-        packaging {
-            // Added to address a version issue with Netty only used on android device tests
-            resources.excludes.add("META-INF/INDEX.LIST")
-            resources.excludes.add("META-INF/io.netty.versions.properties")
-            resources.excludes.add("META-INF/license/LICENSE.*")
-            resources.excludes.add("META-INF/license/NOTICE.*")
-            resources.excludes.add("META-INF/native-image/io.netty/**")
-        }
-
         withHostTest {}
         withDeviceTest {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+            instrumentationRunnerArguments += mapOf(
+                "runnerBuilder" to "de.mannodermaus.junit5.AndroidJUnit5Builder"
+            )
             execution = "HOST"
+        }
+
+        packaging {
+            resources.excludes.add("META-INF/LICENSE.md")
+            resources.excludes.add("META-INF/LICENSE-notice.md")
         }
 
         optimization {
@@ -193,24 +191,18 @@ kotlin {
         }
         getByName("androidHostTest") {
             dependencies {
-                implementation(libs.bundles.kotlin.test)
-                implementation(libs.kotlin.test.junit)
-                implementation(libs.junit)
+                implementation(libs.bundles.androidx.test)
             }
         }
         getByName("androidDeviceTest") {
             dependencies {
-                implementation(libs.bundles.kotlin.test)
                 implementation(libs.bundles.androidx.test)
-                implementation(libs.junit)
-                // added to fix a unit test missing class issue, likely a bug in the test runner
-                implementation(libs.netty.all)
             }
         }
         getByName("jvmTest") {
             dependencies {
                 implementation(kotlin("test-junit"))
-                implementation(libs.junit)
+                implementation(libs.bundles.jvm.test)
             }
         }
         getByName("linuxX64Test") {

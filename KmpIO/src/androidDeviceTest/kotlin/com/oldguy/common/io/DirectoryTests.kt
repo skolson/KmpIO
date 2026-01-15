@@ -1,8 +1,8 @@
 package com.oldguy.common.io
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 
 @ExperimentalCoroutinesApi
 class AndroidDirectoryTests(testDirPath: String) {
