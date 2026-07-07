@@ -15,7 +15,6 @@ abstract class Buffer<Element, Array> internal constructor(
          * Sets this buffer's position.  If the mark is defined and larger than the
          * new position then it is discarded.
          *
-         * @param newPosition
          * The new position value; must be non-negative
          * and no larger than the current limit
          *
@@ -35,7 +34,6 @@ abstract class Buffer<Element, Array> internal constructor(
          * then it is set to the new limit.  If the mark is defined and larger than
          * the new limit then it is discarded.
          *
-         * @param newLimit
          * The new limit value; must be non-negative
          * and no larger than this buffer's capacity
          *

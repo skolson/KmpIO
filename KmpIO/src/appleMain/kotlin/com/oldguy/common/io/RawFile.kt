@@ -203,8 +203,6 @@ actual class RawFile actual constructor(
     /**
      * Read bytes from a file, starting at the specified position.
      * @param buf read buf.remaining bytes into byte buffer.
-     * @param newPos zero-relative position of file to start reading,
-     * or if default of -1, the current file position
      * @param reuseBuffer if false (default), position is advanced by number of bytes read and function
      * returns. If true, buffer is cleared before read so capacity bytes can be read. Position
      * advances by number of bytes read, then buffer flip() is called so position is zero, limit and
