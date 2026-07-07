@@ -203,8 +203,6 @@ kotlin {
                 implementation(libs.bundles.kotlin.test)
                 implementation(libs.bundles.androidx.test)
                 implementation(libs.junit)
-                // added to fix a unit test missing class issue, likely a bug in the test runner
-                implementation(libs.netty.all)
             }
         }
         getByName("jvmTest") {

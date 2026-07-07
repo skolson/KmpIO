@@ -1,9 +1,21 @@
 # Change Log
 
-### 0.3.0-SNAPSHOT (in progress)
+### 0.3.1 (In progress)
+
+- Kotlin 2.3.20
+- Android Gradle Plugin 9.4.0-alpha03
+- Gradle 9.6.1
+- TextBuffer adds two byte read functions for assisting with files that mix text that needs decoding/encoding using a Charset and binary data that shouldn't be encoded/decoded.
+  - suspend fun nextByte(peek: Boolean = false): Byte
+  - suspend fun nextBytes(count: Int, delimiter: Byte? = null): ByteArray
+- Kotlinx coroutines 1.11.0
+- Kotlinx datetime 0.8.0
+- Gradle daemon toolchain support (java 21)
+
+### 0.3.0 (2026-06)
 
 - Kotlin 2.3.0
-- Android Gradle Plugin 9.0.0-rc01
+- Android Gradle Plugin 9.1.0-alpha01
 - Android Gradle Library Plugin for KMP replacing deprecated Android Library Plugin
   - This required renaming the android testing source sets to the new convention
   - Android release builds isMinifyEnabled (proguard) is now true
@@ -21,7 +33,8 @@
 - TextFile gets rewind() function for resetting to beginning of file. The file position is set to zero and the TextBuffer state is reset
 - Charset ISO8859_1 has added ASCII and USASCII as aliases
 - Merged PR #26 "fix archiving of files with non-ASCII filenames" uses length of encoded file names and comments in ZipDirectoryRecord and ZipLocalRecord to avoid truncating Unicode strings that contain characters that encode to multi-bytes.  
-- Fix Issue #25 - no longer throw a datetime exception when encountering an invalid timestamp in a Zip file (from some other creator). If timestamp is unparsable, ZipTime will return LocalDateTime value of 1980-01-01T00:00:00. 
+- Fix Issue #25 - no longer throw a datetime exception when encountering an invalid timestamp in a Zip file (from some other creator). If timestamp is unparsable, ZipTime will return LocalDateTime value of 1980-01-01T00:00:00.
+- Merged PR #27 which adds a size() function to determine how many bits are in the array used to back the bits in a Bitset
 
 Note: the library has no dependency on Netty, but Android's gradle plugin does. Due to issue https://issuetracker.google.com/issues/460692346, a change was added to the build to force use of Netty 4.1x. This allows android emulator tests to build and run without getting a noclassdeffounderror on a Netty class.
 
