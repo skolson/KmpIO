@@ -3,9 +3,6 @@ package com.oldguy.common.io
 import com.oldguy.common.io.charsets.Utf16LE
 import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 @ExperimentalCoroutinesApi

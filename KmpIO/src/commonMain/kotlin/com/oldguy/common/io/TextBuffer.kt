@@ -2,6 +2,7 @@ package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.charsets.MultiByteDecodeException
+import kotlin.math.min
 
 /**
  * Platform-neutral text buffering for simple text file read (or other source) operations, using blocks of
@@ -256,6 +257,7 @@ open class TextBuffer(
         } else
             linePosition++
     }
+
     /**
      * Use this to read decoded character by decoded character, until isEndOfFile is true.
      *
@@ -301,6 +303,49 @@ open class TextBuffer(
         char(s[0])
         if (!peek) buf.position += byteCount
         return lastChar
+    }
+
+    /**
+     * Use this to read raw bytes one by one.
+     *
+     * the most recent character read is available in lastChar
+     *
+     * @param peek true if byte should be returned without advancing to the next character.
+     * @return one byte. if isEndOfFile is true, returns code 0x00 character.
+     */
+    suspend fun nextByte(peek: Boolean = false): Byte {
+        if (!isEndOfFile && buf.remaining == 0)
+            useSource()
+        if (buf.remaining == 0) {
+            endOfFile = true
+            return 0
+        }
+        return if (peek) buf.get(buf.position) else buf.byte
+    }
+
+    /**
+     * Use this to read raw bytes, for the specified count, or until a delimiter is reached.
+     *
+     * @param count number of bytes desired
+     * @param delimiter null if no delimiter should stop reads. if not null and a delimiter is encountered
+     * before count bytes are retrieved, retrieval stops.
+     * @return ByteArray with the result. if isEndOfFile is already true, result is empty. Otherwise,
+     * reads bytes until count retrieved or end of file reached or a delimiter is encountered.
+     * Result is sized with to the number of bytes retrieved.
+     */
+    suspend fun nextBytes(count: Int, delimiter: Byte? = null): ByteArray {
+        if (endOfFile) return ByteArray(0)
+        var retrieved = 0
+        val result = ByteArray(count)
+        while (retrieved < count && !isEndOfFile) {
+            val b = nextByte()
+            if (!isEndOfFile) {
+                result[retrieved] = b
+                if (delimiter != null && b == delimiter) break
+                retrieved++
+            }
+        }
+        return if (retrieved < count) result.copyOf(retrieved) else result
     }
 
     /**
