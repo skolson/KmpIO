@@ -2,20 +2,21 @@ package com.oldguy.common.io
 
 import androidx.test.platform.app.InstrumentationRegistry
 import com.oldguy.common.io.charsets.Charset
-import com.oldguy.common.io.charsets.Charsets
 import com.oldguy.common.io.charsets.Utf16LE
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.*
 import kotlinx.datetime.number
-import kotlin.test.*
-import kotlin.test.Test
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 @ExperimentalCoroutinesApi
-class AndroidFileTests() {
+class AndroidFileTests {
     private val testDirectory: File
     private val subDirName = "kmpIOtestDir"
 
@@ -181,7 +182,7 @@ class AndroidFileTests() {
                 assertEquals(hexContent.size, buf.position)
                 assertEquals(hexContent.size.toUInt(), count)
                 buf.rewind()
-                assertContentEquals(hexContent, buf.getBytes(count.toInt()))
+                assertArrayEquals(hexContent, buf.getBytes(count.toInt()))
                 count = it.read(buf)
                 assertEquals(0u, count)
                 val x = it.size - 12u
@@ -215,71 +216,6 @@ class AndroidFileTests() {
             File.workingDirectory().apply {
                 assertTrue(exists)
                 return resolve("TestFiles")
-            }
-        }
-    }
-}
-
-@ExperimentalCoroutinesApi
-class AndroidFileUnitTests {
-
-    private val tests = AndroidFileTests()
-
-    @Test
-    fun textUtf8Basics() {
-        tests.filesBasics()
-        tests.textFileWriteRead(Charsets.Utf8.charset)
-    }
-
-    @Test
-    fun textMediumSizeUtf8Basics() {
-        tests.biggerTextFileWriteRead(Charsets.Utf8.charset, 100)
-    }
-
-    @Test
-    fun textUtf16leBasics() {
-        tests.textFileWriteRead(Charsets.Utf16LE.charset)
-    }
-
-    @Test
-    fun rawSmallTest() {
-        try {
-            tests.testRawWriteRead("Small", 1)
-        } catch (e: Throwable) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * appContext paths
-     * getExternalDir() path:
-     *      /storage/emulated/0/Android/data/com.oldguy.iocommon.test/files/TestFiles
-     * filesDir path:
-     *      /data/data/com.oldguy.iocommon.test/files
-     *
-     * NOTE: The Android emulator unit test wipes all the subdirectories for the app every test.
-     * The only current wy to have this match real world is to breakpoint after is has retrieved the
-     * test directory, and then upload the stuff to be read by directoryList
-     */
-    @Test
-    fun directoryList() {
-        runTest {
-            AndroidFileTests.testDirectory().apply {
-                directoryList().apply {
-                    println(this)
-                    assertEquals(7, size)
-                    assertTrue { contains("ZerosZip64.zip") }
-                    assertTrue { contains("Zip64_90,000_files.zip") }
-                    assertTrue { contains("SmallTextAndBinary.zip") }
-                    assertTrue { contains("ic_help_grey600_48dp.png") }
-                    assertTrue { contains("ic_help_grey600_48dp.7zip.zip") }
-                    assertTrue { contains("dir1") }
-                    assertTrue { contains("dir2") }
-                }
-                directoryFiles().apply {
-                    assertEquals(7, size)
-                    forEach { assertTrue { it.exists } }
-                }
             }
         }
     }

@@ -8,13 +8,16 @@ kotlin = "2.3.20"
 kotlinCoroutines = "1.11.0"
 kotlinx-datetime = "0.8.0"
 
-androidBuildTools = "36.1.0"
-androidSdk = "36"
+androidBuildTools = "37.0.0"
+androidSdk = "37"
+# Use 26 for publishing. To avoid JUnit5/6 desugaring issues, use 35 for androidDeviceTest builds/tests
 androidSdkMinimum = "26"
+#androidSdkMinimum = "37"
 
 dokkaPlugin = "2.2.0"
-junit = "4.13.2"
 androidxTest = "1.7.0"
+jupiter = "6.1.1"
+testMannodermausPlugin = "2.0.1"
 androidxTestRunner = "1.7.0"
 androidxTestExt = "1.3.0"
 vannikTech = "0.37.0"
@@ -23,25 +26,28 @@ vannikTech = "0.37.0"
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinCoroutines" }
 
-#build only
-android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "androidGradlePlugin" }
+#testing libraries - mostly android-specific
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinCoroutines"}
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
-kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinCoroutines" }
-junit = { module = "junit:junit", version.ref = "junit" }
-androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTest"}
-androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidxTest"}
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
-androidx-test-ext = { module = "androidx.test.ext:junit", version.ref="androidxTestExt" }
+jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "jupiter" }
+jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "jupiter" }
+jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "jupiter" }
+android-jupiter-test-runner = { module = "de.mannodermaus.junit5:android-test-runner", version.ref = "testMannodermausPlugin" }
+android-jupiter-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "jupiter" }
+android-jupiter-suite-api = { module = "org.junit.platform:junit-platform-suite-api", version.ref = "jupiter" }
 
 [bundles]
-androidx-test = [ "androidx-test-core", "androidx-test-runner", "androidx-test-ext"]
+androidx-test = [ "kotlinx-coroutines-test", "kotlinx-coroutines-core", "jupiter-api", "jupiter-params", "jupiter-engine", "androidx-test-runner", "android-jupiter-test-runner", "android-jupiter-launcher", "android-jupiter-suite-api" ]
 kotlin-test = [ "kotlin-test", "kotlinx-coroutines-test" ]
+jvm-test = [ "kotlinx-coroutines-test", "kotlinx-coroutines-core", "jupiter-api", "jupiter-params", "jupiter-engine" ]
 
 [plugins]
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinx-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
 maven-publish-vannik = { id = "com.vanniktech.maven.publish", version.ref = "vannikTech" }
+android-jupiter = { id = "de.mannodermaus.android-junit", version.ref = "testMannodermausPlugin"}
+kotlin-cocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
 
 dokka-base = { id = "org.jetbrains.dokka", version.ref = "dokkaPlugin" }
