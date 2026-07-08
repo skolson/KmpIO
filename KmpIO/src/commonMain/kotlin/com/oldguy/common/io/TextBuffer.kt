@@ -345,6 +345,9 @@ open class TextBuffer(
                 retrieved++
             }
         }
+        if (retrieved == 0) return ByteArray(0)
+        _lastChar = false
+        lastChar = charset.decode(result, 1, retrieved - 1).first()
         return if (retrieved < count) result.copyOf(retrieved) else result
     }
 
