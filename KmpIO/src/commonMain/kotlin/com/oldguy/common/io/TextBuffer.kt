@@ -487,7 +487,9 @@ open class TextBuffer(
         val quotesFound: Boolean,
         val line: Int,
         val position: Int
-    )
+    ) {
+        val isBlank get() = value.isBlank() && separator.isBlank()
+    }
 
     /**
      * Reads next token of text, up to maxSize characters.
