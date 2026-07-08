@@ -11,7 +11,7 @@
 - Kotlinx coroutines 1.11.0
 - Kotlinx datetime 0.8.0
 - Gradle daemon toolchain support (java 21)
-- Fi: TextBuffer token call' matching was issuing a Match found when only matching on the start of a multi-character separator. Now only matches on all of a multicharacter separator, else issues a NoMatch.
+- Fi: TextBuffer token call's matching was issuing a Match found when only matching on the start of a multi-character separator. Now only matches on all of a multicharacter separator, else issues a NoMatch.
 
 ### 0.3.0 (2026-01)
 
