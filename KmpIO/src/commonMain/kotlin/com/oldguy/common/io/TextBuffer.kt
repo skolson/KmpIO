@@ -584,12 +584,20 @@ open class TextBuffer(
                             append(separatorBuf.substring(0, separatorBuf.length - 1))
                         if (c.isWhitespace() && stopOnWhitespace) {
                             skipWhitespace()
-                            return Match(
-                                MatchResult.Match,
-                                separatorBuf,
-                                toString(),
-                                false
-                            )
+                            return if (separators.any { it == separatorBuf.trim() })
+                                Match(
+                                    MatchResult.Match,
+                                    separatorBuf.trim(),
+                                    toString(),
+                                    false
+                                )
+                            else
+                                Match(
+                                    MatchResult.NoMatch,
+                                    "",
+                                    toString(),
+                                    false
+                                )
                         }
                         if (tokenValueQuotedString && isQuoteChar) {
                             append(quotedString())
@@ -607,17 +615,17 @@ open class TextBuffer(
                         MatchResult.NoMatch
                     }
                     1 -> if (separators.contains(separatorBuf)) {
-                        next()
-                        return Match(
-                            MatchResult.Match,
-                            separatorBuf,
-                            toString(),
-                            false
-                        )
+                            next()
+                            return Match(
+                                MatchResult.Match,
+                                separatorBuf,
+                                toString(),
+                                false
+                            )
                         } else {
-                                c = next()
-                                separatorBuf += c
-                                MatchResult.Matching
+                            c = next()
+                            separatorBuf += c
+                            MatchResult.Matching
                         }
                     else -> {
                         c = next()
