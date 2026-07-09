@@ -2,7 +2,7 @@
 
 ### 0.3.1 (In progress)
 
-- Kotlin 2.3.20
+- Kotlin 2.4.0
 - Android Gradle Plugin 9.4.0-alpha03
 - Gradle 9.6.1
 - TextBuffer adds two byte read functions for assisting with files that mix text that needs decoding/encoding using a Charset and binary data that shouldn't be encoded/decoded.
@@ -11,7 +11,7 @@
 - Kotlinx coroutines 1.11.0
 - Kotlinx datetime 0.8.0
 - Gradle daemon toolchain support (java 21)
-- Fi: TextBuffer token call's matching was issuing a Match found when only matching on the start of a multi-character separator. Now only matches on all of a multicharacter separator, else issues a NoMatch.
+- Fix: TextBuffer tokenUntil function's matching logic had a couple bugs. If two separators started with the same substring, an incorrect match was happening. Also, a separator immediately after quoted string was not properly handled, requiring an additional call to the token function. These changes are breaking if code using 0.3.0 is relying on the incorrect behavior then updates to 0.3.1.
 
 ### 0.3.0 (2026-01)
 

@@ -137,12 +137,18 @@ class ZipFileTests {
     fun unzipToDirectoryTest() {
         runTest {
             val dir = tempDir()
+            Directory(dir).apply {
+                empty()
+                assertTrue(list().isEmpty())
+            }
             val f = testFile()
             println("dir: ${dir.fullPath}")
             ZipFile(f).apply {
                 extractToDirectory(dir)
             }
-            val list = dir.directoryList().map { File(dir, it) }
+            val list = dir.directoryList()
+                .filter { it != FileTests.macosIgnore }
+                .map { File(dir, it) }
             assertEquals(7, list.size)
             assertEquals(6, list.count { it.isDirectory })
             assertEquals(1, list.count { !it.isDirectory })
@@ -251,7 +257,9 @@ class ZipFileTests {
      */
     fun zipDirectoryTest(shallow: Boolean) {
         runTest {
-            val dirZip = File(tempDir(), "testFilesDir$shallow.zip")
+            val suffix = if (shallow) "Shallow" else "Deep"
+            val dirZip = File(tempDir(), "testFilesDir$suffix.zip")
+            dirZip.delete()
             ZipFile(dirZip, FileMode.Write).use {
                 it.zipDirectory(FileTests.testDirectory(), shallow) { f ->
                     val rc = !(f.contains("ZerosZip64") || f.contains("Zip64_90,000_files"))
@@ -259,11 +267,13 @@ class ZipFileTests {
                 }
             }
             ZipFile(dirZip.newFile()).use { zip ->
-                zip.entries.apply {
+                zip.entries
+                    .filter { !it.name.contains(FileTests.macosIgnore) }
+                    .apply {
                     if (shallow) {
-                        assertEquals(3, size)
+                        assertEquals(4, size)
                     } else {
-                        assertEquals(6, size)
+                        assertEquals(7, size)
                         assertEquals(1, count { it.name.contains("dir1") })
                         assertEquals(2, count { it.name.contains("dir2") })
                         assertEquals(1, count { it.name.contains("dir3") })

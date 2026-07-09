@@ -64,7 +64,6 @@ class TextBufferSimpleTests {
                 assertEquals("version", token.value)
                 token = token()
                 assertEquals("1.0", token.value)
-                token = token()
                 assertEquals("?>", token.separator)
                 assertTrue(isEndOfFile)
             }
@@ -93,7 +92,6 @@ class TextBufferSimpleTests {
                 token = token()
                 assertEquals("1.0", token.value)
                 assertTrue(token.quotesFound)
-                token = token()
                 assertEquals("?>", token.separator)
                 token = token()
                 assertEquals("<", token.separator)
@@ -110,19 +108,18 @@ class TextBufferSimpleTests {
                 assertEquals("<", token.separator)
                 token = token(true)
                 assertEquals("el2", token.value)
-                token = token()
+                token = token(true)
                 assertEquals("att1", token.value)
                 assertEquals("=", token.separator)
-                token = token()
+                token = token(true)
                 assertEquals("val1", token.value)
                 assertTrue(token.quotesFound)
-                token = token()
+                token = token(true)
                 assertEquals("att2", token.value.trim())
                 assertEquals("=", token.separator)
-                token = token()
+                token = token(true)
                 assertEquals("val2", token.value)
                 assertTrue(token.quotesFound)
-                token = token()
                 assertEquals("/>", token.separator)
                 token = token()
                 assertEquals("</", token.separator)
@@ -144,7 +141,7 @@ class TextBufferSimpleTests {
                 count++
                 if (count > 1) 0u else bytes.size.toUInt()
             }.apply {
-                tokenSeparators = pdfTokenSeparators
+                tokenSeparators = pdfSeparatorSubset
                 var token = token(true)
                 assertEquals("1", token.value)
                 token = token(true)
@@ -194,7 +191,7 @@ class TextBufferSimpleTests {
         val simpleXmlTokenSeparators = listOf("<", ">", "/>", "</", "<?", "?>", "<!--", "-->", "=")
 
         const val pdfSubset = "1 0 obj << /Type /Catalog >> endobj"
-        val pdfTokenSeparators = listOf("/", "obj", "endobj", ">>", "<<")
+        val pdfSeparatorSubset = listOf("/", "obj", "endobj", ">>", "<<", "stream", "endstream")
     }
 
 }

@@ -21,7 +21,7 @@ class AndroidFileTests {
     private val subDirName = "kmpIOtestDir"
 
     init {
-        File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        initializeAndroid()
         val path = File.tempDirectoryPath()
         testDirectory = File(path)
     }
@@ -211,6 +211,24 @@ class AndroidFileTests {
             Line6
             """.trimIndent() + eol
         val hexContent = Utf16LE().encode(textContent)
+
+        val contents = listOf(
+            "dir1",
+            "dir2",
+            "dir3",
+            "image1.png",
+            "image2.png",
+            "image3.png",
+            "ic_help_grey600_48dp.7zip.zip",
+            "ic_help_grey600_48dp.png",
+            "SmallTextAndBinary.zip",
+            "ZerosZip64.zip",
+            "Zip64_90,000_files.zip",
+            "あ.png"
+        )
+        fun initializeAndroid() {
+            File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        }
 
         suspend fun testDirectory(): File {
             File.workingDirectory().apply {

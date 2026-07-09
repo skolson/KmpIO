@@ -1,35 +1,30 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.AndroidFileTests.Companion.contents
+import com.oldguy.common.io.AndroidFileTests.Companion.initializeAndroid
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 @ExperimentalCoroutinesApi
 class AndroidDirectoryTests(testDirPath: String) {
     private val dir = Directory(testDirPath)
 
-    suspend fun testTree() {
-        dir.directoryTree().also { list ->
-            assertEquals(contents.size, list.size)
-            list.forEach {
-                assertTrue(contents.contains(it.name))
-            }
-        }
+    init {
+        initializeAndroid()
     }
 
-    companion object {
-        private val contents = listOf(
-            "dir1",
-            "dir2",
-            "dir3",
-            "image1.png",
-            "image2.png",
-            "image3.png",
-            "ic_help_grey600_48dp.7zip.zip",
-            "ic_help_grey600_48dp.png",
-            "SmallTextAndBinary.zip",
-            "ZerosZip64.zip",
-            "Zip64_90,000_files.zip"
-        )
+    @Test
+    fun testTree() {
+        runTest {
+            dir.directoryTree().also { list ->
+                assertEquals(contents.size, list.size)
+                list.forEach {
+                    assertTrue(contents.contains(it.name))
+                }
+            }
+        }
     }
 }

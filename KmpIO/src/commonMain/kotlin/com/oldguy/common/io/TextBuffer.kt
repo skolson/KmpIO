@@ -139,14 +139,19 @@ open class TextBuffer(
     }
     /**
      * List of separator character Strings, used in token(). See fun token() for details. Note that
-     * contents can be changed at will if one ore more separator Strings are desired only in
+     * contents can be changed at will if one or more separator Strings are desired only in
      * specific contexts. Changes are used in subsequent calls to next().
+     *
+     * Separators may not contain whitespace. If any are present in a set, an exception is thrown
+     * and the field is unchanged
      *
      * A private backing field is used to not expose the mutable list.
      */
     private val _tokenSeparators = emptyList<String>().toMutableList()
     var tokenSeparators get() = _tokenSeparators.toList()
         set(value) {
+            if (value.any { it.any { c -> c.isWhitespace() } })
+                throw IllegalArgumentException("Separators may not contain whitespace")
             _tokenSeparators.clear()
             _tokenSeparators.addAll(value)
         }
@@ -517,6 +522,8 @@ open class TextBuffer(
         stopOnWhitespace: Boolean = false,
         maxSize: Int = 1024
     ) : Token {
+        if (endOfFile)
+            return Token("", "", false, lineCount, linePosition)
         if (!_lastChar) next()
         val match = nextUntil(tokenSeparators, stopOnWhitespace, maxSize)
         when(match.result) {
@@ -558,12 +565,16 @@ open class TextBuffer(
     /**
      * Using the specified separators, reads characters until one of the separators is found, or the
      * size limit is reached. Returns result with the separator found, and the characters before the
-     * separator.
+     * separator. Since separators are multiple characters, and there can be multiple separators that
+     * start with the same substring, match only occurs when only one of the separators is a complete
+     * match. A separatorBuf tracks characters encountered that might be a separator, until a
+     * complete separator is found. Last character read is next one after the end of the separator.
      * @param separators list of one or more non-empty separator strings.
      * @param stopOnWhitespace set this true if value parsing (not separators) encountering a
      * whitespace character should stop parsing. Whitespace as a special case of separator. If false,
      * characters are captured until the next separator, including whitespace
-     * @param maxSize maximum number of characters in a Match instance.
+     * @param maxSize maximum number of characters in a Match instance. If this is reached before
+     * a match is found, all read characters are returned.
      * @return a Match instance containing the result of the match, the separator string matched (if any),
      * and the characters before the separator.
      * If end of file or the size limit is reached first, all read characters are returned,
@@ -577,76 +588,50 @@ open class TextBuffer(
         separatorBuf = lastChar.toString()
         StringBuilder(maxSize).apply {
             var c = lastChar
-            while (!isEndOfFile && length < maxSize) {
-                when (separators.count { it.startsWith(separatorBuf) }) {
-                    0 -> {
-                        if (separatorBuf.length > 1)
-                            append(separatorBuf.substring(0, separatorBuf.length - 1))
-                        if (c.isWhitespace() && stopOnWhitespace) {
-                            skipWhitespace()
-                            return if (separators.any { it == separatorBuf.trim() })
-                                Match(
-                                    MatchResult.Match,
-                                    separatorBuf.trim(),
-                                    toString(),
-                                    false
-                                )
-                            else
-                                Match(
-                                    MatchResult.NoMatch,
-                                    "",
-                                    toString(),
-                                    false
-                                )
-                        }
-                        if (tokenValueQuotedString && isQuoteChar) {
-                            append(quotedString())
-                            return Match(
-                                MatchResult.NoMatch,
-                                "",
-                                toString(),
-                                true
-                            )
-                        } else {
-                            append(c)
-                            c = next()
-                        }
-                        separatorBuf = lastChar.toString()
-                        MatchResult.NoMatch
+            var status = MatchResult.Matching
+            var quotes = false
+            while (!isEndOfFile && length < maxSize && status != MatchResult.Match) {
+                status = if (separators.count { it.startsWith(separatorBuf) } > 0) {
+                    c = next()
+                    if (endOfFile && separators.contains(separatorBuf)) {
+                        MatchResult.Match
+                    } else {
+                        separatorBuf += c
+                        MatchResult.Matching
                     }
-                    1 -> if (separators.contains(separatorBuf)) {
-                            next()
-                            return Match(
-                                MatchResult.Match,
-                                separatorBuf,
-                                toString(),
-                                false
-                            )
+                } else {
+                    if (separatorBuf.length > 1) {
+                        val sep = separatorBuf.substring(0, separatorBuf.length - 1)
+                        if (separators.contains(sep)) {
+                            separatorBuf = sep
+                            MatchResult.Match
                         } else {
-                            c = next()
-                            separatorBuf += c
-                            MatchResult.Matching
+                            append(sep)
+                            separatorBuf = c.toString()
+                            MatchResult.NoMatch
                         }
-                    else -> {
+                    } else if (c.isWhitespace() && stopOnWhitespace) {
+                        skipWhitespace()
+                        MatchResult.Match
+                    } else if (tokenValueQuotedString && isQuoteChar) {
+                        append(quotedString())
+                        quotes = true
+                        c = lastChar
+                        separatorBuf = c.toString()
+                        MatchResult.NoMatch
+                    } else {
+                        append(c)
                         c = next()
-                        if (separators.count { it.startsWith(separatorBuf + c) } > 0) {
-                            separatorBuf += c
-                            MatchResult.Matching
-                        } else
-                            return Match(
-                                MatchResult.Match,
-                                separatorBuf,
-                                toString(),
-                                false
-                            )
+                        separatorBuf = c.toString()
+                        MatchResult.NoMatch
                     }
                 }
             }
             return Match(
-                MatchResult.NoMatch,
-                "",
+                status,
+                separatorBuf,
                 toString(),
-                false
+                quotes
             )
         }
     }

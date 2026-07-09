@@ -18,7 +18,7 @@ class DirectoryTests(testDirPath: String) {
     }
 
     companion object {
-        private val contents = listOf(
+        val contents = listOf(
             "dir1",
             "dir2",
             "dir3",
