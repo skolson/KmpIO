@@ -585,84 +585,6 @@ open class TextBuffer(
         val quotesFound: Boolean
     )
 
-    /**
-     * Using the specified separators, reads characters until one of the separators is found, or the
-     * size limit is reached. Returns result with the separator found, and the characters before the
-     * separator. Since separators are multiple characters, and there can be multiple separators that
-     * start with the same substring, match only occurs when only one of the separators is a complete
-     * match. A separatorBuf tracks characters encountered that might be a separator, until a
-     * complete separator is found. Last character read is next one after the end of the separator.
-     * @param separators list of one or more non-empty separator strings.
-     * @param stopOnWhitespace set this true if value parsing (not separators) encountering a
-     * whitespace character should stop parsing. Whitespace as a special case of separator. If false,
-     * characters are captured until the next separator, including whitespace
-     * @param maxSize maximum number of characters in a Match instance. If this is reached before
-     * a match is found, all read characters are returned.
-     * @return a Match instance containing the result of the match, the separator string matched (if any),
-     * and the characters before the separator.
-     * If end of file or the size limit is reached first, all read characters are returned,
-     * with a NoMatch and empty separator.
-     */
-    /*
-    suspend fun nextUntil(
-        separators: List<String>,
-        stopOnWhitespace: Boolean = false,
-        maxSize: Int = 1024
-    ): Match {
-        separatorBuf = lastChar.toString()
-        StringBuilder(maxSize).apply {
-            var c = lastChar
-            var status = MatchResult.NoMatch
-            var quotes = false
-            while (!isEndOfFile && length < maxSize && status != MatchResult.Match) {
-                status = if (separators.count { it.startsWith(separatorBuf) } > 0) {
-                    c = next()
-                    if (endOfFile && separators.contains(separatorBuf)) {
-                        MatchResult.Match
-                    } else {
-                        separatorBuf += c
-                        MatchResult.Matching
-                    }
-                } else {
-                    if (separatorBuf.length > 1) {
-                        val sep = separatorBuf.substring(0, separatorBuf.length - 1)
-                        if (separators.contains(sep)) {
-                            separatorBuf = sep
-                            MatchResult.Match
-                        } else {
-                            append(sep)
-                            separatorBuf = c.toString()
-                            MatchResult.NoMatch
-                        }
-                    } else if (c.isWhitespace() && stopOnWhitespace) {
-                        skipWhitespace()
-                        MatchResult.Match
-                    } else if (tokenValueQuotedString && isQuoteChar) {
-                        append(quotedString())
-                        quotes = true
-                        c = lastChar
-                        separatorBuf = c.toString()
-                        MatchResult.NoMatch
-                    } else {
-                        append(c)
-                        c = next()
-                        separatorBuf = c.toString()
-                        MatchResult.NoMatch
-                    }
-                }
-            }
-            return Match(
-                status,
-                separatorBuf,
-                toString(),
-                quotes
-            )
-        }
-    }
-
-     */
-
-
     private fun testMatch(separators: List<String>, sep: String): MatchResult {
         return if (endOfFile) {
             if (separators.contains(sep))
@@ -683,6 +605,28 @@ open class TextBuffer(
             }
         }
     }
+    /**
+     * Using the specified separators, reads characters until one of the separators is found, or the
+     * size limit is reached. Returns result with the separator found, and the characters before the
+     * separator. Separators cannot contain whitespace. But separators can be defined that require
+     * delimiting by whitespace. See Lists; {@link #tokenSeparators} and
+     * {@link #tokenSeparatorsRequireWhitespace}.
+     *
+     * Since separators are multiple characters, and there can be multiple separators that
+     * start with the same substring, match only occurs when only one of the separators is a complete
+     * match. A separatorBuf tracks characters encountered that might be a separator, until a
+     * complete separator is found. Last character read is next one after the end of the separator.
+     * @param separators list of one or more non-empty separator strings.
+     * @param stopOnWhitespace set this true if value parsing (not separators) encountering a
+     * whitespace character should stop parsing. Whitespace as a special case of separator. If false,
+     * characters are captured until the next separator, including whitespace
+     * @param maxSize maximum number of characters in a Match instance. If this is reached before
+     * a match is found, all read characters are returned.
+     * @return a Match instance containing the result of the match, the separator string matched (if any),
+     * and the characters before the separator.
+     * If end of file or the size limit is reached first, all read characters are returned,
+     * with a NoMatch and empty separator.
+     */
     suspend fun nextUntil(
         separators: List<String>,
         stopOnWhitespace: Boolean = false,
