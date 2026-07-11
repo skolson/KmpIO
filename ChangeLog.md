@@ -3,7 +3,7 @@
 ### 0.3.1 (In progress)
 
 - Kotlin 2.4.0
-- Android Gradle Plugin 9.4.0-alpha03
+- Android Gradle Plugin 9.4.0-alpha04
 - Gradle 9.6.1
 - TextBuffer adds two byte read functions for assisting with files that mix text that needs decoding/encoding using a Charset and binary data that shouldn't be encoded/decoded.
   - suspend fun nextByte(peek: Boolean = false): Byte
@@ -11,7 +11,9 @@
 - Kotlinx coroutines 1.11.0
 - Kotlinx datetime 0.8.0
 - Gradle daemon toolchain support (java 21)
-- Fix: TextBuffer tokenUntil function's matching logic had a couple bugs. If two separators started with the same substring, an incorrect match was happening. Also, a separator immediately after quoted string was not properly handled, requiring an additional call to the token function. These changes are breaking if code using 0.3.0 is relying on the incorrect behavior then updates to 0.3.1.
+- Fix: TextBuffer tokenUntil function's matching logic had a couple bugs. If two separators started with the same substring, an incorrect match was happening. Also, a separator immediately after quoted string was not properly handled, requiring an additional call to the token function. These changes are breaking if code using 0.3.0 is relying on the incorrect behavior then updates to 0.3.1. The function was refactored so much while repairing these issues that it is essentially a rewrite.
+- Fix: TextBuffer next(peek = true) is now working correctly
+- Enhancement: TextBuffer separators collection was a List<String>. Separators don't support embedded whitespace. But in some parsing scenarios (ex: PDFs have a separator "obj") the separator needs the option to specify that the prior character before the separator is whitespace. In order to not break the no-whitespace-in-a-separator rule, a new list of separators requiring leading and trailing (or EOF) whitespace was added. Default value of this list is empty.
 
 ### 0.3.0 (2026-01)
 

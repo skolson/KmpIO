@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 
 class TextBufferSimpleTests {
     @Test
@@ -65,6 +66,9 @@ class TextBufferSimpleTests {
                 token = token()
                 assertEquals("1.0", token.value)
                 assertEquals("?>", token.separator)
+                assertFalse(isEndOfFile)
+                token = token()
+                assertTrue(token.isBlank)
                 assertTrue(isEndOfFile)
             }
         }
@@ -126,6 +130,9 @@ class TextBufferSimpleTests {
                 token = token(true)
                 assertEquals("Test", token.value)
                 assertEquals(">", token.separator)
+                assertFalse(isEndOfFile)
+                token = token()
+                assertTrue(token.isBlank)
                 assertTrue(isEndOfFile)
             }
         }
@@ -133,7 +140,7 @@ class TextBufferSimpleTests {
 
     @Test
     fun parseMultiCharSeparators() {
-        runTest {
+        runTest(timeout = 15.minutes) {
             var count = 0
             val bytes = pdfSubset.encodeToByteArray()
             TextBuffer(Utf8()) { buffer, size ->
@@ -171,6 +178,22 @@ class TextBufferSimpleTests {
                 assertEquals("Catalog", token.value)
                 assertTrue(token.separator.isBlank())
                 token = token(true)
+                assertEquals("/", token.separator)
+                assertTrue(token.value.isBlank())
+                token = token(true)
+                assertEquals("String", token.value)
+                assertTrue(token.separator.isBlank())
+                token = token(true)
+                assertEquals("(", token.separator)
+                assertTrue(token.value.isBlank())
+
+                val c = next()
+                assertEquals("t", c.toString(), "Verify next character after token is correct")
+
+                token = token()
+                assertEquals("est 1", token.value)
+                assertEquals(")", token.separator)
+                token = token()
                 assertEquals(">>", token.separator)
                 assertTrue(token.value.isBlank())
                 token = token(true)
@@ -190,8 +213,8 @@ class TextBufferSimpleTests {
         const val tokenXmlTest = "<?xml version=\"1.0\"?><Test><el1/><el2 att1=\"val1\" att2=\"val2\"/></Test>"
         val simpleXmlTokenSeparators = listOf("<", ">", "/>", "</", "<?", "?>", "<!--", "-->", "=")
 
-        const val pdfSubset = "1 0 obj << /Type /Catalog >> endobj"
-        val pdfSeparatorSubset = listOf("/", "obj", "endobj", ">>", "<<", "stream", "endstream")
+        const val pdfSubset = "1 0 obj << /Type /Catalog /String (test 1) >> endobj"
+        val pdfSeparatorSubset = listOf("/", "obj", "endobj", ">>", "<<", "(", ")", "stream", "endstream")
     }
 
 }

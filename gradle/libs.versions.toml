@@ -2,7 +2,7 @@
 appVersion = "0.3.1"
 java = "21"
 
-androidGradlePlugin = "9.4.0-alpha03"
+androidGradlePlugin = "9.4.0-alpha04"
 
 kotlin = "2.4.0"
 kotlinCoroutines = "1.11.0"

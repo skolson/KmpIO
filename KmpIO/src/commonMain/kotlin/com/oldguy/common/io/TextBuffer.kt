@@ -87,7 +87,7 @@ open class TextBuffer(
     class CharFifo() {
         private val list = mutableListOf<Char>()
         val isNotEmpty get() = list.isNotEmpty()
-
+        val first get() = list.first()
         fun push(chars: String) = list.addAll(chars.toList())
 
         fun pop(): Char {
@@ -96,8 +96,6 @@ open class TextBuffer(
     }
 
     private val charFifo = CharFifo()
-
-    private var separatorBuf = ""
 
     /**
      * The remaining vars are configuration for the various parsing operators. Useful for manual
@@ -138,9 +136,10 @@ open class TextBuffer(
         QuoteType.None -> false
     }
     /**
-     * List of separator character Strings, used in token(). See fun token() for details. Note that
-     * contents can be changed at will if one or more separator Strings are desired only in
-     * specific contexts. Changes are used in subsequent calls to next().
+     * List of separator character Strings, used in nextUntil() which is called by token().
+     * See fun nextntil() for details. Note that
+     * contents can be changed at will during parsing if one or more separator Strings are desired only in
+     * specific contexts. Changes are used in subsequent calls to token()/nextUntil().
      *
      * Separators may not contain whitespace. If any are present in a set, an exception is thrown
      * and the field is unchanged
@@ -155,6 +154,23 @@ open class TextBuffer(
             _tokenSeparators.clear()
             _tokenSeparators.addAll(value)
         }
+
+    /**
+     * In grammars like ISO 32000 PDF some separators, like "obj" and "endobj", need to optionally specify that
+     * they be bounded by whitespace. This prevents, in the PDF grammar for example, "obj" from
+     * being identified as a separator in a String link this: "/Testobj". Testobj a valid PDF Name
+     * value and "obj" at the end does not signify a new PDF Object.
+     */
+    private var _tokenSeparatorsRequireWhitespace = emptyList<String>().toMutableList()
+    var tokenSeparatorsRequireWhitespace get() = _tokenSeparatorsRequireWhitespace.toList()
+        set(value) {
+            if (value.any { it.any { c -> c.isWhitespace() } })
+                throw IllegalArgumentException("Separators may not contain whitespace. Logic in nextUntil() ensures they are delimited by whitespace before matching")
+            _tokenSeparatorsRequireWhitespace.clear()
+            _tokenSeparatorsRequireWhitespace.addAll(value)
+        }
+
+    private val allSeparators get() = tokenSeparators.union(tokenSeparatorsRequireWhitespace).toList()
 
     /**
      * If true, and a token value starts with a quote character, then use fun quotedString() to read.
@@ -253,7 +269,7 @@ open class TextBuffer(
             charset.decode(buf.getBytes())
     }
 
-    private fun char(char: Char) {
+    private fun char(char: Char): Char {
         _lastChar = true
         lastChar = char
         if (lastChar == EOL_CHAR) {
@@ -261,6 +277,7 @@ open class TextBuffer(
             lineCount++
         } else
             linePosition++
+        return lastChar
     }
 
     /**
@@ -273,8 +290,10 @@ open class TextBuffer(
      */
     suspend fun next(peek: Boolean = false): Char {
         if (charFifo.isNotEmpty) {
-            char(charFifo.pop())
-            return lastChar
+            return if (peek)
+                charFifo.first
+            else
+                char(charFifo.pop())
         }
         if (!isEndOfFile && buf.remaining < charset.bytesPerChar.last)
             useSource()
@@ -305,9 +324,12 @@ open class TextBuffer(
                 -1,
                 remainder[0]
             )
-        char(s[0])
-        if (!peek) buf.position += byteCount
-        return lastChar
+        return if (peek)
+            s[0]
+        else {
+            buf.position += byteCount
+            char(s[0])
+        }
     }
 
     /**
@@ -413,8 +435,9 @@ open class TextBuffer(
      */
     suspend fun skipWhitespace(): Int {
         var count = if (lastChar.isWhitespace()) 1 else 0
-        while (!isEndOfFile && next().isWhitespace()) {
+        while (!isEndOfFile && next(true).isWhitespace()) {
             count++
+            next()
         }
         return count
     }
@@ -524,7 +547,7 @@ open class TextBuffer(
     ) : Token {
         if (endOfFile)
             return Token("", "", false, lineCount, linePosition)
-        if (!_lastChar) next()
+        //if (!_lastChar) next()
         val match = nextUntil(tokenSeparators, stopOnWhitespace, maxSize)
         when(match.result) {
             MatchResult.NoMatch ->
@@ -580,6 +603,7 @@ open class TextBuffer(
      * If end of file or the size limit is reached first, all read characters are returned,
      * with a NoMatch and empty separator.
      */
+    /*
     suspend fun nextUntil(
         separators: List<String>,
         stopOnWhitespace: Boolean = false,
@@ -588,7 +612,7 @@ open class TextBuffer(
         separatorBuf = lastChar.toString()
         StringBuilder(maxSize).apply {
             var c = lastChar
-            var status = MatchResult.Matching
+            var status = MatchResult.NoMatch
             var quotes = false
             while (!isEndOfFile && length < maxSize && status != MatchResult.Match) {
                 status = if (separators.count { it.startsWith(separatorBuf) } > 0) {
@@ -636,6 +660,89 @@ open class TextBuffer(
         }
     }
 
+     */
+
+
+    private fun testMatch(separators: List<String>, sep: String): MatchResult {
+        return if (endOfFile) {
+            if (separators.contains(sep))
+                MatchResult.Match
+            else
+                MatchResult.NoMatch
+        } else {
+            val count = separators.count { it.startsWith(sep) }
+            when {
+                count > 1 -> MatchResult.Matching
+                count == 1 -> {
+                    if (separators.contains(sep))
+                        MatchResult.Match
+                    else
+                        MatchResult.Matching
+                }
+                else -> MatchResult.NoMatch
+            }
+        }
+    }
+    suspend fun nextUntil(
+        separators: List<String>,
+        stopOnWhitespace: Boolean = false,
+        maxSize: Int = 1024
+    ): Match {
+        var currentSeparator = next().toString()
+        val content = StringBuilder(maxSize)
+        var status = MatchResult.NoMatch
+        var quotesFound = false
+
+        while (!isEndOfFile && content.length < maxSize && status != MatchResult.Match) {
+            status = testMatch(separators, currentSeparator)
+            when {
+                status == MatchResult.Match -> {
+                    break
+                }
+                status == MatchResult.Matching -> {
+                    status = testMatch(separators, currentSeparator + next(true))
+                    when (status) {
+                        MatchResult.Matching -> {
+                            currentSeparator += next()
+                        }
+                        MatchResult.Match -> {
+                            currentSeparator += next()
+                            break
+                        }
+                        MatchResult.NoMatch -> {
+                            if (tokenSeparators.contains(currentSeparator)) {
+                                status = MatchResult.Match
+                            } else {
+                                content.append(currentSeparator)
+                                currentSeparator = next().toString()
+                            }
+                        }
+                    }
+                }
+                lastChar.isWhitespace() && stopOnWhitespace -> {
+                    skipWhitespace()
+                    currentSeparator = lastChar.toString()
+                    status = MatchResult.Match
+                }
+                tokenValueQuotedString && isQuoteChar -> {
+                    content.append(quotedString())
+                    quotesFound = true
+                    currentSeparator = lastChar.toString()
+                 }
+                else -> {
+                    content.append(lastChar)
+                    currentSeparator = next().toString()
+                }
+            }
+        }
+
+        return Match(
+            status,
+            currentSeparator,
+            content.toString(),
+            quotesFound
+        )
+    }
     fun reset() {
         buf.clear()
         buf.limit = 0
@@ -648,7 +755,6 @@ open class TextBuffer(
         linePosition = 0
         bytesRead = 0
         _lastChar = false
-        separatorBuf = ""
     }
 
     companion object {
