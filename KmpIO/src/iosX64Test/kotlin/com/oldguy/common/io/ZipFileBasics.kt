@@ -1,8 +1,5 @@
-package com.oldguy.common.test
+package com.oldguy.common.io
 
-import com.oldguy.common.io.Directory
-import com.oldguy.common.io.File
-import com.oldguy.common.io.ZipFileTests
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -10,16 +7,22 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 @OptIn(
-    ExperimentalStdlibApi::class,
     ExperimentalTime::class,
     ExperimentalCoroutinesApi::class
     )
 class ZipFileBasics {
     val tests = ZipFileTests()
 
+    private suspend fun inputDir() =
+        File.workingDirectory().resolve("TestFiles")
+    private suspend fun tempDir() =
+        File.tempDirectoryFile().resolve("kmpIOtestDir")
+
     @Test
     fun zipFileEmpty() {
-        tests.zipFileEmpty()
+        runTest {
+            tests.zipFileEmpty(tempDir())
+        }
     }
 
     @Test
@@ -29,12 +32,19 @@ class ZipFileBasics {
 
     @Test
     fun readSmallTextAndBinaryTest() {
-        tests.zipFileRead()
+        runTest {
+            tests.zipFileRead(FileTests.testDirectory())
+        }
     }
 
     @Test
     fun unzipToDirectoryTest() {
-        tests.unzipToDirectoryTest()
+        runTest {
+            tests.unzipToDirectoryTest(
+                File(FileTests.testDirectory(), "SmallTextAndBinary.zip"),
+                tempDir()
+            )
+        }
     }
 
     @Test
@@ -53,7 +63,9 @@ class ZipFileBasics {
 
     @Test
     fun zipDirectoryTest() {
-        tests.zipDirectoryTest(false)
-        tests.zipDirectoryTest(true)
+        runTest {
+            tests.zipDirectoryTest(inputDir(),false)
+            tests.zipDirectoryTest(inputDir(),true)
+        }
     }
 }

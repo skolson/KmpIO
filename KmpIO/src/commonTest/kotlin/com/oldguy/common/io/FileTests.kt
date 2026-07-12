@@ -207,6 +207,9 @@ class FileTests(testDirPath: String) {
             """.trimIndent() + eol
         val hexContent = Utf16LE().encode(textContent)
 
+        /**
+         * Note this is not usable on android device tests
+         */
         val macosIgnore = ".DS_Store"
 
         suspend fun testDirectory(): File {

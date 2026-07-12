@@ -21,7 +21,7 @@ class AndroidFileTests {
     private val subDirName = "kmpIOtestDir"
 
     init {
-        initializeAndroid()
+        AndroidTestBase()
         val path = File.tempDirectoryPath()
         testDirectory = File(path)
     }
@@ -212,6 +212,9 @@ class AndroidFileTests {
             """.trimIndent() + eol
         val hexContent = Utf16LE().encode(textContent)
 
+        /**
+         * Note this is unusable with android tests where files must come from assets.
+         */
         val contents = listOf(
             "dir1",
             "dir2",

@@ -10,9 +10,9 @@ kotlinx-datetime = "0.8.0"
 
 androidBuildTools = "37.0.0"
 androidSdk = "37"
-# Use 26 for publishing. To avoid JUnit5/6 desugaring issues, use 37 for androidDeviceTest builds/tests
-androidSdkMinimum = "26"
-#androidSdkMinimum = "37"
+# Use 26 for publishing. To avoid JUnit5/6 desugaring issues, use 35 for androidDeviceTest builds/tests
+#androidSdkMinimum = "26"
+androidSdkMinimum = "37"
 
 dokkaPlugin = "2.2.0"
 androidxTest = "1.7.0"

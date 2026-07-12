@@ -92,8 +92,13 @@ kotlin {
 
         minSdk = libs.versions.androidSdkMinimum.get().toInt()
 
+        androidResources {
+            enable = true
+        }
         withHostTest {}
-        withDeviceTest {
+        withDeviceTestBuilder {
+            sourceSetTreeName = "test" // This provides androidDeviceTest access to commonTest
+        }.configure {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
             instrumentationRunnerArguments += mapOf(
                 "runnerBuilder" to "de.mannodermaus.junit5.AndroidJUnit5Builder"
