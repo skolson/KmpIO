@@ -1,7 +1,6 @@
 package test
 
 import com.oldguy.common.io.*
-import com.oldguy.common.io.charsets.Charsets
 import com.oldguy.common.io.charsets.Utf16LE
 import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi

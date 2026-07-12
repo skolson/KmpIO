@@ -207,6 +207,9 @@ class FileTests(testDirPath: String) {
             """.trimIndent() + eol
         val hexContent = Utf16LE().encode(textContent)
 
+        /**
+         * Note this is not usable on android device tests
+         */
         suspend fun testDirectory(): File {
             File.workingDirectory().up().apply {
                 assertTrue(exists)

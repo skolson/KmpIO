@@ -20,8 +20,9 @@ class AndroidFileTests {
     private val testDirectory: File
     private val subDirName = "kmpIOtestDir"
 
+
     init {
-        File.appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        AndroidTestBase()
         val path = File.tempDirectoryPath()
         testDirectory = File(path)
     }
@@ -212,6 +213,9 @@ class AndroidFileTests {
             """.trimIndent() + eol
         val hexContent = Utf16LE().encode(textContent)
 
+        /**
+         * Note this is unusable with android tests where files must come from assets.
+         */
         suspend fun testDirectory(): File {
             File.workingDirectory().apply {
                 assertTrue(exists)

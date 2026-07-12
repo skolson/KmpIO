@@ -17,7 +17,6 @@ import kotlin.time.ExperimentalTime
 @ExperimentalTime
 @ExperimentalCoroutinesApi
 class ZipFileTests {
-    val inputDirName = "TestFiles"
     private val tz = TimeZone.currentSystemDefault()
     private val readme = "readme.txt"
     private val readmeExcerpt: String = "MaterialDesignIcons.com"
@@ -27,69 +26,63 @@ class ZipFileTests {
     private val testFileTime2 = testFileTime.toInstant(tz).plus((-1).hours).toLocalDateTime(tz)
 
     suspend fun tempDir() = File.tempDirectoryFile().resolve("kmpIoZipTests")
-    suspend fun inputDir() = File.workingDirectory().up().resolve(inputDirName)
 
-    private suspend fun testFile() = File(inputDir(), "SmallTextAndBinary.zip")
 
-    fun zipFileEmpty() {
-        runTest {
-            tempDir().also {
-                val fil = File(it, "test.zip")
-                assertFalse(fil.exists)
-                assertFalse(fil.delete())
-                val zipFile = ZipFile(fil, FileMode.Write)
-                assertEquals(0, zipFile.entries.size)
-                zipFile.close()
-                fil.newFile().apply {
-                    assertTrue(exists)
-                    assertTrue(delete())
-                    assertFalse(newFile().exists)
-                }
+    suspend fun zipFileEmpty(tempDir: File) {
+        tempDir.also {
+            val fil = File(it, "test.zip")
+            assertFalse(fil.exists)
+            assertFalse(fil.delete())
+            val zipFile = ZipFile(fil, FileMode.Write)
+            assertEquals(0, zipFile.entries.size)
+            zipFile.close()
+            fil.newFile().apply {
+                assertTrue(exists)
+                assertTrue(delete())
+                assertFalse(newFile().exists)
             }
         }
     }
 
-    fun zipFileRead() {
-        runTest {
-            val imgFile = File(FileTests.testDirectory(), "ic_help_grey600_48dp.png")
-            assertTrue(imgFile.exists)
-            val testFile = testFile()
-            ZipFile(testFile).use { zip ->
-                assertEquals(81519UL, testFile.size)
-                zip.entries.apply {
-                    assertEquals(62, size)
-                    assertTrue(zip.map.containsKey(readme))
-                    assertEquals(61, count { it.name.startsWith("drawable") })
-                    assertEquals(1, count { it.name.startsWith("drawable/") })
-                    assertEquals(1, count { it.name == "drawable/help.xml" })
-                    assertEquals(12, count { it.name.startsWith("drawable-hdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-mdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-xhdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-xxhdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-xxxhdpi") })
-                }
-                zip.readEntry(readme) { entry, content, count, last ->
-                    assertEquals(readme, entry.name)
-                    assertEquals("", entry.comment)
-                    val s = ZipRecord.zipCharset.decode(content)
-                    assertTrue(s.contains(readmeExcerpt))
-                    assertEquals(148u, count)
-                    assertEquals(148, s.length)
-                    assertEquals(testFileTime2, entry.timeModified)
-                    assertEquals(true, last)
-                }
-                val imgBuf = ByteBuffer(4096)
-                val fileSize = RawFile(imgFile).read(imgBuf).toInt()
-                imgBuf.positionLimit(0, fileSize)
-                assertEquals(3650, fileSize)
-                zip.readEntry(binaryFile) { entry, content, count, last ->
-                    assertEquals(binaryFile, entry.name)
-                    assertEquals(3650, count.toInt())
-                    assertEquals(3650, content.size)
-                    assertTrue(imgBuf.getBytes(imgBuf.remaining).contentEquals(content))
-                    assertEquals(testFileTime2, entry.timeModified)
-                    assertEquals(true, last)
-                }
+    suspend fun zipFileRead(dir: File) {
+        val imgFile = File(dir, "ic_help_grey600_48dp.png")
+        assertTrue(imgFile.exists)
+        val testFile = File(dir, "SmallTextAndBinary.zip")
+        ZipFile(testFile).use { zip ->
+            assertEquals(81519UL, testFile.size)
+            zip.entries.apply {
+                assertEquals(62, size)
+                assertTrue(zip.map.containsKey(readme))
+                assertEquals(61, count { it.name.startsWith("drawable") })
+                assertEquals(1, count { it.name.startsWith("drawable/") })
+                assertEquals(1, count { it.name == "drawable/help.xml" })
+                assertEquals(12, count { it.name.startsWith("drawable-hdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-mdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-xhdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-xxhdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-xxxhdpi") })
+            }
+            zip.readEntry(readme) { entry, content, count, last ->
+                assertEquals(readme, entry.name)
+                assertEquals("", entry.comment)
+                val s = ZipRecord.zipCharset.decode(content)
+                assertTrue(s.contains(readmeExcerpt))
+                assertEquals(148u, count)
+                assertEquals(148, s.length)
+                assertEquals(testFileTime2, entry.timeModified)
+                assertEquals(true, last)
+            }
+            val imgBuf = ByteBuffer(4096)
+            val fileSize = RawFile(imgFile).read(imgBuf).toInt()
+            imgBuf.positionLimit(0, fileSize)
+            assertEquals(3650, fileSize)
+            zip.readEntry(binaryFile) { entry, content, count, last ->
+                assertEquals(binaryFile, entry.name)
+                assertEquals(3650, count.toInt())
+                assertEquals(3650, content.size)
+                assertTrue(imgBuf.getBytes(imgBuf.remaining).contentEquals(content))
+                assertEquals(testFileTime2, entry.timeModified)
+                assertEquals(true, last)
             }
         }
     }
@@ -97,35 +90,33 @@ class ZipFileTests {
     /**
      * Reads a test entry that is 5+MB compressed and 5+GB uncompressed. It is a long-running test
      */
-    fun zip64LargeFileRead(testFilesDir: File) {
-        runTest(timeout = 4.minutes) {
-            val file = File(testFilesDir, "ZerosZip64.zip")
-            println("BigZip: ${file.fullPath}")
-            ZipFile(file).use {
-                (it.map["0000"]
-                    ?: throw IllegalStateException("0000 file not found")).apply {
-                    val uSize = 5242880UL * 1024UL
-                    directories.apply {
-                        assertEquals(5611526UL, compressedSize)
-                        assertEquals(uSize, uncompressedSize)
-                        assertEquals(0UL, localHeaderOffset)
-                    }
-                    var uncompressedCount = 0UL
-                    var gb = 1UL
-                    it.readEntry(name) { entry, content, count, last ->
-                        assertEquals(count, content.size.toUInt())
-                        assertEquals("0000", entry.name)
-                        uncompressedCount += count
-                        if (uncompressedCount > gb * 1000000000UL) {
-                            println("Decompressed ${gb++}GB")
-                        }
-                        if (uncompressedCount == entry.directories.uncompressedSize)
-                            assertEquals(true, last)
-                        else
-                            assertEquals(false, last)
-                    }
-                    assertEquals(uSize, uncompressedCount)
+    suspend fun zip64LargeFileRead(testFilesDir: File) {
+        val file = File(testFilesDir, "ZerosZip64.zip")
+        println("BigZip: ${file.fullPath}")
+        ZipFile(file).use {
+            (it.map["0000"]
+                ?: throw IllegalStateException("0000 file not found")).apply {
+                val uSize = 5242880UL * 1024UL
+                directories.apply {
+                    assertEquals(5611526UL, compressedSize)
+                    assertEquals(uSize, uncompressedSize)
+                    assertEquals(0UL, localHeaderOffset)
                 }
+                var uncompressedCount = 0UL
+                var gb = 1UL
+                it.readEntry(name) { entry, content, count, last ->
+                    assertEquals(count, content.size.toUInt())
+                    assertEquals("0000", entry.name)
+                    uncompressedCount += count
+                    if (uncompressedCount > gb * 1000000000UL) {
+                        println("Decompressed ${gb++}GB")
+                    }
+                    if (uncompressedCount == entry.directories.uncompressedSize)
+                        assertEquals(true, last)
+                    else
+                        assertEquals(false, last)
+                }
+                assertEquals(uSize, uncompressedCount)
             }
         }
     }
@@ -134,22 +125,18 @@ class ZipFileTests {
      * Extracts a zip file with a test file and some subdirectories to a test directory and confirm
      * results.
      */
-    fun unzipToDirectoryTest() {
-        runTest {
-            val dir = tempDir()
-            val f = testFile()
-            println("dir: ${dir.fullPath}")
-            ZipFile(f).apply {
-                extractToDirectory(dir)
-            }
-            val list = dir.directoryList().map { File(dir, it) }
-            assertEquals(7, list.size)
-            assertEquals(6, list.count { it.isDirectory })
-            assertEquals(1, list.count { !it.isDirectory })
-            assertEquals(readme, list.first { !it.isDirectory }.name)
-            Directory(dir).deleteDirectoryAndContents()
-            assertTrue { !dir.newFile().exists }
+    suspend fun unzipToDirectoryTest(sourceFile: File, tempDir: File) {
+        ZipFile(sourceFile).apply {
+            extractToDirectory(tempDir)
         }
+        tempDir.directoryList().map { File(tempDir, it) }.apply {
+            assertEquals(7, size)
+            assertEquals(6, count { it.isDirectory })
+            assertEquals(1, count { !it.isDirectory })
+            assertEquals(readme, first { !it.isDirectory }.name)
+        }
+        Directory(tempDir).deleteDirectoryAndContents()
+        assertTrue { !tempDir.newFile().exists }
     }
 
     fun smallCompressionTest() {
@@ -207,35 +194,32 @@ class ZipFileTests {
         }
     }
 
-    fun saveTwoFiles() {
-        runTest {
-            val testImageFileName = "あ.png"
-            val dir = tempDir()
-            val oneFileZip = File(dir, "saveOne.zip")
-            oneFileZip.delete()
-            val entryFile = File(FileTests.testDirectory(), testImageFileName)
-            ZipFile(oneFileZip, FileMode.Write).use {
-                it.zipFile(entryFile)
-                it.zipFile(entryFile, "Copy${entryFile.name}")
-            }
-            ZipFile(oneFileZip).use { e ->
-                assertEquals(2, e.map.size)
-                assertTrue(e.map.containsKey(testImageFileName))
-                val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
-                assertEquals(testImageFileName, t.name)
-                assertEquals(3650UL, t.directories.uncompressedSize)
-                val copy = File(tempDir(), "Copy$testImageFileName")
-                copy.delete()
-                RawFile(copy, FileMode.Write).use {
-                    (e.readEntry(testImageFileName) { _, bytes, count, _ ->
-                        assertEquals(3650, bytes.size)
-                        assertEquals(3650u, count)
-                        it.write(ByteBuffer(bytes))
-                    }).apply {
-                        assertEquals(testImageFileName, name)
-                        assertEquals(3655UL, directories.compressedSize)
-                        assertEquals(3650UL, directories.uncompressedSize)
-                    }
+    suspend fun saveTwoFiles(dir: File) {
+        val testImageFileName = "あ.png"
+        val oneFileZip = File(dir, "saveOne.zip")
+        oneFileZip.delete()
+        val entryFile = File(FileTests.testDirectory(), testImageFileName)
+        ZipFile(oneFileZip, FileMode.Write).use {
+            it.zipFile(entryFile)
+            it.zipFile(entryFile, "Copy${entryFile.name}")
+        }
+        ZipFile(oneFileZip).use { e ->
+            assertEquals(2, e.map.size)
+            assertTrue(e.map.containsKey(testImageFileName))
+            val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
+            assertEquals(testImageFileName, t.name)
+            assertEquals(3650UL, t.directories.uncompressedSize)
+            val copy = File(tempDir(), "Copy$testImageFileName")
+            copy.delete()
+            RawFile(copy, FileMode.Write).use {
+                (e.readEntry(testImageFileName) { _, bytes, count, _ ->
+                    assertEquals(3650, bytes.size)
+                    assertEquals(3650u, count)
+                    it.write(ByteBuffer(bytes))
+                }).apply {
+                    assertEquals(testImageFileName, name)
+                    assertEquals(3655UL, directories.compressedSize)
+                    assertEquals(3650UL, directories.uncompressedSize)
                 }
             }
         }
@@ -249,96 +233,88 @@ class ZipFileTests {
      * @param shallow Specifies whether the directory should be zipped in shallow mode or deep mode.
      *                If true, only top-level entries are included in the zip; otherwise, the entire directory structure is included.
      */
-    fun zipDirectoryTest(shallow: Boolean) {
-        runTest {
-            val dirZip = File(tempDir(), "testFilesDir$shallow.zip")
-            ZipFile(dirZip, FileMode.Write).use {
-                it.zipDirectory(FileTests.testDirectory(), shallow) { f ->
-                    val rc = !(f.contains("ZerosZip64") || f.contains("Zip64_90,000_files"))
-                    rc
-                }
+    suspend fun zipDirectoryTest(tempDir: File, shallow: Boolean) {
+        val dirZip = File(tempDir, "testFilesDir$shallow.zip")
+        ZipFile(dirZip, FileMode.Write).use {
+            it.zipDirectory(FileTests.testDirectory(), shallow) { f ->
+                !(f.contains("ZerosZip64") || f.contains("Zip64_90,000_files"))
             }
-            ZipFile(dirZip.newFile()).use { zip ->
-                zip.entries.apply {
-                    if (shallow) {
-                        assertEquals(3, size)
-                    } else {
-                        assertEquals(6, size)
-                        assertEquals(1, count { it.name.contains("dir1") })
-                        assertEquals(2, count { it.name.contains("dir2") })
-                        assertEquals(1, count { it.name.contains("dir3") })
-                        forEach {
-                            if (it.name.startsWith("dir1")) {
-                                assertTrue { it.name.contains("dir1/") }
-                                assertTrue { it.name.endsWith("/image1.png") }
-                            }
-                            if (it.name.startsWith("dir2")) {
-                                if (it.name.startsWith("dir2/dir3")) {
-                                    assertTrue { it.name.endsWith("/image3.png") }
-                                } else
-                                    assertTrue { it.name.endsWith("/image2.png") }
-                            }
+        }
+        ZipFile(dirZip.newFile()).use { zip ->
+            zip.entries.apply {
+                if (shallow) {
+                    assertEquals(3, size)
+                } else {
+                    assertEquals(6, size)
+                    assertEquals(1, count { it.name.contains("dir1") })
+                    assertEquals(2, count { it.name.contains("dir2") })
+                    assertEquals(1, count { it.name.contains("dir3") })
+                    forEach {
+                        if (it.name.startsWith("dir1")) {
+                            assertTrue { it.name.contains("dir1/") }
+                            assertTrue { it.name.endsWith("/image1.png") }
+                        }
+                        if (it.name.startsWith("dir2")) {
+                            if (it.name.startsWith("dir2/dir3")) {
+                                assertTrue { it.name.endsWith("/image3.png") }
+                            } else
+                                assertTrue { it.name.endsWith("/image2.png") }
                         }
                     }
-                    assertEquals(1, count { it.name == "ic_help_grey600_48dp.7zip.zip" })
-                    assertEquals(1, count { it.name == "ic_help_grey600_48dp.png" })
-                    assertEquals(1, count { it.name == "SmallTextAndBinary.zip" })
                 }
+                assertEquals(1, count { it.name == "ic_help_grey600_48dp.7zip.zip" })
+                assertEquals(1, count { it.name == "ic_help_grey600_48dp.png" })
+                assertEquals(1, count { it.name == "SmallTextAndBinary.zip" })
             }
-            dirZip.newFile().delete()
         }
+        dirZip.newFile().delete()
     }
-    fun twoPlusMergeTest() {
-        runTest {
-            val dir = tempDir()
-            val mergedZip = File(dir, "merged.zip")
-            mergedZip.delete()
-            val entryFile = File(FileTests.testDirectory(), testImageFileName)
-            ZipFile(mergedZip, FileMode.Write).use {
-                it.zipFile(entryFile)
-                it.zipFile(entryFile, "Copy${entryFile.name}")
-                it.merge(ZipFile(testFile()))
-            }
-            ZipFile(mergedZip).use { zip ->
-                zip.entries.apply {
-                    assertEquals(64, size)
-                    assertTrue(zip.map.containsKey(readme))
-                    assertTrue { zip.map.containsKey(testImageFileName) }
-                    assertTrue { zip.map.containsKey("Copy$testImageFileName") }
-                    assertEquals(61, count { it.name.startsWith("drawable") })
-                    assertEquals(1, count { it.name.startsWith("drawable/") })
-                    assertEquals(1, count { it.name == "drawable/help.xml" })
-                    assertEquals(12, count { it.name.startsWith("drawable-hdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-mdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-xhdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-xxhdpi") })
-                    assertEquals(12, count { it.name.startsWith("drawable-xxxhdpi") })
-                }
+
+    suspend fun twoPlusMergeTest(inputDir: File, tempDir: File) {
+        val mergedZip = File(tempDir, "merged.zip")
+        mergedZip.delete()
+        val entryFile = File(inputDir, testImageFileName)
+        ZipFile(mergedZip, FileMode.Write).use {
+            it.zipFile(entryFile)
+            it.zipFile(entryFile, "Copy${entryFile.name}")
+            it.merge(ZipFile(File(inputDir, "SmallTextAndBinary.zip")))
+        }
+        ZipFile(mergedZip).use { zip ->
+            zip.entries.apply {
+                assertEquals(64, size)
+                assertTrue(zip.map.containsKey(readme))
+                assertTrue { zip.map.containsKey(testImageFileName) }
+                assertTrue { zip.map.containsKey("Copy$testImageFileName") }
+                assertEquals(61, count { it.name.startsWith("drawable") })
+                assertEquals(1, count { it.name.startsWith("drawable/") })
+                assertEquals(1, count { it.name == "drawable/help.xml" })
+                assertEquals(12, count { it.name.startsWith("drawable-hdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-mdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-xhdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-xxhdpi") })
+                assertEquals(12, count { it.name.startsWith("drawable-xxxhdpi") })
             }
         }
     }
 
-    fun saveDirAndFile() {
-        runTest {
-            val dir = tempDir()
-            val oneFileZip = File(dir, "saveDirAndOne.zip")
-            oneFileZip.delete()
-            val entryFile = File(FileTests.testDirectory(), testImageFileName)
-            ZipFile(oneFileZip, FileMode.Write).use {
-                it.addEntry(ZipEntry("anydirName"))
-                it.zipFile(entryFile)
-            }
-            ZipFile(oneFileZip).use { e ->
-                assertEquals(2, e.map.size)
-                assertTrue(e.map.containsKey(testImageFileName))
-                assertTrue(e.map.containsKey("anydirName"))
-                val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
-                assertEquals(testImageFileName, t.name)
-                assertEquals(3650UL, t.directories.uncompressedSize)
-                e.map["anydirName"]?.let {
-                    assertEquals(0UL, it.directories.uncompressedSize)
-                    assertEquals(0UL, it.directories.compressedSize)
-                }
+    suspend fun saveDirAndFile(tempDir: File) {
+        val oneFileZip = File(tempDir, "saveDirAndOne.zip")
+        oneFileZip.delete()
+        val entryFile = File(FileTests.testDirectory(), testImageFileName)
+        ZipFile(oneFileZip, FileMode.Write).use {
+            it.addEntry(ZipEntry("anydirName"))
+            it.zipFile(entryFile)
+        }
+        ZipFile(oneFileZip).use { e ->
+            assertEquals(2, e.map.size)
+            assertTrue(e.map.containsKey(testImageFileName))
+            assertTrue(e.map.containsKey("anydirName"))
+            val t = e.map[testImageFileName] ?: throw ZipException("Lookup fail $testImageFileName")
+            assertEquals(testImageFileName, t.name)
+            assertEquals(3650UL, t.directories.uncompressedSize)
+            e.map["anydirName"]?.let {
+                assertEquals(0UL, it.directories.uncompressedSize)
+                assertEquals(0UL, it.directories.compressedSize)
             }
         }
     }

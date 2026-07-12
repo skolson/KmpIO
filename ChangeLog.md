@@ -2,8 +2,8 @@
 
 ### 0.3.1 (In progress)
 
-- Kotlin 2.3.20
-- Android Gradle Plugin 9.4.0-alpha03
+- Kotlin 2.4.0
+- Android Gradle Plugin 9.4.0-alpha04
 - Gradle 9.6.1
 - TextBuffer adds two byte read functions for assisting with files that mix text that needs decoding/encoding using a Charset and binary data that shouldn't be encoded/decoded.
   - suspend fun nextByte(peek: Boolean = false): Byte

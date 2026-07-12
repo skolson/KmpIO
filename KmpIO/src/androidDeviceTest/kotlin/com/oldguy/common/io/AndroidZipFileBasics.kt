@@ -9,16 +9,15 @@ import kotlin.time.ExperimentalTime
     ExperimentalTime::class,
     ExperimentalCoroutinesApi::class
 )
-class ZipFileBasics {
-    val tests = ZipFileTests()
+class AndroidZipFileBasics {
+    val base = AndroidTestBase()
 
-    private suspend fun tempDir() =
-        File.tempDirectoryFile().resolve("kmpIOtestDir")
+    val tests = ZipFileTests()
 
     @Test
     fun zipFileEmpty() {
         runTest {
-            tests.zipFileEmpty(tempDir())
+            tests.zipFileEmpty(base.workingDir)
         }
     }
 
@@ -30,14 +29,14 @@ class ZipFileBasics {
     @Test
     fun readSmallTextAndBinaryTest() {
         runTest {
-            tests.zipFileRead(FileTests.testDirectory())
+            tests.zipFileRead(base.workingDir)
         }
     }
 
     @Test
     fun saveTwoFilesTest() {
         runTest {
-            tests.saveTwoFiles(tempDir())
+            tests.saveTwoFiles(base.tempDir)
         }
     }
 
@@ -45,8 +44,8 @@ class ZipFileBasics {
     fun unzipToDirectoryTest() {
         runTest {
             tests.unzipToDirectoryTest(
-                File(FileTests.testDirectory(), "SmallTextAndBinary.zip"),
-                tempDir()
+                File(base.workingDir, "SmallTextAndBinary.zip"),
+                base.tempDir
             )
         }
     }
@@ -59,15 +58,15 @@ class ZipFileBasics {
     @Test
     fun zip64LargeFileReadTest() {
         runTest {
-            tests.zip64LargeFileRead(FileTests.testDirectory())
+            tests.zip64LargeFileRead(base.workingDir)
         }
     }
 
     @Test
     fun zipDirectoryTest() {
         runTest {
-            tests.zipDirectoryTest(tempDir(),false)
-            tests.zipDirectoryTest(tempDir(),true)
+            tests.zipDirectoryTest(base.tempDir, false)
+            tests.zipDirectoryTest(base.tempDir, true)
         }
     }
 }

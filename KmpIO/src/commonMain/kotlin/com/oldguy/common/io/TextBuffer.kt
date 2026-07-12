@@ -2,14 +2,13 @@ package com.oldguy.common.io
 
 import com.oldguy.common.io.charsets.Charset
 import com.oldguy.common.io.charsets.MultiByteDecodeException
-import kotlin.math.min
 
 /**
  * Platform-neutral text buffering for simple text file read (or other source) operations, using blocks of
  * bytes as input. Various access methods are provided for processing decoded text.
  *
  * Source lambda supplies all bytes, in order. TextBuffer handles decoding using the specified charset,
- * including handling multi-byte character sets in the edge case where a partial character is found
+ * including handling multibyte character sets in the edge case where a partial character is found
  * at the end of a ByteArray. If the source lambda indicates no more data by returning 0 bytes, and TextBuffer
  * determines there is an incomplete character at the end of the file, it will throw MultiByteDecodeException.
  *
@@ -19,7 +18,7 @@ import kotlin.math.min
  * @param source function should perform a read operation up to count bytes,
  * into the specified buffer which is a ByteArray. It should return the number of bytes read, or 0
  * to indicate end of file. ByteArray can be any size and does not have to end on a line break. Can
- * also end in the middle of a multi-byte character, see above comments.
+ * also end in the middle of a multibyte character, see above comments.
  */
 open class TextBuffer(
     charset: Charset,
@@ -84,7 +83,7 @@ open class TextBuffer(
     /**
      * used by next to reprocess characters already read once, in the order read.
      */
-    class CharFifo() {
+    class CharFifo {
         private val list = mutableListOf<Char>()
         val isNotEmpty get() = list.isNotEmpty()
 
@@ -139,7 +138,7 @@ open class TextBuffer(
     }
     /**
      * List of separator character Strings, used in token(). See fun token() for details. Note that
-     * contents can be changed at will if one ore more separator Strings are desired only in
+     * contents can be changed at will if one or more separator Strings are desired only in
      * specific contexts. Changes are used in subsequent calls to next().
      *
      * A private backing field is used to not expose the mutable list.
@@ -238,7 +237,7 @@ open class TextBuffer(
 
     /**
      * Use to retrieve blocks of decoded text with no parsing functionality. To ensure proper
-     * decoding of multi-byte character sets, each block saves any incomplete character bytes at the end
+     * decoding of multibyte character sets, each block saves any incomplete character bytes at the end
      * of the block for processing during the next call to nextBlock().
      */
     suspend fun nextBlock(): String {
@@ -417,9 +416,9 @@ open class TextBuffer(
      * enclose quote, handle the escape as well. If end of input is reached before the closing quote,
      * all characters since the last quote are returned.
      *
-     * See variable "quote" for quote character to look for. defaults to '"'
+     * See variable "quote" for quote character to look for. defaults to "
      * See variable escapedQuote String to match as an escape for quote. If empty, no escape processing happens
-     * See variable "singleQuote" for quote character to look for. defaults to "'"
+     * See variable "singleQuote" for quote character to look for. defaults to '
      * See variable escapedSingleQuote String to match as an escape for singleQuote. If empty, no escape processing happens
      *
      * @param maxSize number of characters to read before returning.
@@ -474,7 +473,7 @@ open class TextBuffer(
      * @property value if non-separator character(s) are found before the separator,
      * they are set to this property. Otherwise empty
      * @property quotesFound true if value was from a call to quotedString(). false if not
-     * @property line the line number where this token was located. From instance property 'lineCount;
+     * @property line the line number where this token was located. From instance property lineCount
      * @property position the number of the character, one relative, in the current line. From
      * instance property 'linePosition'
      */
@@ -497,14 +496,14 @@ open class TextBuffer(
      * all characters up to the first matching separator.
      *
      * An example of a partial tokenSeparators list for parsing an XML document would include the following:
-     * tokenSeparators = listOf("<", ">", "/>", "<?", "?>", "<!--", "--!>"). Note that for xml, "="
+     * tokenSeparators = listOf("<", ">", "/>", "<?", "?>", "<!--", "--!>"). Note that for XML, "="
      * is only a separator during node tags for parsing attributes. So it could be added for parsing
      * attributes, and removed at end of tag. See the addTokenSeparator and removeTokenSeparator functions.
      *
      * @param stopOnWhitespace set this true if value parsing encountering a whitespace character
      * should stop parsing and return text read so far. This is a special case separator as multiple
      * characters qualify as whitespace.
-     * @param maxSize maximum number of characters in a Token instance leadingSeparators. Also the
+     * @param maxSize maximum number of characters in a Token instance leadingSeparators. Also, the
      * maximum number of characters in the Token value
      * @return Token instance containing any non-separator characters found, and the separator string found
      */
