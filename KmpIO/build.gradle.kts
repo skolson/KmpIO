@@ -107,8 +107,12 @@ kotlin {
         }
 
         packaging {
-            resources.excludes.add("META-INF/LICENSE.md")
-            resources.excludes.add("META-INF/LICENSE-notice.md")
+            resources.excludes.addAll(
+                listOf(
+                    "META-INF/LICENSE.md",
+                    "META-INF/LICENSE-notice.md"
+                )
+            )
         }
 
         optimization {

@@ -37,7 +37,7 @@ class ZipFileBasics {
     @Test
     fun saveTwoFilesTest() {
         runTest {
-            tests.saveTwoFiles(tempDir())
+            tests.saveTwoFiles(FileTests.testDirectory(), tempDir())
         }
     }
 
@@ -66,8 +66,14 @@ class ZipFileBasics {
     @Test
     fun zipDirectoryTest() {
         runTest {
-            tests.zipDirectoryTest(tempDir(),false)
-            tests.zipDirectoryTest(tempDir(),true)
+            tests.zipDirectoryTest(FileTests.testDirectory(), tempDir(),false) {
+                !(it.contains("ZerosZip64") || it.contains("Zip64_90,000_files")) &&
+                !it.contains(FileTests.macosIgnore)
+            }
+            tests.zipDirectoryTest(FileTests.testDirectory(), tempDir(),true) {
+                !(it.contains("ZerosZip64") || it.contains("Zip64_90,000_files")) &&
+                !it.contains(FileTests.macosIgnore)
+            }
         }
     }
 }
