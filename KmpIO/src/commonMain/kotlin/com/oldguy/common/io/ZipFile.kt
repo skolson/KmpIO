@@ -540,20 +540,28 @@ class ZipFile(
         filter: ((pathName: String) -> Boolean)?
     ) {
         if (!directory.isDirectory)
-            throw IllegalArgumentException("Path ${file.file.path} os not a directory")
+            throw IllegalArgumentException("Path ${directory.fullPath} is not a directory")
         val owningPath = Path(directory.fullPath)
-        Directory(directory).walkTree { file ->
-            if (file.isDirectory)
-                true
-            else {
-                val zipPath = Path(file.fullPath).relativeTo(owningPath).fullPath
-                    .replace('\\', '/').trimStart('/')
-                if (shallow && zipPath.contains('/'))
-                    true
-                else if (filter == null || filter.invoke(zipPath)) {
+        if (shallow) {
+            directory.directoryFiles().forEach { file ->
+                val zipPath = file.name
+                if (filter == null || filter(zipPath)) {
                     zipFile(file, zipPath)
                 }
-                true
+            }
+        } else {
+            Directory(directory).walkTree { file ->
+                if (!file.isDirectory) {
+                    // Normalize path to use forward slashes for ZIP format
+                    val zipPath = Path(file.fullPath).relativeTo(owningPath).fullPath
+                        .replace('\\', '/')
+                        .trimStart('/')
+
+                    if (filter == null || filter(zipPath)) {
+                        zipFile(file, zipPath)
+                    }
+                }
+                true // Continue walking the tree
             }
         }
     }

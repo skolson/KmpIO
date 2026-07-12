@@ -126,10 +126,16 @@ class ZipFileTests {
      * results.
      */
     suspend fun unzipToDirectoryTest(sourceFile: File, tempDir: File) {
+        Directory(tempDir).apply {
+            empty()
+            assertTrue { list().isEmpty() }
+        }
         ZipFile(sourceFile).apply {
             extractToDirectory(tempDir)
         }
-        tempDir.directoryList().map { File(tempDir, it) }.apply {
+        tempDir.directoryList()
+            .filter { it != FileTests.macosIgnore }
+            .map { File(tempDir, it) }.apply {
             assertEquals(7, size)
             assertEquals(6, count { it.isDirectory })
             assertEquals(1, count { !it.isDirectory })
@@ -234,14 +240,18 @@ class ZipFileTests {
      *                If true, only top-level entries are included in the zip; otherwise, the entire directory structure is included.
      */
     suspend fun zipDirectoryTest(tempDir: File, shallow: Boolean) {
-        val dirZip = File(tempDir, "testFilesDir$shallow.zip")
+        val suffix = if (shallow) "Shallow" else "Deep"
+        val dirZip = File(tempDir, "testFilesDir$suffix.zip")
+        dirZip.delete()
         ZipFile(dirZip, FileMode.Write).use {
             it.zipDirectory(FileTests.testDirectory(), shallow) { f ->
                 !(f.contains("ZerosZip64") || f.contains("Zip64_90,000_files"))
             }
         }
         ZipFile(dirZip.newFile()).use { zip ->
-            zip.entries.apply {
+            zip.entries
+                .filter { !it.name.contains(FileTests.macosIgnore) }
+                .apply {
                 if (shallow) {
                     assertEquals(3, size)
                 } else {

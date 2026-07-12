@@ -210,6 +210,8 @@ class FileTests(testDirPath: String) {
         /**
          * Note this is not usable on android device tests
          */
+        val macosIgnore = ".DS_Store"
+
         suspend fun testDirectory(): File {
             File.workingDirectory().up().apply {
                 assertTrue(exists)
@@ -254,7 +256,9 @@ class FileUnitTests {
         runTest {
             FileTests.testDirectory().apply {
                 println(fullPath)  // Use to find full path iosX64 and android tests are using.
-                directoryList().apply {
+                directoryList()
+                    .filter { it != FileTests.macosIgnore }
+                    .apply {
                     println(this)
                     assertEquals(8, size)
                     assertTrue { contains("ZerosZip64.zip") }
@@ -266,8 +270,10 @@ class FileUnitTests {
                     assertTrue { contains("dir2") }
                     assertTrue { contains("あ.png") }
                 }
-                directoryFiles().apply {
-                    assertEquals(7, size)
+                directoryFiles()
+                    .filter { it.name != FileTests.macosIgnore }
+                    .apply {
+                    assertEquals(8, size)
                     forEach {
                         assertTrue { it.exists }
                     }
