@@ -543,12 +543,14 @@ class ZipFile(
             throw IllegalArgumentException("Path ${directory.fullPath} is not a directory")
         val owningPath = Path(directory.fullPath)
         if (shallow) {
-            directory.directoryFiles().forEach { file ->
-                val zipPath = file.name
-                if (filter == null || filter(zipPath)) {
-                    zipFile(file, zipPath)
+            directory.directoryFiles()
+                .filter { !it.isDirectory }
+                .forEach { file ->
+                    val zipPath = file.name
+                    if (filter == null || filter(zipPath)) {
+                        zipFile(file, zipPath)
+                    }
                 }
-            }
         } else {
             Directory(directory).walkTree { file ->
                 if (!file.isDirectory) {

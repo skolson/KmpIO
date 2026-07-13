@@ -58,7 +58,7 @@ Define the library as a gradle dependency (assumes mavenCentral() is defined as 
 
 ```
     dependencies {
-        implementation("io.github.skolson:kmp-io:0.2.0")
+        implementation("io.github.skolson:kmp-io:0.3.1")
     }  
 ```
 
@@ -127,9 +127,9 @@ Functions available include:
 - forEachLine invokes a lambda for each line of text read. Lambda returns false to stop reading.
 - next reads next character of decoded text. If peek is true, does not advance position.
 - skipWhitespace reads until next non-whitespace character, returns number of whitespace characters skipped.
-- quotedString reads content of a quoted string based on the configured properties, no other parsing is applied to content.
-- token - main parsing function, reads until a tokenSeparator is encountered, returns the Token data class with the results. See the function do for details.
-- nextUntil - the token function uses this in its implementation. Basic function is to read until one of the separators is encountered. A Match instance is returned with the result.
+- quotedString reads content of a quoted string based on the configured properties, no other parsing is applied to content. No token matching is done on content in quoted strings.
+- token - main parsing function, reads until a tokenSeparator is encountered, returns the Token data class with the results. The results include any value found, any trailing separator for the token, whether quotes were found, etc. See the function for details.
+- nextUntil - the token function uses this in its implementation. It reads characters until one of the separators is encountered, or a size limit is hit, or EOF is hit. A Match instance {NoMatch, Match} is returned with the result.
 
 Properties available include:
 - lineCount: number of lines processed (1-based) 
@@ -141,6 +141,7 @@ Properties available include:
 - singleQuote: character used to enclose quoted strings. Default is apostrophe character '\''. 
 - escapedSingleQuote: String pattern, if matched in quotedString(), is replaced by singleQuote. If empty, no escaping happens
 - tokenSeparators: List of separator character Strings, used with the token() and nextUntil() functions. Note that contents can be changed at will during parsing to adapt to different parsing requirements.
+- tokenSeparatorsRequireWhitespace: additional separators that must be delimited by whitespace. Note that contents can be changed at will during parsing to adapt to different parsing requirements. Example a PDF delimiter " obj " starts an object definition. If "obj" was in tokenSeparators, it would match "/Testobj", which is bad since this is a valid Name and not the beginning of an object.
 
 ## ZipFile
 

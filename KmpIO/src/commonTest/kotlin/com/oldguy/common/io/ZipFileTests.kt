@@ -1,5 +1,7 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.FileTests.Companion.fileNameCount
+import com.oldguy.common.io.FileTests.Companion.shallowFileNameCount
 import com.oldguy.common.io.charsets.Utf8
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -200,11 +202,11 @@ class ZipFileTests {
         }
     }
 
-    suspend fun saveTwoFiles(dir: File) {
+    suspend fun saveTwoFiles(inputDir: File, tempDir: File) {
         val testImageFileName = "あ.png"
-        val oneFileZip = File(dir, "saveOne.zip")
+        val oneFileZip = File(tempDir, "saveOne.zip")
         oneFileZip.delete()
-        val entryFile = File(FileTests.testDirectory(), testImageFileName)
+        val entryFile = File(inputDir, testImageFileName)
         ZipFile(oneFileZip, FileMode.Write).use {
             it.zipFile(entryFile)
             it.zipFile(entryFile, "Copy${entryFile.name}")
@@ -239,13 +241,18 @@ class ZipFileTests {
      * @param shallow Specifies whether the directory should be zipped in shallow mode or deep mode.
      *                If true, only top-level entries are included in the zip; otherwise, the entire directory structure is included.
      */
-    suspend fun zipDirectoryTest(tempDir: File, shallow: Boolean) {
+    suspend fun zipDirectoryTest(
+        inputDir: File,
+        tempDir: File,
+        shallow: Boolean,
+        filterTest: (String) -> Boolean
+    ) {
         val suffix = if (shallow) "Shallow" else "Deep"
         val dirZip = File(tempDir, "testFilesDir$suffix.zip")
         dirZip.delete()
         ZipFile(dirZip, FileMode.Write).use {
-            it.zipDirectory(FileTests.testDirectory(), shallow) { f ->
-                !(f.contains("ZerosZip64") || f.contains("Zip64_90,000_files"))
+            it.zipDirectory(inputDir, shallow) {
+                filterTest(it)
             }
         }
         ZipFile(dirZip.newFile()).use { zip ->
@@ -253,9 +260,9 @@ class ZipFileTests {
                 .filter { !it.name.contains(FileTests.macosIgnore) }
                 .apply {
                 if (shallow) {
-                    assertEquals(3, size)
+                    assertEquals(shallowFileNameCount, size)
                 } else {
-                    assertEquals(6, size)
+                    assertEquals(fileNameCount, size)
                     assertEquals(1, count { it.name.contains("dir1") })
                     assertEquals(2, count { it.name.contains("dir2") })
                     assertEquals(1, count { it.name.contains("dir3") })

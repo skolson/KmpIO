@@ -1,5 +1,6 @@
 package com.oldguy.common.io
 
+import com.oldguy.common.io.FileTests.Companion.contents
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -15,22 +16,5 @@ class DirectoryTests(testDirPath: String) {
                 assertTrue(contents.contains(it.name))
             }
         }
-    }
-
-    companion object {
-        val contents = listOf(
-            "dir1",
-            "dir2",
-            "dir3",
-            "image1.png",
-            "image2.png",
-            "image3.png",
-            "ic_help_grey600_48dp.7zip.zip",
-            "ic_help_grey600_48dp.png",
-            "SmallTextAndBinary.zip",
-            "ZerosZip64.zip",
-            "Zip64_90,000_files.zip",
-            "あ.png"
-        )
     }
 }

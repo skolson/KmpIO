@@ -28,6 +28,29 @@ open class TextBuffer(
         count: Int
     ) -> UInt )
 ) {
+    /**
+     * A Token instance is one or more leading separator characters (a separator string)
+     * either preceded by or followed by all non-separator characters as the token value. Once a second
+     * separator is encountered, the token is returned and the buffer is positioned at the beginning
+     * of the second separator.
+     * @property separator the separator string found. Empty if the special case stopOnWhitespace is true
+     * @property value if non-separator character(s) are found before the separator,
+     * they are set to this property. Otherwise empty
+     * @property quotesFound true if value was from a call to quotedString(). false if not
+     * @property line the line number where this token was located. From instance property lineCount
+     * @property position the number of the character, one relative, in the current line. From
+     * instance property 'linePosition'
+     */
+    data class Token(
+        val separator: String,
+        val value: String,
+        val quotesFound: Boolean,
+        val line: Int,
+        val position: Int
+    ) {
+        val isBlank get() = value.isBlank() && separator.isBlank()
+    }
+
     private val blockSize = blockSizeArg + (blockSizeArg % charset.bytesPerChar.last)
     private val bytes = ByteArray(blockSize)
     private var buf = ByteBuffer(blockSize + (charset.bytesPerChar.last * 2))
@@ -78,6 +101,13 @@ open class TextBuffer(
             if (_lastChar) return field
             throw IllegalStateException("Last character not available before first call to next()")
         }
+        private set
+
+    /**
+     * Set by next(). If the last character read was whitespace, and the current character being read is
+     * not, then this is true, otherwise false.
+     */
+    var transitionFromWhitespace = false
         private set
 
     /**
@@ -152,6 +182,7 @@ open class TextBuffer(
                 throw IllegalArgumentException("Separators may not contain whitespace")
             _tokenSeparators.clear()
             _tokenSeparators.addAll(value)
+            changeSeparators()
         }
 
     /**
@@ -159,6 +190,10 @@ open class TextBuffer(
      * they be bounded by whitespace. This prevents, in the PDF grammar for example, "obj" from
      * being identified as a separator in a String link this: "/Testobj". Testobj a valid PDF Name
      * value and "obj" at the end does not signify a new PDF Object.
+     *
+     * Note that if the same separator is used in both lists, tokenSeparatorsRequireWhitespace supersedes
+     * tokenSeparators - the duplicated separator is treated as if it only came from
+     * tokenSeparatorsRequireWhitespace.
      */
     private var _tokenSeparatorsRequireWhitespace = emptyList<String>().toMutableList()
     var tokenSeparatorsRequireWhitespace get() = _tokenSeparatorsRequireWhitespace.toList()
@@ -167,32 +202,25 @@ open class TextBuffer(
                 throw IllegalArgumentException("Separators may not contain whitespace. Logic in nextUntil() ensures they are delimited by whitespace before matching")
             _tokenSeparatorsRequireWhitespace.clear()
             _tokenSeparatorsRequireWhitespace.addAll(value)
+            changeSeparators()
         }
 
-    private val allSeparators get() = tokenSeparators.union(tokenSeparatorsRequireWhitespace).toList()
+    private var allSeparators = emptyMap<String, Boolean>().toMutableMap()
+
+    private fun changeSeparators() {
+        allSeparators.clear()
+        tokenSeparators
+            .filter { !tokenSeparatorsRequireWhitespace.contains(it)}
+            .forEach { allSeparators[it] = false }
+        tokenSeparatorsRequireWhitespace
+            .forEach { allSeparators[it] = true }
+    }
 
     /**
      * If true, and a token value starts with a quote character, then use fun quotedString() to read.
      * If false, treat quote like any other character.
      */
     var tokenValueQuotedString = true
-
-    /**
-     * If true, whitespace is retained while parsing tokens. This allows whitespace to be included
-     * in separators for matching. It also allows Token values to contain white space. Does not affect
-     * readLine or quotedString functions which never skip whitespace. Explicit calls to skipWhitespace()
-     * will still skip whitespace.
-     */
-    var retainWhitespace = false
-
-    /**
-     * Add a separator, typically for a specific context. If the separator is already in the list,
-     * no change is made. If the separator is not in the list, it is added.
-     */
-    fun addTokenSeparator(separator: String) {
-        if (!_tokenSeparators.contains(separator))
-            _tokenSeparators.add(separator)
-    }
 
     /**
      * Any subsequent characters read from the TextBuffer will be decoded using the new Charset.
@@ -205,10 +233,38 @@ open class TextBuffer(
     }
 
     /**
-     * Remove a separator, typically when the specific context it was added for is no longer needed.
+     * Add a separator, typically for a specific context. If the separator is already in the list,
+     * no change is made. If the separator is not in the list, it is added.
+     * @param separator separator string to add.
+     * @param requiresWhitespace true if the separator should be added to tokenSeparatorsRequireWhitespace,
+     * false if to tokenSeparators.
      */
-    fun removeTokenSeparator(separator: String): Boolean =
-        _tokenSeparators.remove(separator)
+    fun addTokenSeparator(separator: String, requiresWhitespace: Boolean = false) {
+        if (requiresWhitespace) {
+            if (!_tokenSeparatorsRequireWhitespace.contains(separator))
+                _tokenSeparatorsRequireWhitespace.add(separator)
+        } else {
+            if (!_tokenSeparators.contains(separator))
+                _tokenSeparators.add(separator)
+        }
+    }
+
+    /**
+     * Remove a separator, typically when the specific context it was added for is no longer needed.
+     * @param separator separator string to add.
+     * @param requiresWhitespace true if the separator should be removed from tokenSeparatorsRequireWhitespace,
+     * false if from tokenSeparators.
+     */
+    fun removeTokenSeparator(separator: String, requiresWhitespace: Boolean = false): Boolean =
+        if (requiresWhitespace) {
+            _tokenSeparatorsRequireWhitespace.remove(separator).apply {
+                if (this) changeSeparators()
+            }
+        } else {
+            _tokenSeparators.remove(separator).apply {
+                if (this) changeSeparators()
+            }
+        }
 
     private suspend fun useSource(): UInt {
         if (buf.remaining > 0) {
@@ -270,6 +326,7 @@ open class TextBuffer(
 
     private fun char(char: Char): Char {
         _lastChar = true
+        transitionFromWhitespace = lastChar.isWhitespace() && !char.isWhitespace()
         lastChar = char
         if (lastChar == EOL_CHAR) {
             linePosition = 0
@@ -496,29 +553,6 @@ open class TextBuffer(
     }
 
     /**
-     * A Token instance is one or more leading separator characters (a separator string)
-     * either preceded by or followed by all non-separator characters as the token value. Once a second
-     * separator is encountered, the token is returned and the buffer is positioned at the beginning
-     * of the second separator.
-     * @property separator the separator string found. Empty if the special case stopOnWhitespace is true
-     * @property value if non-separator character(s) are found before the separator,
-     * they are set to this property. Otherwise empty
-     * @property quotesFound true if value was from a call to quotedString(). false if not
-     * @property line the line number where this token was located. From instance property lineCount
-     * @property position the number of the character, one relative, in the current line. From
-     * instance property 'linePosition'
-     */
-    data class Token(
-        val separator: String,
-        val value: String,
-        val quotesFound: Boolean,
-        val line: Int,
-        val position: Int
-    ) {
-        val isBlank get() = value.isBlank() && separator.isBlank()
-    }
-
-    /**
      * Reads next token of text, up to maxSize characters.
      *
      * A Token instance is zero or more non-separator characters, followed by a separator.
@@ -546,8 +580,7 @@ open class TextBuffer(
     ) : Token {
         if (endOfFile)
             return Token("", "", false, lineCount, linePosition)
-        //if (!_lastChar) next()
-        val match = nextUntil(tokenSeparators, stopOnWhitespace, maxSize)
+        val match = nextUntil(allSeparators, stopOnWhitespace, maxSize)
         when(match.result) {
             MatchResult.NoMatch ->
                 return Token(
@@ -584,11 +617,14 @@ open class TextBuffer(
         val quotesFound: Boolean
     )
 
-    private fun testMatch(separators: List<String>, sep: String): MatchResult {
+    private fun testMatch(
+        separators: List<String>,
+        sep: String
+    ): MatchResult {
         return if (endOfFile) {
-            if (separators.contains(sep))
+            if (separators.contains(sep)) {
                 MatchResult.Match
-            else
+            } else
                 MatchResult.NoMatch
         } else {
             val count = separators.count { it.startsWith(sep) }
@@ -615,7 +651,9 @@ open class TextBuffer(
      * start with the same substring, match only occurs when only one of the separators is a complete
      * match. A separatorBuf tracks characters encountered that might be a separator, until a
      * complete separator is found. Last character read is next one after the end of the separator.
-     * @param separators list of one or more non-empty separator strings.
+     * @param separators Map of one or more non-empty separator strings. Each separator string is the
+     * key in the map. The Boolean value is true if the separator string requires leading whitespace
+     * to match.
      * @param stopOnWhitespace set this true if value parsing (not separators) encountering a
      * whitespace character should stop parsing. Whitespace as a special case of separator. If false,
      * characters are captured until the next separator, including whitespace
@@ -627,7 +665,7 @@ open class TextBuffer(
      * with a NoMatch and empty separator.
      */
     suspend fun nextUntil(
-        separators: List<String>,
+        separators: Map<String, Boolean>,
         stopOnWhitespace: Boolean = false,
         maxSize: Int = 1024
     ): Match {
@@ -635,15 +673,31 @@ open class TextBuffer(
         val content = StringBuilder(maxSize)
         var status = MatchResult.NoMatch
         var quotesFound = false
+        var candidateSeparators = emptyList<String>()
 
         while (!isEndOfFile && content.length < maxSize && status != MatchResult.Match) {
-            status = testMatch(separators, currentSeparator)
+            if (currentSeparator.length == 1) {
+                candidateSeparators = if (transitionFromWhitespace) {
+                    separators
+                        .map { it.key }
+                        .filter { it.startsWith(currentSeparator) }
+                } else {
+                    separators
+                        .filter { !it.value }
+                        .map { it.key }
+                        .filter { it.startsWith(currentSeparator) }
+                }
+            }
+            status = testMatch(candidateSeparators, currentSeparator)
             when {
                 status == MatchResult.Match -> {
                     break
                 }
                 status == MatchResult.Matching -> {
-                    status = testMatch(separators, currentSeparator + next(true))
+                    status = testMatch(
+                        candidateSeparators,
+                        currentSeparator + next(true)
+                    )
                     when (status) {
                         MatchResult.Matching -> {
                             currentSeparator += next()
@@ -653,7 +707,7 @@ open class TextBuffer(
                             break
                         }
                         MatchResult.NoMatch -> {
-                            if (tokenSeparators.contains(currentSeparator)) {
+                            if (candidateSeparators.contains(currentSeparator)) {
                                 status = MatchResult.Match
                             } else {
                                 content.append(currentSeparator)

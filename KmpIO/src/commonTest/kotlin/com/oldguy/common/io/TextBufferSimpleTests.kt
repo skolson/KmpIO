@@ -149,6 +149,7 @@ class TextBufferSimpleTests {
                 if (count > 1) 0u else bytes.size.toUInt()
             }.apply {
                 tokenSeparators = pdfSeparatorSubset
+                tokenSeparatorsRequireWhitespace = pdfSeparatorSubsetW
                 var token = token(true)
                 assertEquals("1", token.value)
                 token = token(true)
@@ -194,6 +195,18 @@ class TextBufferSimpleTests {
                 assertEquals("est 1", token.value)
                 assertEquals(")", token.separator)
                 token = token()
+                assertEquals("/", token.separator)
+                assertTrue(token.value.isBlank())
+                token = token(true)
+                assertEquals("TestName", token.value)
+                assertTrue(token.separator.isBlank())
+                token = token()
+                assertEquals("/", token.separator)
+                assertTrue(token.value.isBlank())
+                token = token(true)
+                assertEquals("Testobj", token.value)
+                assertTrue(token.separator.isBlank())
+                token = token()
                 assertEquals(">>", token.separator)
                 assertTrue(token.value.isBlank())
                 token = token(true)
@@ -213,8 +226,9 @@ class TextBufferSimpleTests {
         const val tokenXmlTest = "<?xml version=\"1.0\"?><Test><el1/><el2 att1=\"val1\" att2=\"val2\"/></Test>"
         val simpleXmlTokenSeparators = listOf("<", ">", "/>", "</", "<?", "?>", "<!--", "-->", "=")
 
-        const val pdfSubset = "1 0 obj << /Type /Catalog /String (test 1) >> endobj"
-        val pdfSeparatorSubset = listOf("/", "obj", "endobj", ">>", "<<", "(", ")", "stream", "endstream")
+        const val pdfSubset = "1 0 obj << /Type /Catalog /String (test 1) /TestName /Testobj >> endobj"
+        val pdfSeparatorSubset = listOf("/", ">>", "<<", "(", ")")
+        val pdfSeparatorSubsetW = listOf("obj", "endobj", "stream", "endstream")
     }
 
 }

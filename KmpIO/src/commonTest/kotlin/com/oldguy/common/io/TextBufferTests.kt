@@ -19,8 +19,8 @@ import kotlin.time.Duration.Companion.minutes
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TextBufferTests {
-    private val path = File.tempDirectoryPath()
-    private val tests = FileTests(path)
+    private val dir = File.tempDirectoryFile()
+    private val tests = FileTests()
 
     @Test
     fun utf8NextTests() {
@@ -48,8 +48,8 @@ class TextBufferTests {
 
     suspend fun mediumTextFile(charset: Charset) {
         println(charset.name)
-        tests.createMediumTextFile(charset)
-        val raw = RawFile(tests.mediumTextFile(charset))
+        tests.createMediumTextFile(dir, charset)
+        val raw = RawFile(tests.mediumTextFile(dir, charset))
         TextBuffer(charset) { buffer, size ->
             raw.read(ByteBuffer(buffer))
         }.apply {
