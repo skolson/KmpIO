@@ -142,8 +142,6 @@ Properties available include:
 - escapedSingleQuote: String pattern, if matched in quotedString(), is replaced by singleQuote. If empty, no escaping happens
 - tokenSeparators: List of separator character Strings, used with the token() and nextUntil() functions. Note that contents can be changed at will during parsing to adapt to different parsing requirements.
 - tokenSeparatorsRequireWhitespace: additional separators that must be delimited by whitespace. Note that contents can be changed at will during parsing to adapt to different parsing requirements. Example a PDF delimiter " obj " starts an object definition. If "obj" was in tokenSeparators, it would match "/Testobj", which is bad since this is a valid Name and not the beginning of an object.
-- escapeCharacter: specify this in conjunction with validEscapeCharacters to cause the token process to ignore the escaped characters during token separator matching.
-- validEscapeCharacters: list each character that can follow an escapeCharacter.
 
 ## ZipFile
 
