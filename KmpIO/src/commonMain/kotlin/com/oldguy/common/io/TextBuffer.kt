@@ -82,6 +82,13 @@ open class TextBuffer(
         private set
 
     /**
+     * Count of the number of bytes decoded into chars from source. Difference between bytesRead and bytesParsed is
+     * the number of bytes that were read but not yet not decoded. Useful for getting the source file
+     * position at any point during parsing.
+     */
+    val bytesDecoded get() = bytesRead - buf.remaining
+
+    /**
      * true if source has returned zero indicating no more data, and all characters are processed
      */
     val isEndOfFile get() = endOfFile
