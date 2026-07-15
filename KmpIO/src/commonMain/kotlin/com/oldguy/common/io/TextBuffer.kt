@@ -442,6 +442,29 @@ open class TextBuffer(
     }
 
     /**
+     * Use this to skip over, without saving, raw bytes, for the specified count, or until a delimiter is reached.
+     *
+     * @param count number of bytes desired
+     * @param delimiter null if no delimiter should stop reads. if not null and a delimiter is encountered
+     * before count bytes are retrieved, retrieval stops.
+     * @return number of bytes skipped
+     */
+    suspend fun skipBytes(count: Int, delimiter: Byte? = null): Int {
+        if (endOfFile) return 0
+        var retrieved = 0
+        while (retrieved < count && !isEndOfFile) {
+            val b = nextByte()
+            if (!isEndOfFile) {
+                if (delimiter != null && b == delimiter) break
+                retrieved++
+            }
+        }
+        _lastChar = false
+        lastChar = Char(0)
+        return retrieved
+    }
+
+    /**
      * Reads next line of text, no matter how long, which has obvious implications for memory on large files with no
      * line breaks. It uses the source function to read blocks when needed and maintains state of where next line is.
      * So only use this on files with line breaks.
