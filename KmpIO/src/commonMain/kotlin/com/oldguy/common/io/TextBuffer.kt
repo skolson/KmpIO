@@ -82,8 +82,9 @@ open class TextBuffer(
         private set
 
     /**
-     * Count of the number of bytes decoded into chars from source. Difference between bytesRead and bytesParsed is
-     * the number of bytes that were read but not yet not decoded. Useful for getting the source file
+     * Count of the number of bytes decoded into chars, plus any bytes skipped without decoding, from
+     * source. Difference between bytesRead and bytesDecoded is
+     * the number of bytes that were read but not yet not decoded (or skipped). Useful for getting the source file
      * position at any point during parsing.
      */
     val bytesDecoded get() = bytesRead - buf.remaining
