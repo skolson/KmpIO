@@ -1,6 +1,6 @@
 # Change Log
 
-### 0.3.1 (In progress)
+### 0.3.1 (2026-07)
 
 - Kotlin 2.4.10
 - Android Gradle Plugin 9.4.0-alpha04
