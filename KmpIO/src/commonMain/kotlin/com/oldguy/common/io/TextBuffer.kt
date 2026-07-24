@@ -233,7 +233,8 @@ open class TextBuffer(
     /**
      * Any subsequent characters read from the TextBuffer will be decoded using the new Charset.
      * Typical usage is using the constructor Charset to read enough text from a TextFile to determine
-     * the encoding of the remainder of the TextFile.
+     * the encoding of the remainder of the TextFile. Also useful for files that have small sections of
+     * alternate charsets, like PDFs.
      * @param newCharset replaces the constructor Charset
      */
     fun changeCharset(newCharset: Charset) {

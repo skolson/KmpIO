@@ -1,5 +1,9 @@
 # Change Log
 
+### 0.3.2 (in progress)
+- AGP 9.4.0-alpha06
+- 
+
 ### 0.3.1 (2026-07)
 
 - Kotlin 2.4.10
