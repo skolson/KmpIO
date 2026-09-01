@@ -33,6 +33,16 @@ version = appVersion
 
 val iosMinSdk = "14"
 
+/**
+ * Unit tests using JUnit 6.x have desugaring issues, so this snippet sets android minimum sdk to
+ * one value for maven publishing tasks (publishToMavenCentral and publishToMavenLocal) and a different
+ * value fo all other Gradle tasks.
+ */
+val isPublishing = gradle.startParameter.taskNames.any { it.contains("publish") }
+var androidMinSdk = if (isPublishing)
+    libs.versions.androidSdkMinimum.get().toInt()
+else
+    libs.versions.androidSdkMinimumTest.get().toInt()
 /*
  * For the publishing and signing tasks to work properly, insure the project settings for gradle have been
  * configured to set the Gradle User Home to /mnt/gradle where gradle.properties holds credential
@@ -90,7 +100,8 @@ kotlin {
         buildToolsVersion = libs.versions.androidBuildTools.get()
         namespace = "com.oldguy.iocommon"
 
-        minSdk = libs.versions.androidSdkMinimum.get().toInt()
+        minSdk = androidMinSdk
+        println("androidMinSdk = $androidMinSdk")
 
         androidResources {
             enable = true

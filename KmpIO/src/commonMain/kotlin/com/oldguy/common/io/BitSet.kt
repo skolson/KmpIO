@@ -386,8 +386,7 @@ class BitSet(val numberOfBits: Int) {
         }
 
         fun create(longs: LongArray): BitSet {
-            var n: Int
-            n = longs.size
+            var n: Int = longs.size
             while (n > 0 && longs[n - 1] == 0L) {
                 n--
             }

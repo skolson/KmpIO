@@ -1,8 +1,9 @@
 # Change Log
 
 ### 0.3.2 (in progress)
-- AGP 9.4.0-alpha06
-- 
+- AGP 9.4.0
+- Gradle 9.7.1
+- Fix issue #28 - make androidMinSdk value conditional based on task name
 
 ### 0.3.1 (2026-07)
 
